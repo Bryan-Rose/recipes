@@ -10,7 +10,3 @@ dependencies = [
     "pydantic-settings>=2.14.2",
     "uvicorn[standard]==0.24.0",
 ]
-
-
-[tool.setuptools]
-package-dir = {"" = "src"}

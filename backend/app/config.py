@@ -3,7 +3,7 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    app_name: str = "Recipies"
+    app_name: str = "Recipes"
     debug: bool = False
 
     class Config:
