@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     from app.models.user import User
     from app.models.recipe import RecipeIngredient
     from app.models.cookbook import Cookbook
+    from app.models.measurement import Measurement
+    from app.models.ingredient import Ingredient
 
 
 class Recipe(Base):
@@ -21,9 +23,7 @@ class Recipe(Base):
         Integer, ForeignKey("cookbooks.id"), nullable=True
     )
     cookbook_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    estimated_time: Mapped[str] = mapped_column(
-        String, unique=True, index=True, nullable=False
-    )
+    estimated_time: Mapped[str] = mapped_column(String, index=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -38,6 +38,8 @@ class Recipe(Base):
         back_populates="recipe"
     )
     cookbook: Mapped["Cookbook | None"] = relationship(back_populates="recipes")
+    requirements: Mapped[list["Requirement"]] = relationship(back_populates="recipe")
+    steps: Mapped[list["Step"]] = relationship(back_populates="recipe")
 
 
 class Tag(Base):
@@ -50,30 +52,20 @@ class Step(Base):
     __tablename__ = "steps"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     text: Mapped[str] = mapped_column(String, nullable=False)
+    recipe_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("recipes.id"), nullable=False
+    )
+    recipe: Mapped["Recipe"] = relationship(back_populates="steps")
 
 
 class Requirement(Base):
     __tablename__ = "requirements"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    recipe_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("recipes.id"), nullable=False
+    )
     name: Mapped[str] = mapped_column(String, nullable=False)
-
-
-class Ingredient(Base):
-    __tablename__ = "ingredients"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    recipe_ingredients: Mapped[list["RecipeIngredient"]] = relationship(
-        back_populates="ingredient"
-    )
-
-
-class Measurement(Base):
-    __tablename__ = "measurements"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    recipe_ingredients: Mapped[list["RecipeIngredient"]] = relationship(
-        back_populates="measurement"
-    )
+    recipe: Mapped["Recipe"] = relationship(back_populates="requirements")
 
 
 class RecipeIngredient(Base):
