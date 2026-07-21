@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas.ingredient import IngredientCreate, IngredientRead, IngredientUpdate
-from app.services import ingredient as ingredient_service
+from app.services import ingredients as ingredient_service
 
 router = APIRouter(prefix="/ingredients", tags=["ingredients"])
 
