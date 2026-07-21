@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.cookbook import Cookbook
     from app.models.measurement import Measurement
     from app.models.ingredient import Ingredient
+    from app.models.preparation import Preparation
 
 
 class Recipe(Base):
@@ -23,7 +24,9 @@ class Recipe(Base):
         Integer, ForeignKey("cookbooks.id"), nullable=True
     )
     cookbook_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    estimated_time: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    active_cook_time: Mapped[str] = mapped_column(String, nullable=True)
+    inactive_cook_time: Mapped[str] = mapped_column(String, nullable=True)
+    servings: Mapped[str] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -71,18 +74,26 @@ class Requirement(Base):
 class RecipeIngredient(Base):
     __tablename__ = "recipe_ingredients"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+
     recipe_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("recipes.id"), nullable=False
     )
+    recipe: Mapped["Recipe"] = relationship(back_populates="recipe_ingredients")
+
     ingredient_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("ingredients.id"), nullable=False
     )
-    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    ingredient: Mapped["Ingredient"] = relationship(back_populates="recipe_ingredients")
+
+    preparation_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("preparations.id"), nullable=False
+    )
+    preparation: Mapped["Preparation"] = relationship()
+
     measurement_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("measurements.id"), nullable=False
     )
-    recipe: Mapped["Recipe"] = relationship(back_populates="recipe_ingredients")
-    ingredient: Mapped["Ingredient"] = relationship(back_populates="recipe_ingredients")
     measurement: Mapped["Measurement"] = relationship(
         back_populates="recipe_ingredients"
     )

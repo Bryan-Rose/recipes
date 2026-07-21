@@ -7,6 +7,7 @@ from app.schemas.measurement import MeasurementRead
 
 ## Recipe Ingredient
 
+
 class RecipeIngredientCreate(BaseModel):
     ingredient_id: int
     measurement_id: int
@@ -18,6 +19,9 @@ class RecipeIngredientRead(BaseModel):
     ingredient: IngredientRead
     measurement: MeasurementRead
     amount: int
+    active_cook_time: str
+    inactive_cook_time: str
+    servings: str
 
 
 class RecipeIngredientUpdate(BaseModel):
@@ -25,10 +29,15 @@ class RecipeIngredientUpdate(BaseModel):
     ingredient_id: int | None = None
     measurement_id: int | None = None
     amount: int | None = None
+    active_cook_time: str | None = None
+    inactive_cook_time: str | None = None
+    servings: str | None = None
+
 
 ## Recipe Ingredient
 
 ## Step
+
 
 class StepUpdate(BaseModel):
     id: int
@@ -44,10 +53,12 @@ class StepRead(BaseModel):
     id: int
     text: str
 
+
 ## Step
 
 
 ## Requirement
+
 
 class RequirementCreate(BaseModel):
     name: str
@@ -63,9 +74,11 @@ class RequirementRead(BaseModel):
     id: int
     name: str
 
+
 ## Requirement
 
 ## Recipe
+
 
 class RecipeBase(BaseModel):
     name: str
@@ -84,7 +97,7 @@ class RecipeUpdate(BaseModel):
     cookbook_id: int | None = None
     cookbook_page: int | None = None
     estimated_time: str | None = None
-    steps: list[StepUpdate]= []
+    steps: list[StepUpdate] = []
     requirements: list[RequirementUpdate] = []
     recipe_ingredients: list[RecipeIngredientUpdate] = []
 
@@ -99,5 +112,6 @@ class RecipeRead(RecipeBase):
     steps: list[StepRead] = []
     requirements: list[RequirementRead] = []
     recipe_ingredients: list[RecipeIngredientRead] = []
+
 
 ## Recipe
