@@ -9,6 +9,7 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.recipe import RecipeIngredient
+    from app.models.cookbook import Cookbook
 
 
 class Recipe(Base):
@@ -16,9 +17,10 @@ class Recipe(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    cookbook: Mapped[str] = mapped_column(String)
-    cookbook_author: Mapped[str] = mapped_column(String)
-    cookbook_page: Mapped[int] = mapped_column(Integer)
+    cookbook_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("cookbooks.id"), nullable=True
+    )
+    cookbook_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
     estimated_time: Mapped[str] = mapped_column(
         String, unique=True, index=True, nullable=False
     )
@@ -35,6 +37,7 @@ class Recipe(Base):
     recipe_ingredients: Mapped[list["RecipeIngredient"]] = relationship(
         back_populates="recipe"
     )
+    cookbook: Mapped["Cookbook | None"] = relationship(back_populates="recipes")
 
 
 class Tag(Base):
@@ -88,4 +91,6 @@ class RecipeIngredient(Base):
     )
     recipe: Mapped["Recipe"] = relationship(back_populates="recipe_ingredients")
     ingredient: Mapped["Ingredient"] = relationship(back_populates="recipe_ingredients")
-    measurement: Mapped["Measurement"] = relationship(back_populates="recipe_ingredients")
+    measurement: Mapped["Measurement"] = relationship(
+        back_populates="recipe_ingredients"
+    )
