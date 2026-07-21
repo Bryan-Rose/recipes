@@ -5,6 +5,7 @@ from functools import lru_cache
 class Settings(BaseSettings):
     app_name: str = "Recipes"
     debug: bool = False
+    database_url: str = "sqlite:///./app.db"
 
     class Config:
         env_file = ".env"
