@@ -1,7 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
-from schemas.author import AuthorRead
+from app.schemas.author import AuthorRead
 
 
 class CookbookBase(BaseModel):
@@ -14,7 +14,7 @@ class CookbookCreate(CookbookBase):
 
 class CookbookUpdate(BaseModel):
     name: str | None = None
-    author: int | None = None
+    author_id: int | None = None
 
 
 class CookbookRead(CookbookBase):

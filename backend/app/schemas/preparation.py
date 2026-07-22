@@ -1,19 +1,18 @@
 from pydantic import BaseModel, ConfigDict
 
-
-class AuthorBase(BaseModel):
+class PreparationBase(BaseModel):
     name: str
 
 
-class AuthorCreate(AuthorBase):
+class PreparationCreate(PreparationBase):
     pass
 
 
-class AuthorUpdate(BaseModel):
+class PreparationUpdate(BaseModel):
     name: str
 
 
-class AuthorRead(AuthorBase):
+class PreparationRead(PreparationBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
