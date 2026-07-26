@@ -1,11 +1,11 @@
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.cookbook import CookbookRead
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
-from app.schemas.cookbook import CookbookRead
-
 
 ## Recipe Ingredient
 
@@ -26,7 +26,6 @@ class RecipeIngredientRead(BaseModel):
 
 
 class RecipeIngredientUpdate(BaseModel):
-    id: int
     ingredient_id: int | None = None
     measurement_id: int | None = None
     amount: int | None = None

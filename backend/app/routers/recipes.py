@@ -2,15 +2,26 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas.recipes import RecipeRead, RecipeCreate, RecipeUpdate
-from app.schemas.recipes import StepRead, StepCreate, StepUpdate
-from app.schemas.recipes import RequirementRead, RequirementCreate, RequirementUpdate
+from app.schemas.recipes import (
+    RecipeCreate,
+    RecipeIngredientCreate,
+    RecipeIngredientRead,
+    RecipeIngredientUpdate,
+    RecipeRead,
+    RecipeUpdate,
+    RequirementCreate,
+    RequirementRead,
+    RequirementUpdate,
+    StepCreate,
+    StepRead,
+    StepUpdate,
+)
 from app.services import recipes as recipes_service
-
 
 recipe_router = APIRouter(prefix="/recipes", tags=["recipes"])
 step_router = APIRouter(prefix="/recipes/{recipe_id}/steps", tags=["steps"])
 requirement_router = APIRouter(prefix="/recipes/{recipe_id}/requirements", tags=["requirements"])
+recipe_ingredient_router = APIRouter(prefix="/recipes/{recipe_id}/recipeingredients", tags=["recipeingredients"])
 
 
 ## Recipes
@@ -97,8 +108,6 @@ def delete_step(recipe_id: int, step_id: int, db: Session = Depends(get_db)):
 ## Steps
 
 
-
-
 ## Requirements
 
 
@@ -140,3 +149,46 @@ def delete_requirement(recipe_id: int, requirement_id: int, db: Session = Depend
 
 
 ## Requirements
+
+
+## Recipe Ingredients
+
+
+@recipe_ingredient_router.get("/", response_model=list[RecipeIngredientRead])
+def list_recipe_ingredient(recipe_id: int, db: Session = Depends(get_db)):
+    return recipes_service.get_recipe_ingredients(db, recipe_id)
+
+
+@recipe_ingredient_router.get("/{ri_id}", response_model=RecipeIngredientRead)
+def get_recipe_ingredient(recipe_id: int, ri_id: int, db: Session = Depends(get_db)):
+    response = recipes_service.get_recipe_ingredient(db, recipe_id, ri_id)
+    if response is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return response
+
+
+@recipe_ingredient_router.post("/", response_model=RecipeIngredientRead, status_code=status.HTTP_201_CREATED)
+def create_recipe_ingredient(recipe_id: int, ri_in: RecipeIngredientCreate, db: Session = Depends(get_db)):
+    existing_recipe = recipes_service.get_recipe(db, recipe_id)
+    if existing_recipe is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return recipes_service.create_recipe_ingredient(db, recipe_id, ri_in)
+
+
+@recipe_ingredient_router.patch("/{ri_id}", response_model=RecipeIngredientRead)
+def update_recipe_ingredient(recipe_id: int, ri_id: int, ri_in: RecipeIngredientUpdate, db: Session = Depends(get_db)):
+    existing = recipes_service.get_recipe_ingredient(db, recipe_id, ri_id)
+    if existing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return recipes_service.update_recipe_ingredient(db, existing, ri_in)
+
+
+@recipe_ingredient_router.delete("/{ri_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_recipe_ingredient(recipe_id: int, ri_id: int, db: Session = Depends(get_db)):
+    existing = recipes_service.get_recipe_ingredient(db, recipe_id, ri_id)
+    if existing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    recipes_service.delete_recipe_ingredient(db, existing)
+
+
+## Recipe Ingredients

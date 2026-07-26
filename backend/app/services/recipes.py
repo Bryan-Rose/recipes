@@ -1,12 +1,19 @@
 from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.recipe import Recipe, RecipeIngredient, Step, Requirement
-from app.schemas.recipes import RecipeCreate, RecipeUpdate
-from app.schemas.recipes import StepCreate, StepUpdate
-from app.schemas.recipes import RequirementCreate, RequirementUpdate
-
+from app.models.recipe import Recipe, RecipeIngredient, Requirement, Step
+from app.schemas.recipes import (
+    RecipeCreate,
+    RecipeIngredientCreate,
+    RecipeIngredientUpdate,
+    RecipeUpdate,
+    RequirementCreate,
+    RequirementUpdate,
+    StepCreate,
+    StepUpdate,
+)
 
 _RECIPE_LOAD_OPTIONS = [
     selectinload(Recipe.steps),
@@ -130,3 +137,40 @@ def get_requirements(db: Session, recipe_id: int) -> Sequence[Requirement]:
 
 
 ## Requirement
+
+
+## Recipe Ingredients
+
+def create_recipe_ingredient(db: Session, recipe_id: int, ri_in: RecipeIngredientCreate) -> RecipeIngredient:
+    db_model = RecipeIngredient(**ri_in.model_dump())
+    db_model.recipe_id = recipe_id
+    db.add(db_model)
+    db.commit()
+    db.refresh(db_model)
+    return db_model
+
+
+def update_recipe_ingredient(db: Session, recipe_ingredient: RecipeIngredient, ri_in: RecipeIngredientUpdate) -> RecipeIngredient:
+    for field, value in ri_in.model_dump(exclude_unset=True).items():
+        setattr(recipe_ingredient, field, value)
+
+    db.commit()
+    db.refresh(recipe_ingredient)
+    return recipe_ingredient
+
+
+def delete_recipe_ingredient(db: Session, recipe_ingredient: RecipeIngredient) -> None:
+    db.delete(recipe_ingredient)
+    db.commit()
+
+
+def get_recipe_ingredient(db: Session, recipe_id: int, recipe_ingredient_id: int) -> RecipeIngredient | None:
+    return db.execute(select(RecipeIngredient)
+                      .where(RecipeIngredient.recipe_id == recipe_id, RecipeIngredient.id == recipe_ingredient_id)).scalar()
+
+
+
+def get_recipe_ingredients(db: Session, recipe_id: int) -> Sequence[RecipeIngredient]:
+    return db.execute(select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe_id)).scalars().all()
+
+## Recipe Ingredients

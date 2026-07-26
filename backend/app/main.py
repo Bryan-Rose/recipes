@@ -1,10 +1,7 @@
 from fastapi import FastAPI
+
 from app.config import get_settings
-
-from app.routers import ingredients, measurements, preparations
-from app.routers import authors, cookbooks
-from app.routers import recipes
-
+from app.routers import authors, cookbooks, ingredients, measurements, preparations, recipes
 
 settings = get_settings()
 
@@ -21,4 +18,5 @@ app.include_router(preparations.router)
 app.include_router(recipes.recipe_router)
 app.include_router(recipes.step_router)
 app.include_router(recipes.requirement_router)
+app.include_router(recipes.recipe_ingredient_router)
 
