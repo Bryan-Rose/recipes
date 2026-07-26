@@ -3,6 +3,7 @@ from app.config import get_settings
 
 from app.routers import ingredients, measurements, preparations
 from app.routers import authors, cookbooks
+from app.routers import recipes
 
 
 settings = get_settings()
@@ -16,3 +17,8 @@ app.include_router(cookbooks.router)
 app.include_router(ingredients.router)
 app.include_router(measurements.router)
 app.include_router(preparations.router)
+
+app.include_router(recipes.recipe_router)
+app.include_router(recipes.step_router)
+app.include_router(recipes.requirement_router)
+
