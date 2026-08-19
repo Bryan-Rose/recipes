@@ -7,6 +7,8 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401 — registers every model, same reason as models/__init__.py
 from app.database import Base, get_db
 from app.main import app as fastapi_app
+from app.schemas.author import AuthorRead
+from app.schemas.cookbook import CookbookRead
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
@@ -47,16 +49,12 @@ def client(db_session):
 
 
 @pytest.fixture()
-def author(client):
-    return client.post("/authors/", json={"name": "Julia Child"}).json()
-
-
-@pytest.fixture()
-def cookbook(client, author):
-    return client.post(
+def cookbook(client: TestClient, author: AuthorRead) -> CookbookRead:
+    response = client.post(
         "/cookbooks/",
-        json={"name": "Mastering the Art of French Cooking", "author_id": author["id"]},
-    ).json()
+        json={"name": "Mastering the Art of French Cooking", "author_id": author.id},
+    )
+    return CookbookRead.model_validate(response.json())
 
 
 @pytest.fixture()
@@ -81,3 +79,9 @@ def preparation(client) -> PreparationRead:
 def recipe(client) -> RecipeRead:
     response = client.post("/recipes/", json={"name": "Beef Bourguignon"})
     return RecipeRead.model_validate(response.json())
+
+
+@pytest.fixture()
+def author(client) -> AuthorRead:
+    response = client.post("/authors/", json={"name": "Ina Garten"})
+    return AuthorRead.model_validate(response.json())
