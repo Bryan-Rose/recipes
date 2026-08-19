@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
+
 class IngredientBase(BaseModel):
     name: str
 

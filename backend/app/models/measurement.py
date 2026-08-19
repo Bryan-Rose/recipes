@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,6 +14,6 @@ class Measurement(Base):
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    recipe_ingredients: Mapped[list["RecipeIngredient"]] = relationship(
+    recipe_ingredients: Mapped[list[RecipeIngredient]] = relationship(
         back_populates="measurement"
     )

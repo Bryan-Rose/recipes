@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
+
 class MeasurementBase(BaseModel):
     name: str
 

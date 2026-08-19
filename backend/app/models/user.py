@@ -1,6 +1,7 @@
-from typing import TYPE_CHECKING
 from datetime import datetime
-from sqlalchemy import Boolean, Integer, String, DateTime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -27,4 +28,4 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    recipes: Mapped[list["Recipe"]] = relationship(back_populates="created_user")
+    recipes: Mapped[list[Recipe]] = relationship(back_populates="created_user")

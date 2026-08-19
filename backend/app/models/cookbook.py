@@ -1,14 +1,15 @@
-from typing import TYPE_CHECKING
 from datetime import datetime
-from sqlalchemy import ForeignKey, Integer, String, DateTime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.database import Base
 
 if TYPE_CHECKING:
-    from app.models.recipe import Recipe
     from app.models.author import Author
+    from app.models.recipe import Recipe
 
 
 class Cookbook(Base):
@@ -22,5 +23,5 @@ class Cookbook(Base):
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
     author_id: Mapped[int] = mapped_column(ForeignKey("authors.id"), nullable=False)
-    author: Mapped["Author"] = relationship(back_populates="cookbooks")
-    recipes: Mapped[list["Recipe"]] = relationship(back_populates="cookbook")
+    author: Mapped[Author] = relationship(back_populates="cookbooks")
+    recipes: Mapped[list[Recipe]] = relationship(back_populates="cookbook")

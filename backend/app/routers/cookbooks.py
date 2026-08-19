@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas.cookbook import CookbookRead, CookbookCreate, CookbookUpdate
+from app.schemas.cookbook import CookbookCreate, CookbookRead, CookbookUpdate
 from app.services import cookbooks as cookbooks_service
 
 router = APIRouter(prefix="/cookbooks", tags=["cookbooks"])

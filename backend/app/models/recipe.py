@@ -37,13 +37,13 @@ class Recipe(Base):
     created_user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=False
     )
-    created_user: Mapped["User"] = relationship(back_populates="recipes")
-    recipe_ingredients: Mapped[list["RecipeIngredient"]] = relationship(
+    created_user: Mapped[User] = relationship(back_populates="recipes")
+    recipe_ingredients: Mapped[list[RecipeIngredient]] = relationship(
         back_populates="recipe"
     )
-    cookbook: Mapped["Cookbook | None"] = relationship(back_populates="recipes")
-    requirements: Mapped[list["Requirement"]] = relationship(back_populates="recipe")
-    steps: Mapped[list["Step"]] = relationship(back_populates="recipe")
+    cookbook: Mapped[Cookbook | None] = relationship(back_populates="recipes")
+    requirements: Mapped[list[Requirement]] = relationship(back_populates="recipe")
+    steps: Mapped[list[Step]] = relationship(back_populates="recipe")
 
 
 class Tag(Base):
@@ -59,7 +59,7 @@ class Step(Base):
     recipe_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("recipes.id"), nullable=False
     )
-    recipe: Mapped["Recipe"] = relationship(back_populates="steps")
+    recipe: Mapped[Recipe] = relationship(back_populates="steps")
 
 
 class Requirement(Base):
@@ -69,7 +69,7 @@ class Requirement(Base):
         Integer, ForeignKey("recipes.id"), nullable=False
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
-    recipe: Mapped["Recipe"] = relationship(back_populates="requirements")
+    recipe: Mapped[Recipe] = relationship(back_populates="requirements")
 
 
 class RecipeIngredient(Base):
@@ -80,21 +80,21 @@ class RecipeIngredient(Base):
     recipe_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("recipes.id"), nullable=False
     )
-    recipe: Mapped["Recipe"] = relationship(back_populates="recipe_ingredients")
+    recipe: Mapped[Recipe] = relationship(back_populates="recipe_ingredients")
 
     ingredient_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("ingredients.id"), nullable=False
     )
-    ingredient: Mapped["Ingredient"] = relationship(back_populates="recipe_ingredients")
+    ingredient: Mapped[Ingredient] = relationship(back_populates="recipe_ingredients")
 
     preparation_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("preparations.id"), nullable=False
     )
-    preparation: Mapped["Preparation"] = relationship()
+    preparation: Mapped[Preparation] = relationship()
 
     measurement_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("measurements.id"), nullable=False
     )
-    measurement: Mapped["Measurement"] = relationship(
+    measurement: Mapped[Measurement] = relationship(
         back_populates="recipe_ingredients"
     )
