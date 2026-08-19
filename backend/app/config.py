@@ -1,14 +1,16 @@
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="RECIPES_",
+    )
     app_name: str = "Recipes"
     debug: bool = False
     database_url: str = "sqlite:///./app.db"
-
-    class Config:
-        env_file = ".env"
 
 
 @lru_cache

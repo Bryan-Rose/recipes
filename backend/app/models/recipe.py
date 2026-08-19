@@ -1,18 +1,19 @@
-from typing import TYPE_CHECKING
 from datetime import datetime
-from sqlalchemy import Integer, String, DateTime, ForeignKey
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.database import Base
 
 if TYPE_CHECKING:
-    from app.models.user import User
-    from app.models.recipe import RecipeIngredient
     from app.models.cookbook import Cookbook
-    from app.models.measurement import Measurement
     from app.models.ingredient import Ingredient
+    from app.models.measurement import Measurement
     from app.models.preparation import Preparation
+    from app.models.recipe import RecipeIngredient
+    from app.models.user import User
 
 
 class Recipe(Base):
