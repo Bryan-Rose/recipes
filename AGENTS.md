@@ -20,6 +20,7 @@ gh run view --log-failed                          # if a check fails: read the f
 ```
 
 - **One branch and one PR per task.** Never commit to `main`. Push the fix to the same branch and CI re-runs.
+- **Agents push task branches and open their PRs without asking.** That's the maintainer's standing approval for this repo. It doesn't cover pushing to `main`, force-pushing, or merging.
 - **Merging is the maintainer's call.** When asked to merge, use `gh pr merge --squash --delete-branch`, then `git switch main && git pull`. Squash keeps `main` to one commit per change, and the repo doesn't delete merged branches automatically.
 
 ## Commands
