@@ -1,0 +1,42 @@
+# Full stack: http://localhost:8080 (change with RECIPES_PORT in .env).
+#   docker compose up -d --build
+#   docker compose exec backend python -m scripts.create_user <you> --admin
+# The database lives in ./data on the host (bind mount).
+services:
+  backend:
+    build: ./backend
+    # Match the owner of ./data so the container can write to it.
+    user: "${RECIPES_UID:-1000}:${RECIPES_GID:-1000}"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      # :z relabels for SELinux hosts (Fedora, RHEL); ignored elsewhere.
+      - ./data:/data:z
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/auth/config')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: whattoeat
+    hostname: whattoeat.docker.internal
+    networks:
+      - default
+      - rproxy
+    #ports:
+      # Loopback by default, so a reverse proxy on the same host is the only way
+      # in. Set RECIPES_BIND=0.0.0.0 to expose it on the network directly.
+      #- "${RECIPES_BIND:-127.0.0.1}:${RECIPES_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+    rproxy:
+      external: true

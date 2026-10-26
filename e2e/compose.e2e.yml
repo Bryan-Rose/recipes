@@ -1,4 +1,4 @@
-# Layered on ../compose.yaml by `make e2e`, as project recipes-e2e: the real
+# Layered on ../compose.yml by `make e2e`, as project recipes-e2e: the real
 # stack, ./data and .env are never touched.
 services:
   backend:
