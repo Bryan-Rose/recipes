@@ -1,0 +1,39 @@
+# Layered on ../compose.yaml by `make e2e`, as project recipes-e2e: the real
+# stack, ./data and .env are never touched.
+services:
+  backend:
+    # Ignore the developer's .env; the e2e stack is fully specified here.
+    env_file: !reset []
+    environment:
+      RECIPES_OIDC_ISSUER: http://mock-idp:8080/default
+      RECIPES_OIDC_CLIENT_ID: recipes-e2e
+      RECIPES_OIDC_REDIRECT_URI: http://frontend/api/auth/oidc/callback
+      RECIPES_OIDC_DISPLAY_NAME: Mock IdP
+    volumes: !override
+      - type: tmpfs
+        target: /data
+        tmpfs:
+          mode: 0o1777
+
+  frontend:
+    ports: !reset []
+
+  mock-idp:
+    image: ghcr.io/navikt/mock-oauth2-server:6.0.4
+    environment:
+      # Shows a login form where the test types the subject and claims.
+      JSON_CONFIG: '{"interactiveLogin": true}'
+
+  e2e:
+    build: ./e2e
+    # The host user, so reports written to the bind mounts below are yours.
+    user: "${RECIPES_UID:-1000}:${RECIPES_GID:-1000}"
+    environment:
+      HOME: /tmp
+      CI: ${CI:-}
+    volumes:
+      - ./e2e/out:/e2e/out:z
+    depends_on:
+      - frontend
+      - mock-idp
+    profiles: [e2e]

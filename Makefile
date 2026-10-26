@@ -2,11 +2,11 @@
 #   make check       fast tier: run before every commit
 #   make check-full  everything, incl. API fuzzing and browser e2e against the Docker stack (CI)
 
-.PHONY: check check-full backend-check frontend-check contract-check fuzz
+.PHONY: check check-full backend-check frontend-check contract-check fuzz e2e
 
 check: backend-check frontend-check contract-check
 
-check-full: check fuzz
+check-full: check fuzz e2e
 
 backend-check:
 	cd backend && uv run ruff check .
@@ -26,3 +26,17 @@ contract-check:
 # Schemathesis: generated requests against every API operation (~1-2 min).
 fuzz:
 	cd backend && uv run pytest -m fuzz -p no:cacheprovider
+
+# Browser tests (Playwright) against the real Docker stack plus a mock OIDC IdP,
+# as a separate compose project with a throwaway database. Report and failure
+# traces land in e2e/out (open e2e/out/report/index.html).
+E2E := docker compose -p recipes-e2e -f compose.yaml -f e2e/compose.e2e.yaml --profile e2e
+
+e2e:
+	mkdir -p e2e/out
+	$(E2E) down -v --remove-orphans
+	$(E2E) build
+	$(E2E) up -d --wait backend frontend mock-idp
+	printf '%s' cook-password | $(E2E) exec -T backend python -m scripts.create_user cook --full-name "Home Cook" --password-stdin
+	printf '%s' admin-password | $(E2E) exec -T backend python -m scripts.create_user admin --full-name Admin --admin --password-stdin
+	$(E2E) run --rm e2e; status=$$?; $(E2E) down -v --remove-orphans; exit $$status

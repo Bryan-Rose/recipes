@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 import {
   useCreateIngredient,
   useCreateMeasurement,
@@ -16,6 +18,7 @@ interface IngredientFieldsProps {
 }
 
 export function IngredientFields({ value, onChange, disabled }: IngredientFieldsProps) {
+  const amountId = useId()
   const ingredients = useIngredients()
   const measurements = useMeasurements()
   const preparations = usePreparations()
@@ -31,8 +34,9 @@ export function IngredientFields({ value, onChange, disabled }: IngredientFields
   return (
     <div className="ingredient-fields">
       <div className="field">
-        <label>Amount</label>
+        <label htmlFor={amountId}>Amount</label>
         <input
+          id={amountId}
           type="number"
           min="1"
           step="1"
