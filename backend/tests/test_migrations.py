@@ -32,8 +32,10 @@ def alembic_config(tmp_path: Path) -> Config:
 def test_migrations_match_models(alembic_config: Config):
     command.upgrade(alembic_config, "head")
 
-    with create_engine(alembic_config.attributes["url"]).connect() as connection:
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.connect() as connection:
         diff = compare_metadata(MigrationContext.configure(connection, opts={"render_as_batch": True}), Base.metadata)
+    engine.dispose()
 
     assert diff == [], "models and migrations differ; run `uv run alembic revision --autogenerate -m '...'`"
 
@@ -47,3 +49,4 @@ def test_migrations_downgrade_to_empty_and_back(alembic_config: Config):
 
     command.upgrade(alembic_config, "head")
     assert set(Base.metadata.tables) <= set(inspect(engine).get_table_names())
+    engine.dispose()

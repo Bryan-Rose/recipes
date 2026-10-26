@@ -27,6 +27,13 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     engine = create_engine(_url())
+    try:
+        _migrate(engine)
+    finally:
+        engine.dispose()
+
+
+def _migrate(engine) -> None:
     with engine.connect() as connection:
         is_sqlite = connection.dialect.name == "sqlite"
         if is_sqlite:

@@ -72,7 +72,8 @@ def change_password(body: PasswordChange, request: Request, user: User = Depends
 
 
 def get_oidc_client(settings: Settings = Depends(get_settings)):
-    if not settings.oidc_enabled:
+    # oidc_enabled implies an issuer; the explicit check narrows the type.
+    if not settings.oidc_enabled or settings.oidc_issuer is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SSO is not configured")
     client = _oauth.create_client("oidc")
     if client is None:

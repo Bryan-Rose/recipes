@@ -25,7 +25,7 @@ def test_create_user_does_not_return_password(client: TestClient):
 
 
 def test_create_user_stores_hashed_password(client: TestClient, db_session: Session, user: UserRead):
-    stored = db_session.get(User, user.id)
+    stored = db_session.get_one(User, user.id)
 
     assert stored is not None
     assert stored.hashed_password != "s3cret"
@@ -67,20 +67,20 @@ def test_get_user_not_found(client: TestClient):
 
 
 def test_update_user_full_name(client: TestClient, db_session: Session, user: UserRead):
-    old_hash = db_session.get(User, user.id).hashed_password
+    old_hash = db_session.get_one(User, user.id).hashed_password
 
     response = client.patch(f"/users/{user.id}", json={"full_name": "Julia McWilliams Child"})
 
     assert response.status_code == 200
     assert UserRead.model_validate(response.json()).full_name == "Julia McWilliams Child"
-    assert db_session.get(User, user.id).hashed_password == old_hash
+    assert db_session.get_one(User, user.id).hashed_password == old_hash
 
 
 def test_update_user_password(client: TestClient, db_session: Session, user: UserRead):
     response = client.patch(f"/users/{user.id}", json={"password": "n3w-s3cret"})
 
     assert response.status_code == 200
-    stored = db_session.get(User, user.id)
+    stored = db_session.get_one(User, user.id)
     assert verify_password("n3w-s3cret", stored.hashed_password)
     assert not verify_password("s3cret", stored.hashed_password)
 

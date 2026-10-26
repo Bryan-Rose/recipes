@@ -25,10 +25,28 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path"]
 [dependency-groups]
 dev = [
     "httpx2>=2.12.0",
+    "pyright>=1.1.414",
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
     "ruff>=0.16.3",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.pyright]
+include = ["app", "scripts", "migrations", "tests"]
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# Measured at 99% when added; raise it when coverage improves, never lower it to pass.
+fail_under = 98
