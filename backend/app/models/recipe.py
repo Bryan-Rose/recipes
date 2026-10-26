@@ -38,12 +38,21 @@ class Recipe(Base):
         Integer, ForeignKey("users.id"), nullable=False
     )
     created_user: Mapped[User] = relationship(back_populates="recipes")
+    # Steps, requirements, and recipe_ingredients are owned by the recipe and
+    # have non-nullable recipe_id columns. Without delete-orphan, SQLAlchemy's
+    # default is to NULL that column out when the parent goes away, which fails
+    # the NOT NULL constraint — so deleting any recipe with children raised
+    # IntegrityError. The cookbook is a shared entity and is not cascaded.
     recipe_ingredients: Mapped[list[RecipeIngredient]] = relationship(
-        back_populates="recipe"
+        back_populates="recipe", cascade="all, delete-orphan"
     )
     cookbook: Mapped[Cookbook | None] = relationship(back_populates="recipes")
-    requirements: Mapped[list[Requirement]] = relationship(back_populates="recipe")
-    steps: Mapped[list[Step]] = relationship(back_populates="recipe")
+    requirements: Mapped[list[Requirement]] = relationship(
+        back_populates="recipe", cascade="all, delete-orphan"
+    )
+    steps: Mapped[list[Step]] = relationship(
+        back_populates="recipe", cascade="all, delete-orphan"
+    )
 
 
 class Tag(Base):

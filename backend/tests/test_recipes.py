@@ -180,6 +180,21 @@ def test_delete_recipe(client: TestClient, recipe: RecipeRead):
     assert get_response.status_code == 404
 
 
+def test_delete_recipe_with_children(client: TestClient):
+    created = client.post(
+        "/recipes/",
+        json={
+            "name": "Coq au Vin",
+            "steps": [{"text": "Brown the chicken."}],
+            "requirements": [{"name": "Dutch oven"}],
+        },
+    ).json()
+
+    response = client.delete(f"/recipes/{created['id']}")
+
+    assert response.status_code == 204
+
+
 def test_delete_recipe_not_found(client: TestClient):
     response = client.delete("/recipes/999")
 

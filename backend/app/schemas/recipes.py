@@ -19,6 +19,7 @@ class RecipeIngredientCreate(BaseModel):
 
 class RecipeIngredientRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    id: int
     ingredient: IngredientRead
     measurement: MeasurementRead
     preparation: PreparationRead
