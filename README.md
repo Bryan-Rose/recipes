@@ -25,3 +25,12 @@ Then open http://localhost:8080. To update after pulling changes, run
 
 ## Development
 
+```bash
+make check       # fast checks: run before every commit (~25s)
+make fuzz        # API fuzzing with Schemathesis (~1-2 min)
+make e2e         # Playwright browser tests against the Docker stack and a mock SSO provider
+make check-full  # all of the above, as CI runs it
+```
+
+See `AGENTS.md` for how the codebase and its tests are organised, and
+`frontend/README.md` for frontend specifics.
