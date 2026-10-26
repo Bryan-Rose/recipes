@@ -9,7 +9,14 @@ from app.routers import auth, authors, cookbooks, ingredients, measurements, pre
 
 settings = get_settings()
 
-app = FastAPI(title=settings.app_name, version="0.1.0")
+# Interactive docs only in debug: they're unauthenticated, and behind the /api
+# prefix they break anyway (they fetch /openapi.json from the site root).
+app = FastAPI(
+    title=settings.app_name,
+    version="0.1.0",
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
+)
 # Holds OIDC state/nonce/PKCE verifier between the redirect to the IdP and the
 # callback. Login sessions use their own cookie (see app/auth.py).
 app.add_middleware(

@@ -23,6 +23,64 @@ Then open http://localhost:8080. To update after pulling changes, run
 (stop the stack first). If your user id isn't 1000, set `RECIPES_UID`/`RECIPES_GID`.
 
 
+## Deploying behind Caddy
+
+The stack listens on `127.0.0.1:8080` (frontend container), so only a reverse
+proxy on the same host can reach it. Caddy terminates HTTPS and proxies everything
+to it; nginx in the frontend container handles `/api` itself.
+
+**First deploy**, on the server:
+
+```bash
+git clone https://github.com/Bryan-Rose/recipes.git && cd recipes
+cp .env.example .env
+#   set RECIPES_COOKIE_SECURE=true (required behind HTTPS)
+#   set RECIPES_UID/RECIPES_GID if your user isn't 1000 (`id -u`, `id -g`)
+#   optional SSO: RECIPES_OIDC_* with redirect URI https://<your-domain>/api/auth/oidc/callback
+docker compose up -d --build
+docker compose exec backend python -m scripts.create_user <you> --admin
+```
+
+**Caddy on the host.** Add to the Caddyfile and reload Caddy:
+
+```
+recipes.example.com {
+	reverse_proxy 127.0.0.1:8080
+}
+```
+
+**Caddy in Docker.** It can't reach the host's loopback, so join the stacks on a
+shared network instead. Create `compose.override.yaml` next to `compose.yaml`
+(compose loads it automatically; it's git-ignored):
+
+```yaml
+services:
+  frontend:
+    ports: !reset []          # no host port at all; Caddy reaches it over the network
+    networks:
+      default:
+      caddy:
+        aliases: [recipes]
+networks:
+  caddy:
+    external: true            # your Caddy container's network (`docker network ls`)
+```
+
+and proxy to it with `reverse_proxy recipes:80`.
+
+**Updating:** back up, then rebuild. Migrations run automatically when the backend starts.
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+**Backups:** the whole database is `data/app.db`. Stop the backend for a consistent copy:
+
+```bash
+docker compose stop backend && cp data/app.db "app-$(date +%F).db" && docker compose start backend
+```
+
 ## Development
 
 ```bash
