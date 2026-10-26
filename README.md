@@ -61,10 +61,11 @@ echo 'COMPOSE_FILE=compose.server.yml' >> .env
 docker compose up -d --build
 ```
 
-Caddy reaches nginx on the container's own port, **80**, not the host port:
+Caddy reaches nginx by the container's `hostname` (Docker's network DNS resolves it)
+on the container's own port, **80**, not the host port:
 
 ```
-reverse_proxy whattoeat:80
+reverse_proxy whattoeat.docker.internal:80
 ```
 
 When `compose.yml` changes upstream (a new setting or healthcheck), carry the
