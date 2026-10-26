@@ -6,6 +6,7 @@ from app.schemas.cookbook import CookbookRead
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
+from app.schemas.tag import TagRead
 
 ## Recipe Ingredient
 
@@ -90,6 +91,7 @@ class RecipeCreate(RecipeBase):
     steps: list[StepCreate] = []
     requirements: list[RequirementCreate] = []
     recipe_ingredients: list[RecipeIngredientCreate] = []
+    tag_ids: list[int] = []
 
 
 class RecipeUpdate(BaseModel):
@@ -99,6 +101,9 @@ class RecipeUpdate(BaseModel):
     active_cook_time: str | None = None
     inactive_cook_time: str | None = None
     servings: str | None = None
+    # Replaces the recipe's full tag set when present.
+    tag_ids: list[int] | None = None
+
 
 class RecipeRead(RecipeBase):
     model_config = ConfigDict(from_attributes=True)
@@ -111,6 +116,7 @@ class RecipeRead(RecipeBase):
     steps: list[StepRead] = []
     requirements: list[RequirementRead] = []
     recipe_ingredients: list[RecipeIngredientRead] = []
+    tags: list[TagRead] = []
 
 
 ## Recipe

@@ -5,6 +5,7 @@ from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
 from app.schemas.recipes import RecipeRead
+from app.schemas.tag import TagRead
 
 
 def test_create_recipe(client: TestClient):
@@ -199,3 +200,48 @@ def test_delete_recipe_not_found(client: TestClient):
     response = client.delete("/recipes/999")
 
     assert response.status_code == 404
+
+
+def test_create_recipe_with_tags(client: TestClient, tag: TagRead):
+    response = client.post("/recipes/", json={"name": "Ratatouille", "tag_ids": [tag.id]})
+
+    assert response.status_code == 201
+    assert RecipeRead.model_validate(response.json()).tags == [tag]
+
+
+def test_create_recipe_with_unknown_tag(client: TestClient):
+    response = client.post("/recipes/", json={"name": "Ratatouille", "tag_ids": [999]})
+
+    assert response.status_code == 422
+    assert client.get("/recipes/").json() == []
+
+
+def test_update_recipe_replaces_tags(client: TestClient, recipe: RecipeRead, tag: TagRead):
+    other = TagRead.model_validate(client.post("/tags/", json={"name": "weeknight"}).json())
+    client.patch(f"/recipes/{recipe.id}", json={"tag_ids": [tag.id]})
+
+    response = client.patch(f"/recipes/{recipe.id}", json={"tag_ids": [other.id]})
+
+    assert response.status_code == 200
+    assert RecipeRead.model_validate(response.json()).tags == [other]
+
+
+def test_update_recipe_without_tag_ids_keeps_tags(client: TestClient, recipe: RecipeRead, tag: TagRead):
+    client.patch(f"/recipes/{recipe.id}", json={"tag_ids": [tag.id]})
+
+    response = client.patch(f"/recipes/{recipe.id}", json={"name": "Boeuf Bourguignon"})
+
+    assert RecipeRead.model_validate(response.json()).tags == [tag]
+
+
+def test_update_recipe_with_unknown_tag(client: TestClient, recipe: RecipeRead):
+    response = client.patch(f"/recipes/{recipe.id}", json={"tag_ids": [999]})
+
+    assert response.status_code == 422
+
+
+def test_delete_tag_removes_it_from_recipes(client: TestClient, recipe: RecipeRead, tag: TagRead):
+    client.patch(f"/recipes/{recipe.id}", json={"tag_ids": [tag.id]})
+
+    assert client.delete(f"/tags/{tag.id}").status_code == 204
+    assert client.get(f"/recipes/{recipe.id}").json()["tags"] == []

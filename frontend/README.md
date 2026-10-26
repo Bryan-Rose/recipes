@@ -69,9 +69,8 @@ form saves each child as you change it, rather than diffing the whole tree.
   `RecipeIngredient.amount` stops being an `Integer` column.
 - **Every ingredient needs a preparation.** `preparation_id` is non-nullable, so
   the seed data includes a neutral `whole` that the UI hides when displaying.
-- **Duplicate lookup names return 500, not 409.** Nothing catches IntegrityError
-  on the unique `name` columns, so the pickers match against the already-loaded
-  list before offering to create a new row.
+- **Duplicate names return 409.** The pickers still match against the
+  already-loaded list before offering to create a new row, to avoid the round trip.
 - **No pagination or search on the API.** `GET /recipes/` returns every recipe
   fully nested; the list page filters client-side.
 - **No auth.** New recipes are attributed to a hardcoded placeholder user.

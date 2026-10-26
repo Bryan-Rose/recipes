@@ -43,7 +43,10 @@ def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
 @recipe_router.post("/", response_model=RecipeRead, status_code=status.HTTP_201_CREATED)
 def create_recipe(recipe_in: RecipeCreate, db: Session = Depends(get_db)):
     placeholder_created_user_id = 999
-    return recipes_service.create_recipe(db, recipe_in, placeholder_created_user_id)
+    try:
+        return recipes_service.create_recipe(db, recipe_in, placeholder_created_user_id)
+    except recipes_service.UnknownTagError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Unknown tag ids: {e.args[0]}")
 
 
 @recipe_router.patch("/{recipe_id}", response_model=RecipeRead)
@@ -51,7 +54,10 @@ def update_recipe(recipe_id: int, recipe_in: RecipeUpdate, db: Session = Depends
     existing = recipes_service.get_recipe(db, recipe_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return recipes_service.update_recipe(db, existing, recipe_in)
+    try:
+        return recipes_service.update_recipe(db, existing, recipe_in)
+    except recipes_service.UnknownTagError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Unknown tag ids: {e.args[0]}")
 
 
 @recipe_router.delete("/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)

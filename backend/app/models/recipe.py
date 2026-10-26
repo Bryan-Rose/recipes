@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -14,6 +14,13 @@ if TYPE_CHECKING:
     from app.models.preparation import Preparation
     from app.models.recipe import RecipeIngredient
     from app.models.user import User
+
+recipe_tags = Table(
+    "recipe_tags",
+    Base.metadata,
+    Column("recipe_id", ForeignKey("recipes.id"), primary_key=True),
+    Column("tag_id", ForeignKey("tags.id"), primary_key=True),
+)
 
 
 class Recipe(Base):
@@ -53,12 +60,14 @@ class Recipe(Base):
     steps: Mapped[list[Step]] = relationship(
         back_populates="recipe", cascade="all, delete-orphan"
     )
+    tags: Mapped[list[Tag]] = relationship(secondary=recipe_tags, back_populates="recipes")
 
 
 class Tag(Base):
     __tablename__ = "tags"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    recipes: Mapped[list[Recipe]] = relationship(secondary=recipe_tags, back_populates="tags")
 
 
 class Step(Base):

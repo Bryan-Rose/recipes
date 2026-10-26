@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.recipe import Recipe, RecipeIngredient, Requirement, Step
+from app.models.recipe import Recipe, RecipeIngredient, Requirement, Step, Tag
 from app.schemas.recipes import (
     RecipeCreate,
     RecipeIngredientCreate,
@@ -19,12 +19,25 @@ _RECIPE_LOAD_OPTIONS = [
     selectinload(Recipe.steps),
     selectinload(Recipe.requirements),
     selectinload(Recipe.cookbook),
+    selectinload(Recipe.tags),
     selectinload(Recipe.recipe_ingredients).selectinload(RecipeIngredient.ingredient),
     selectinload(Recipe.recipe_ingredients).selectinload(RecipeIngredient.preparation),
     selectinload(Recipe.recipe_ingredients).selectinload(RecipeIngredient.measurement),
 ]
 
-_EXCLUDE_NESTED = ["steps", "requirements", "recipe_ingredients"]
+_EXCLUDE_NESTED = ["steps", "requirements", "recipe_ingredients", "tag_ids"]
+
+
+class UnknownTagError(Exception):
+    pass
+
+
+def _get_tags(db: Session, tag_ids: list[int]) -> list[Tag]:
+    tags = list(db.execute(select(Tag).where(Tag.id.in_(tag_ids))).scalars())
+    missing = set(tag_ids) - {tag.id for tag in tags}
+    if missing:
+        raise UnknownTagError(sorted(missing))
+    return tags
 
 
 ## Recipe
@@ -44,6 +57,7 @@ def create_recipe(db: Session, recipe_in: RecipeCreate, created_user_id: int) ->
     db_model.steps = [Step(**step.model_dump()) for step in recipe_in.steps]
     db_model.requirements = [Requirement(**req.model_dump()) for req in recipe_in.requirements]
     db_model.recipe_ingredients = [RecipeIngredient(**ing.model_dump()) for ing in recipe_in.recipe_ingredients]
+    db_model.tags = _get_tags(db, recipe_in.tag_ids)
     db.add(db_model)
     db.commit()
     db.refresh(db_model)
@@ -53,6 +67,8 @@ def create_recipe(db: Session, recipe_in: RecipeCreate, created_user_id: int) ->
 def update_recipe(db: Session, recipe: Recipe, recipe_in: RecipeUpdate) -> Recipe:
     for field, value in recipe_in.model_dump(exclude_unset=True, exclude={*_EXCLUDE_NESTED}).items():
         setattr(recipe, field, value)
+    if recipe_in.tag_ids is not None:
+        recipe.tags = _get_tags(db, recipe_in.tag_ids)
 
     db.commit()
     db.refresh(recipe)

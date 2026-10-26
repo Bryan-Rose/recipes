@@ -59,6 +59,7 @@ export function CreateRecipeForm() {
         .map((row) => row.value.trim())
         .filter((text) => text !== '')
         .map((text) => ({ text })),
+      tag_ids: [],
     }
 
     const created = await createRecipe.mutateAsync(body)

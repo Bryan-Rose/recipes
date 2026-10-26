@@ -7,12 +7,17 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401 — registers every model, same reason as models/__init__.py
 from app.database import Base, get_db
 from app.main import app as fastapi_app
+from app.models.user import User
 from app.schemas.author import AuthorRead
 from app.schemas.cookbook import CookbookRead
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
 from app.schemas.recipes import RecipeRead
+from app.schemas.tag import TagRead
+from app.schemas.user import UserRead
+
+PLACEHOLDER_USER_ID = 999
 
 
 @pytest.fixture(scope="function")
@@ -25,6 +30,9 @@ def db_session():
     Base.metadata.create_all(engine)
     TestingSessionLocal = sessionmaker(bind=engine)
     session = TestingSessionLocal()
+    # POST /recipes/ attributes every recipe to this user until there is auth.
+    session.add(User(id=PLACEHOLDER_USER_ID, username="placeholder", full_name="Placeholder", hashed_password="x"))
+    session.commit()
     try:
         yield session
     finally:
@@ -34,7 +42,13 @@ def db_session():
 @pytest.fixture()
 def client(db_session):
     def override_get_db():
-        yield db_session
+        # The real get_db closes a fresh session per request; this one is
+        # shared across requests, so a failed request must roll it back.
+        try:
+            yield db_session
+        except Exception:
+            db_session.rollback()
+            raise
 
     fastapi_app.dependency_overrides[get_db] = override_get_db
     with TestClient(fastapi_app) as test_client:
@@ -85,3 +99,15 @@ def recipe(client) -> RecipeRead:
 def author(client) -> AuthorRead:
     response = client.post("/authors/", json={"name": "Ina Garten"})
     return AuthorRead.model_validate(response.json())
+
+
+@pytest.fixture()
+def tag(client) -> TagRead:
+    response = client.post("/tags/", json={"name": "vegetarian"})
+    return TagRead.model_validate(response.json())
+
+
+@pytest.fixture()
+def user(client) -> UserRead:
+    response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child", "password": "s3cret"})
+    return UserRead.model_validate(response.json())
