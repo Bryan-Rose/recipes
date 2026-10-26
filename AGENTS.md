@@ -45,7 +45,7 @@ docker compose up -d --build                                    # http://localho
 docker compose exec backend python -m scripts.create_user <name> --admin
 ```
 
-`compose.yaml` runs two images. `frontend/Dockerfile` builds the SPA into nginx, and `frontend/nginx.conf` serves it and proxies `/api/` to `backend:8000` with the prefix stripped, mirroring the Vite dev proxy. `backend/Dockerfile` runs as a non-root user (uid `RECIPES_UID`, default 1000) with SQLite at `/data/app.db`, bind-mounted from the repo's `./data/` (git-ignored apart from its own `.gitignore`), and runs `init_db --no-seed` (i.e. `alembic upgrade head`) before uvicorn on every start, so deploying a new migration is just a rebuild. Compose passes the repo-root `.env` (see `.env.example`) to the backend. Only the frontend port is published.
+`compose.yaml` runs two images. `frontend/Dockerfile` builds the SPA into nginx, and `frontend/nginx.conf` serves it and proxies `/api/` to `backend:8000` with the prefix stripped, mirroring the Vite dev proxy. `backend/Dockerfile` runs as a non-root user (uid `RECIPES_UID`, default 1000) with SQLite at `/data/app.db`, bind-mounted from the repo's `./data/` (git-ignored apart from its own `.gitignore`), and runs `init_db --no-seed` (i.e. `alembic upgrade head`) before uvicorn on every start, so deploying a new migration is just a rebuild. Compose passes the repo-root `.env` (see `.env.example`) to the backend. Only the frontend port is published, on `127.0.0.1` unless `RECIPES_BIND` says otherwise, because production sits behind a reverse proxy (Caddy; see README "Deploying"). FastAPI's `/docs` and `/redoc` exist only when `RECIPES_DEBUG=true`.
 
 Frontend (run from `frontend/`):
 
