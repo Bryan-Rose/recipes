@@ -29,11 +29,14 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.3",
+    "schemathesis>=4.32.5",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = ["fuzz: Schemathesis API fuzzing (slow; run with `make fuzz`)"]
+addopts = "-m 'not fuzz'"
 
 [tool.pyright]
 include = ["app", "scripts", "migrations", "tests"]

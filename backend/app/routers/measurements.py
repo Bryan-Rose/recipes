@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.schemas.fields import IdPath
 from app.schemas.measurement import MeasurementCreate, MeasurementRead, MeasurementUpdate
 from app.services import measurements as measurements_service
 
@@ -14,7 +15,7 @@ def list_measurements(db: Session = Depends(get_db)):
 
 
 @router.get("/{measurement_id}", response_model=MeasurementRead)
-def get_measurement(measurement_id: int, db: Session = Depends(get_db)):
+def get_measurement(measurement_id: IdPath, db: Session = Depends(get_db)):
     response = measurements_service.get_measurement(db, measurement_id)
     if response is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
@@ -27,7 +28,7 @@ def create_measurement(measurement_in: MeasurementCreate, db: Session = Depends(
 
 
 @router.patch("/{measurement_id}", response_model=MeasurementRead)
-def update_measurement(measurement_id: int, measurement_in: MeasurementUpdate, db: Session = Depends(get_db)):
+def update_measurement(measurement_id: IdPath, measurement_in: MeasurementUpdate, db: Session = Depends(get_db)):
     existing = measurements_service.get_measurement(db, measurement_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
@@ -35,7 +36,7 @@ def update_measurement(measurement_id: int, measurement_in: MeasurementUpdate, d
 
 
 @router.delete("/{measurement_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_measurement(measurement_id: int, db: Session = Depends(get_db)):
+def delete_measurement(measurement_id: IdPath, db: Session = Depends(get_db)):
     existing = measurements_service.get_measurement(db, measurement_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)

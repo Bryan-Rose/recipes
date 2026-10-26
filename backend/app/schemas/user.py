@@ -1,6 +1,6 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict, SecretStr
+
+from app.schemas.fields import UtcDatetime
 
 
 class UserBase(BaseModel):
@@ -25,5 +25,5 @@ class UserRead(UserBase):
     id: int
     is_active: bool
     is_superuser: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcDatetime
+    updated_at: UtcDatetime

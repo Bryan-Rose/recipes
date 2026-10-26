@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas.author import AuthorCreate, AuthorRead, AuthorUpdate
+from app.schemas.fields import IdPath
 from app.services import authors as authors_service
 
 router = APIRouter(prefix="/authors", tags=["authors"])
@@ -14,7 +15,7 @@ def list_authors(db: Session = Depends(get_db)):
 
 
 @router.get("/{author_id}", response_model=AuthorRead)
-def get_author(author_id: int, db: Session = Depends(get_db)):
+def get_author(author_id: IdPath, db: Session = Depends(get_db)):
     response = authors_service.get_author(db, author_id)
     if response is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
@@ -27,7 +28,7 @@ def create_author(author_in: AuthorCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/{author_id}", response_model=AuthorRead)
-def update_author(author_id: int, author_in: AuthorUpdate, db: Session = Depends(get_db)):
+def update_author(author_id: IdPath, author_in: AuthorUpdate, db: Session = Depends(get_db)):
     existing = authors_service.get_author(db, author_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
@@ -35,7 +36,7 @@ def update_author(author_id: int, author_in: AuthorUpdate, db: Session = Depends
 
 
 @router.delete("/{author_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_author(author_id: int, db: Session = Depends(get_db)):
+def delete_author(author_id: IdPath, db: Session = Depends(get_db)):
     existing = authors_service.get_author(db, author_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)

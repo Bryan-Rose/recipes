@@ -1,8 +1,7 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
 
 from app.schemas.cookbook import CookbookRead
+from app.schemas.fields import DbId, PositiveInt, UtcDatetime
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
@@ -12,10 +11,10 @@ from app.schemas.tag import TagRead
 
 
 class RecipeIngredientCreate(BaseModel):
-    ingredient_id: int
-    measurement_id: int
-    preparation_id: int
-    amount: int
+    ingredient_id: DbId
+    measurement_id: DbId
+    preparation_id: DbId
+    amount: PositiveInt
 
 
 class RecipeIngredientRead(BaseModel):
@@ -28,10 +27,10 @@ class RecipeIngredientRead(BaseModel):
 
 
 class RecipeIngredientUpdate(BaseModel):
-    ingredient_id: int | None = None
-    measurement_id: int | None = None
-    amount: int | None = None
-    preparation_id: int | None = None
+    ingredient_id: DbId | None = None
+    measurement_id: DbId | None = None
+    amount: PositiveInt | None = None
+    preparation_id: DbId | None = None
 
 
 ## Recipe Ingredient
@@ -80,8 +79,8 @@ class RequirementRead(BaseModel):
 
 class RecipeBase(BaseModel):
     name: str
-    cookbook_id: int | None = None
-    cookbook_page: int | None = None
+    cookbook_id: DbId | None = None
+    cookbook_page: PositiveInt | None = None
     active_cook_time: str | None = None
     inactive_cook_time: str | None = None
     servings: str | None = None
@@ -91,18 +90,18 @@ class RecipeCreate(RecipeBase):
     steps: list[StepCreate] = []
     requirements: list[RequirementCreate] = []
     recipe_ingredients: list[RecipeIngredientCreate] = []
-    tag_ids: list[int] = []
+    tag_ids: list[DbId] = []
 
 
 class RecipeUpdate(BaseModel):
     name: str | None = None
-    cookbook_id: int | None = None
-    cookbook_page: int | None = None
+    cookbook_id: DbId | None = None
+    cookbook_page: PositiveInt | None = None
     active_cook_time: str | None = None
     inactive_cook_time: str | None = None
     servings: str | None = None
     # Replaces the recipe's full tag set when present.
-    tag_ids: list[int] | None = None
+    tag_ids: list[DbId] | None = None
 
 
 class RecipeRead(RecipeBase):
@@ -110,8 +109,8 @@ class RecipeRead(RecipeBase):
 
     id: int
     created_user_id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcDatetime
+    updated_at: UtcDatetime
     cookbook: CookbookRead | None = None
     steps: list[StepRead] = []
     requirements: list[RequirementRead] = []

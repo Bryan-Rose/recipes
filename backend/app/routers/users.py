@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_admin
 from app.database import get_db
+from app.schemas.fields import IdPath
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services import users as users_service
 
@@ -15,7 +16,7 @@ def list_users(db: Session = Depends(get_db)):
 
 
 @router.get("/{user_id}", response_model=UserRead)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(user_id: IdPath, db: Session = Depends(get_db)):
     response = users_service.get_user(db, user_id)
     if response is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
@@ -28,7 +29,7 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/{user_id}", response_model=UserRead, dependencies=[Depends(require_admin)])
-def update_user(user_id: int, user_in: UserUpdate, db: Session = Depends(get_db)):
+def update_user(user_id: IdPath, user_in: UserUpdate, db: Session = Depends(get_db)):
     existing = users_service.get_user(db, user_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
@@ -36,7 +37,7 @@ def update_user(user_id: int, user_in: UserUpdate, db: Session = Depends(get_db)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(user_id: IdPath, db: Session = Depends(get_db)):
     existing = users_service.get_user(db, user_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)

@@ -209,7 +209,7 @@ def test_create_recipe_with_tags(client: TestClient, tag: TagRead):
 def test_create_recipe_with_unknown_tag(client: TestClient):
     response = client.post("/recipes/", json={"name": "Ratatouille", "tag_ids": [999]})
 
-    assert response.status_code == 422
+    assert response.status_code == 409
     assert client.get("/recipes/").json() == []
 
 
@@ -234,7 +234,7 @@ def test_update_recipe_without_tag_ids_keeps_tags(client: TestClient, recipe: Re
 def test_update_recipe_with_unknown_tag(client: TestClient, recipe: RecipeRead):
     response = client.patch(f"/recipes/{recipe.id}", json={"tag_ids": [999]})
 
-    assert response.status_code == 422
+    assert response.status_code == 409
 
 
 def test_delete_tag_removes_it_from_recipes(client: TestClient, recipe: RecipeRead, tag: TagRead):
@@ -242,3 +242,11 @@ def test_delete_tag_removes_it_from_recipes(client: TestClient, recipe: RecipeRe
 
     assert client.delete(f"/tags/{tag.id}").status_code == 204
     assert client.get(f"/recipes/{recipe.id}").json()["tags"] == []
+
+
+def test_timestamps_carry_a_utc_offset(client: TestClient, recipe: RecipeRead):
+    # Without an offset, browsers parse the value as local time.
+    body = client.get(f"/recipes/{recipe.id}").json()
+
+    assert body["created_at"].endswith("Z") or body["created_at"].endswith("+00:00")
+    assert body["updated_at"].endswith("Z") or body["updated_at"].endswith("+00:00")

@@ -92,3 +92,27 @@ def test_cookbook_with_unknown_author_is_rejected(client: TestClient):
     response = client.post("/cookbooks/", json={"name": "Nobody's Book", "author_id": 999})
 
     assert response.status_code == 409
+
+
+## Values outside the safe integer range (found by fuzzing)
+
+MAX_INT = 2**53 - 1  # app/schemas/fields.py; also keeps clear of SQLite's 2**63 overflow
+
+
+def test_huge_path_id_is_rejected_not_crashed(client: TestClient):
+    assert client.get(f"/recipes/{MAX_INT + 1}").status_code == 422
+    assert client.get(f"/recipes/{MAX_INT}").status_code == 404
+
+
+def test_huge_body_id_is_rejected_not_crashed(client: TestClient):
+    response = client.post("/recipes/", json={"name": "R", "cookbook_id": MAX_INT + 1})
+
+    assert response.status_code == 422
+
+
+def test_non_positive_amount_is_rejected(
+    client: TestClient, measurement: MeasurementRead, preparation: PreparationRead, ingredient: IngredientRead
+):
+    ri = {**_recipe_ingredient(ingredient, measurement, preparation), "amount": 0}
+
+    assert client.post("/recipes/", json={"name": "R", "recipe_ingredients": [ri]}).status_code == 422
