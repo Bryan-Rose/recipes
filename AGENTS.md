@@ -2,7 +2,7 @@
 
 Two projects in one repo:
 
-- `backend/` — FastAPI app managed by [uv], Python 3.14. Layered as `models/` → `schemas/` → `services/` → `routers/`, with CRUD routes for recipes (and their nested steps, requirements, ingredients) plus authors, cookbooks, ingredients, measurements, preparations, tags, and users. Passwords are hashed with stdlib scrypt in `services/users.py`. pytest suite in `backend/tests/`. Cookie-session auth with optional OIDC SSO (see Backend auth below). No Alembic.
+- `backend/` — FastAPI app managed by [uv], Python 3.14. Layered as `models/` → `schemas/` → `services/` → `routers/`, with CRUD routes for recipes (and their nested steps, requirements, ingredients) plus authors, cookbooks, ingredients, measurements, preparations, tags, and users. Passwords are hashed with stdlib scrypt in `services/users.py`. pytest suite in `backend/tests/`. Cookie-session auth with optional OIDC SSO (see Backend auth below). Schema changes go through Alembic (see Migrations below).
 - `frontend/` — React 19 + TypeScript on Vite 8, using react-router and TanStack Query. It talks to the API through the Vite dev proxy (`/api` → `:8000`). See `frontend/README.md` for its structure and the API limitations that shape the UI. No frontend tests.
 
 ## Commands
@@ -14,7 +14,9 @@ uv sync                                  # install/refresh deps from uv.lock
 uv run uvicorn app.main:app --reload     # dev server on :8000
 uv run pytest                            # tests
 uv run ruff check .                      # lint
-uv run python -m scripts.init_db [--reset]  # create local app.db and seed sample data
+uv run python -m scripts.init_db [--reset]  # migrate local app.db to head and seed sample data
+uv run alembic revision --autogenerate -m "<what changed>"  # after changing a model; review the file
+uv run alembic upgrade head                 # apply migrations (init_db also does this)
 uv run python -m scripts.create_user <name> --admin [--sso-only]  # create a login (first admin)
 ```
 
@@ -25,7 +27,7 @@ docker compose up -d --build                                    # http://localho
 docker compose exec backend python -m scripts.create_user <name> --admin
 ```
 
-`compose.yaml` runs two images. `frontend/Dockerfile` builds the SPA into nginx, and `frontend/nginx.conf` serves it and proxies `/api/` to `backend:8000` with the prefix stripped, mirroring the Vite dev proxy. `backend/Dockerfile` runs as a non-root user (uid `RECIPES_UID`, default 1000) with SQLite at `/data/app.db`, bind-mounted from the repo's `./data/` (git-ignored apart from its own `.gitignore`), and runs `init_db --no-seed` before uvicorn on every start. Compose passes the repo-root `.env` (see `.env.example`) to the backend. Only the frontend port is published.
+`compose.yaml` runs two images. `frontend/Dockerfile` builds the SPA into nginx, and `frontend/nginx.conf` serves it and proxies `/api/` to `backend:8000` with the prefix stripped, mirroring the Vite dev proxy. `backend/Dockerfile` runs as a non-root user (uid `RECIPES_UID`, default 1000) with SQLite at `/data/app.db`, bind-mounted from the repo's `./data/` (git-ignored apart from its own `.gitignore`), and runs `init_db --no-seed` (i.e. `alembic upgrade head`) before uvicorn on every start, so deploying a new migration is just a rebuild. Compose passes the repo-root `.env` (see `.env.example`) to the backend. Only the frontend port is published.
 
 Frontend (run from `frontend/`):
 
@@ -56,7 +58,7 @@ Note `npm run build` is also the typecheck: `tsconfig.app.json` sets `noEmit`, s
 
 - **This is a shared collection, not per-user recipe boxes.** Every user sees every recipe. `Recipe.created_user_id` is attribution only (who added it) — it is not a visibility or ownership filter, so list/read endpoints should never scope by the requesting user.
 - **Owned vs. shared entities, reflected in both models and schemas.** `Step`, `Requirement`, and `RecipeIngredient` only exist nested inside a `Recipe` — no standalone routes, no schema without a parent `Recipe` in context. `Ingredient`, `Measurement`, `Cookbook`, and `User` are independent resources with their own model/schema files and their own CRUD. Schemas reference the latter by id on `Create`/`Update` (e.g. `RecipeIngredientCreate.ingredient_id: int`) but nest the full object on `Read` (e.g. `RecipeIngredientRead.ingredient: IngredientRead`) so clients don't need extra round trips to resolve names.
-- **No Alembic yet.** `Base.metadata.create_all()` (used ad hoc / in tests) only creates tables that don't exist — it never alters an existing table, so it is not a substitute for migrations. Setting up Alembic is a known, deliberately deferred gap.
+- **Tests build the schema with `create_all()`, real databases with migrations.** `tests/test_migrations.py` fails if the two diverge, so a model change without a migration fails the suite. Never use `create_all()` on a real database: it creates no `alembic_version` row, and `init_db` refuses such a database (recreate it with `--reset`).
 
 ## Backend auth
 
@@ -64,6 +66,13 @@ Note `npm run build` is also the typecheck: `tsconfig.app.json` sets `noEmit`, s
 - **Local login:** `POST /auth/login` checks the scrypt hash (`services/users.py`). Unknown usernames are checked against a dummy hash so that timing doesn't leak them. Users created through SSO have `hashed_password = None`.
 - **OIDC (optional):** enabled when `RECIPES_OIDC_ISSUER`, `RECIPES_OIDC_CLIENT_ID` and `RECIPES_OIDC_REDIRECT_URI` are set (see `.env.example`). Authlib does the authorization-code flow with PKCE and validates the ID token. Starlette's `SessionMiddleware` (`recipes_oidc` cookie) carries only the state between redirect and callback. Users are matched by `oidc_subject`. Failing that, the first SSO login links to an existing user with the same username and no `oidc_subject`, or creates one if `RECIPES_OIDC_CREATE_USERS` is set.
 - **Admins** (`is_superuser`) manage `/users`. Create the first one with `scripts/create_user.py`. Use `--sso-only` to pre-create an admin that an SSO account links to on first login.
+
+## Migrations
+
+- **Every model change needs a migration.** Run `uv run alembic revision --autogenerate -m "..."` from `backend/`, then read the generated file in `migrations/versions/`. Autogenerate misses some things: column renames come out as drop plus add (which loses data, so rewrite them as `alter_column`), and so do type changes that SQLite reports loosely. Data backfills must be written by hand.
+- **SQLite needs batch mode.** `render_as_batch=True` is set in `migrations/env.py`, so column alters and drops become `with op.batch_alter_table(...)` blocks that rebuild the table (copy, drop, rename). `env.py` turns `PRAGMA foreign_keys` OFF for the migration, which is required for that rebuild, and then runs `PRAGMA foreign_key_check`, failing the migration if it left dangling references.
+- **Constraints are named by convention** (`MetaData(naming_convention=...)` in `app/database.py`), so later migrations can drop or alter them by name. Don't remove the convention: existing constraint names depend on it.
+- **The database URL comes from app settings** (`RECIPES_DATABASE_URL`), not `alembic.ini`. A post-write hook in `alembic.ini` runs ruff's import sorter on new revisions.
 
 ## Backend configuration
 

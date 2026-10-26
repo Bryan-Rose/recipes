@@ -1,6 +1,6 @@
 import sqlite3
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Engine, MetaData, create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import get_settings
@@ -13,7 +13,18 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+# Named constraints let Alembic's SQLite batch mode drop or alter them later.
+Base = declarative_base(
+    metadata=MetaData(
+        naming_convention={
+            "ix": "ix_%(column_0_label)s",
+            "uq": "uq_%(table_name)s_%(column_0_name)s",
+            "ck": "ck_%(table_name)s_%(constraint_name)s",
+            "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+            "pk": "pk_%(table_name)s",
+        }
+    )
+)
 
 
 # SQLite ignores foreign keys unless enabled per connection. Listening on Engine

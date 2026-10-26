@@ -8,7 +8,7 @@ The frontend needs the API running alongside it. Two terminals:
 
 ```bash
 # terminal 1 — from backend/
-uv run python -m scripts.init_db    # first time only: create tables + seed data
+uv run python -m scripts.init_db    # create/migrate the schema + seed data (safe to rerun)
 uv run python -m scripts.create_user <you> --admin   # first time only: your login
 uv run uvicorn app.main:app --reload
 

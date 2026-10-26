@@ -1,28 +1,27 @@
-"""Create the database schema and seed it with sample data for local development.
+"""Migrate the database to the latest schema and seed it with sample data for local development.
 
 Run from the backend/ directory:
 
-    uv run python -m scripts.init_db          # create tables, seed if empty
-    uv run python -m scripts.init_db --reset  # drop everything first
-    uv run python -m scripts.init_db --no-seed  # create missing tables only
+    uv run python -m scripts.init_db            # migrate, seed if empty
+    uv run python -m scripts.init_db --reset    # drop everything first
+    uv run python -m scripts.init_db --no-seed  # migrate only (the container runs this on start)
 
 This is deliberately a standalone script rather than a FastAPI startup hook.
 The test suite drives the app through `with TestClient(...)`, which fires
-lifespan handlers, so a create_all() wired into app.main would create a stray
-app.db in backend/ on every test run.
-
-It is also not a substitute for migrations: create_all() only creates tables
-that do not exist yet and never alters an existing one. Once the schema starts
-changing, this needs to become Alembic.
+lifespan handlers, so migrating from app.main would create a stray app.db in
+backend/ on every test run.
 """
 
 import argparse
+from pathlib import Path
 
-from sqlalchemy import select
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import MetaData, inspect, select
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401 — registers every model on Base.metadata
-from app.database import Base, SessionLocal, engine
+from app.database import SessionLocal, engine
 from app.models.author import Author
 from app.models.cookbook import Cookbook
 from app.models.ingredient import Ingredient
@@ -158,16 +157,27 @@ def seed(db: Session) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--reset", action="store_true", help="drop all tables before creating them")
-    parser.add_argument("--no-seed", action="store_true", help="only create missing tables (used by the container on start)")
+    parser.add_argument("--reset", action="store_true", help="drop all tables before migrating")
+    parser.add_argument("--no-seed", action="store_true", help="migrate only (used by the container on start)")
     args = parser.parse_args()
 
     if args.reset:
-        Base.metadata.drop_all(engine)
+        # Reflect rather than use Base.metadata, so alembic_version and any
+        # tables that are no longer modelled are dropped too.
+        existing = MetaData()
+        existing.reflect(engine)
+        existing.drop_all(engine)
         print("dropped all tables")
 
-    Base.metadata.create_all(engine)
-    print("created tables")
+    tables = set(inspect(engine).get_table_names())
+    if tables and "alembic_version" not in tables:
+        raise SystemExit(
+            "This database was created before migrations existed and can't be upgraded in place.\n"
+            "Recreate it with --reset (this deletes its data)."
+        )
+
+    command.upgrade(Config(Path(__file__).resolve().parent.parent / "alembic.ini"), "head")
+    print("migrated to latest schema")
     if args.no_seed:
         return
 
