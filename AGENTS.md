@@ -1,11 +1,9 @@
 ## Project state
 
-Early scaffold. Two independent projects in one repo, with no code connecting them yet:
+Two projects in one repo:
 
-- `backend/` — FastAPI app managed by [uv], Python 3.14
-- `frontend/` — React 19 + TypeScript on Vite 8
-
-Models (`app/models/`) and Pydantic schemas (`app/schemas/`) are built out for `User`, `Recipe`, `Cookbook`, `Ingredient`, and `Measurement`, plus `Recipe`'s owned children (`Step`, `Requirement`, `RecipeIngredient`, `Tag`). `backend/app/main.py` still only constructs the `FastAPI()` instance — no routes, no services wired up, no Alembic migrations, no tests. The frontend is still the stock Vite starter page. There are no tests and no test runner configured in either project.
+- `backend/` — FastAPI app managed by [uv], Python 3.14. Layered as `models/` → `schemas/` → `services/` → `routers/`, with CRUD routes for recipes (and their nested steps, requirements, ingredients) plus authors, cookbooks, ingredients, measurements, and preparations. pytest suite in `backend/tests/`. No auth (new recipes use a placeholder user id) and no Alembic.
+- `frontend/` — React 19 + TypeScript on Vite 8, using react-router and TanStack Query. It talks to the API through the Vite dev proxy (`/api` → `:8000`). See `frontend/README.md` for its structure and the API limitations that shape the UI. No frontend tests.
 
 ## Commands
 
@@ -14,6 +12,9 @@ Backend (run from `backend/`):
 ```bash
 uv sync                                  # install/refresh deps from uv.lock
 uv run uvicorn app.main:app --reload     # dev server on :8000
+uv run pytest                            # tests
+uv run ruff check .                      # lint
+uv run python -m scripts.init_db [--reset]  # create local app.db and seed sample data
 docker build -t recipes-api . && docker run -p 8000:8000 recipes-api
 ```
 
@@ -24,6 +25,7 @@ npm install
 npm run dev      # Vite dev server
 npm run build    # tsc -b, then vite build — typecheck is part of the build
 npm run lint     # oxlint
+npm run gen:api  # regenerate src/api/schema.d.ts from the running API — rerun after backend schema changes
 ```
 
 Note `npm run build` is also the typecheck: `tsconfig.app.json` sets `noEmit`, so `tsc -b` only validates. Run it to check types without a full build.

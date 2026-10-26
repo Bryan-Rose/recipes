@@ -8,4 +8,16 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  server: {
+    // The API has no CORS middleware. Proxying keeps every request same-origin
+    // from the browser's point of view, so no preflight is ever issued.
+    // Production will need real CORS or a reverse proxy in front of both.
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
 })
