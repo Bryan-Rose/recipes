@@ -87,9 +87,7 @@ def test_get_step_under_the_wrong_recipe(client: TestClient, recipe: RecipeRead)
 def test_update_step(client: TestClient, recipe: RecipeRead):
     created = _create_step(client, recipe.id, "Brown the beef.")
 
-    patch_response = client.patch(
-        f"/recipes/{recipe.id}/steps/{created.id}", json={"text": "Sear the beef."}
-    )
+    patch_response = client.patch(f"/recipes/{recipe.id}/steps/{created.id}", json={"text": "Sear the beef."})
     assert patch_response.status_code == 200
 
     response = client.get(f"/recipes/{recipe.id}/steps/{created.id}")
@@ -108,9 +106,7 @@ def test_update_step_under_the_wrong_recipe(client: TestClient, recipe: RecipeRe
     other = RecipeRead.model_validate(client.post("/recipes/", json={"name": "Coq au Vin"}).json())
     created = _create_step(client, recipe.id, "Brown the beef.")
 
-    response = client.patch(
-        f"/recipes/{other.id}/steps/{created.id}", json={"text": "Hijacked."}
-    )
+    response = client.patch(f"/recipes/{other.id}/steps/{created.id}", json={"text": "Hijacked."})
 
     assert response.status_code == 404
 

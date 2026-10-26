@@ -39,19 +39,23 @@ def seed(db: Session) -> None:
 
     # "whole" is the neutral default: RecipeIngredient.preparation_id is
     # non-nullable, so every ingredient row needs some preparation selected.
-    preparations = {
-        name: Preparation(name=name)
-        for name in ("whole", "chopped", "diced", "minced", "sliced", "melted", "beaten")
-    }
-    measurements = {
-        name: Measurement(name=name)
-        for name in ("cup", "tablespoon", "teaspoon", "ounce", "pound", "gram", "clove", "whole")
-    }
+    preparations = {name: Preparation(name=name) for name in ("whole", "chopped", "diced", "minced", "sliced", "melted", "beaten")}
+    measurements = {name: Measurement(name=name) for name in ("cup", "tablespoon", "teaspoon", "ounce", "pound", "gram", "clove", "whole")}
     ingredients = {
         name: Ingredient(name=name)
         for name in (
-            "butter", "flour", "sugar", "egg", "milk", "salt",
-            "garlic", "onion", "olive oil", "black pepper", "parmesan", "spaghetti",
+            "butter",
+            "flour",
+            "sugar",
+            "egg",
+            "milk",
+            "salt",
+            "garlic",
+            "onion",
+            "olive oil",
+            "black pepper",
+            "parmesan",
+            "spaghetti",
         )
     }
     db.add_all([*preparations.values(), *measurements.values(), *ingredients.values()])

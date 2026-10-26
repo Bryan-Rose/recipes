@@ -24,7 +24,7 @@ def create_ingredient(db: Session, ingredient_in: IngredientCreate) -> Ingredien
 
 
 def update_ingredient(db: Session, ingredient: Ingredient, ingredient_in: IngredientUpdate) -> Ingredient:
-    for field, value in  ingredient_in.model_dump(exclude_unset=True).items():
+    for field, value in ingredient_in.model_dump(exclude_unset=True).items():
         setattr(ingredient, field, value)
     db.commit()
     db.refresh(ingredient)

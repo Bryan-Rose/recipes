@@ -38,9 +38,7 @@ def _only_id(db_session: Session, recipe_id: int) -> int:
     so there is no way to learn it through the API. Until the schema grows an
     `id` field, the tests have to reach past the API to address a row.
     """
-    return db_session.execute(
-        select(RecipeIngredient.id).where(RecipeIngredient.recipe_id == recipe_id)
-    ).scalars().one()
+    return db_session.execute(select(RecipeIngredient.id).where(RecipeIngredient.recipe_id == recipe_id)).scalars().one()
 
 
 def test_create_recipe_ingredient(
@@ -76,9 +74,7 @@ def test_create_recipe_ingredient_for_unknown_recipe(
     measurement: MeasurementRead,
     preparation: PreparationRead,
 ):
-    response = client.post(
-        f"/recipes/999/{PREFIX}/", json=_payload(ingredient, measurement, preparation)
-    )
+    response = client.post(f"/recipes/999/{PREFIX}/", json=_payload(ingredient, measurement, preparation))
 
     assert response.status_code == 404
 
@@ -181,13 +177,9 @@ def test_update_recipe_ingredient_can_swap_the_ingredient(
 ):
     _create(client, recipe.id, _payload(ingredient, measurement, preparation))
     ri_id = _only_id(db_session, recipe.id)
-    other = IngredientRead.model_validate(
-        client.post("/ingredients/", json={"name": "olive oil"}).json()
-    )
+    other = IngredientRead.model_validate(client.post("/ingredients/", json={"name": "olive oil"}).json())
 
-    patch_response = client.patch(
-        f"/recipes/{recipe.id}/{PREFIX}/{ri_id}", json={"ingredient_id": other.id}
-    )
+    patch_response = client.patch(f"/recipes/{recipe.id}/{PREFIX}/{ri_id}", json={"ingredient_id": other.id})
     assert patch_response.status_code == 200
 
     updated = RecipeIngredientRead.model_validate(patch_response.json())

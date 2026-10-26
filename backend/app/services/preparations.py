@@ -24,7 +24,7 @@ def create_preparation(db: Session, preparation_in: PreparationCreate) -> Prepar
 
 
 def update_preparation(db: Session, preparation: Preparation, preparation_in: PreparationUpdate) -> Preparation:
-    for field, value in  preparation_in.model_dump(exclude_unset=True).items():
+    for field, value in preparation_in.model_dump(exclude_unset=True).items():
         setattr(preparation, field, value)
     db.commit()
     db.refresh(preparation)

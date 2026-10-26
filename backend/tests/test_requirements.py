@@ -74,9 +74,7 @@ def test_get_requirement_under_the_wrong_recipe(client: TestClient, recipe: Reci
 def test_update_requirement(client: TestClient, recipe: RecipeRead):
     created = _create_requirement(client, recipe.id, "Dutch oven")
 
-    patch_response = client.patch(
-        f"/recipes/{recipe.id}/requirements/{created.id}", json={"name": "Heavy casserole"}
-    )
+    patch_response = client.patch(f"/recipes/{recipe.id}/requirements/{created.id}", json={"name": "Heavy casserole"})
     assert patch_response.status_code == 200
 
     response = client.get(f"/recipes/{recipe.id}/requirements/{created.id}")
@@ -95,9 +93,7 @@ def test_update_requirement_under_the_wrong_recipe(client: TestClient, recipe: R
     other = RecipeRead.model_validate(client.post("/recipes/", json={"name": "Coq au Vin"}).json())
     created = _create_requirement(client, recipe.id, "Dutch oven")
 
-    response = client.patch(
-        f"/recipes/{other.id}/requirements/{created.id}", json={"name": "Hijacked"}
-    )
+    response = client.patch(f"/recipes/{other.id}/requirements/{created.id}", json={"name": "Hijacked"})
 
     assert response.status_code == 404
 

@@ -130,9 +130,7 @@ def test_update_recipe(client: TestClient, recipe: RecipeRead):
 
 
 def test_update_recipe_preserves_cookbook(client: TestClient, cookbook: CookbookRead):
-    created = RecipeRead.model_validate(
-        client.post("/recipes/", json={"name": "Cassoulet", "cookbook_id": cookbook.id}).json()
-    )
+    created = RecipeRead.model_validate(client.post("/recipes/", json={"name": "Cassoulet", "cookbook_id": cookbook.id}).json())
 
     patch_response = client.patch(f"/recipes/{created.id}", json={"servings": "6"})
     assert patch_response.status_code == 200
@@ -142,9 +140,7 @@ def test_update_recipe_preserves_cookbook(client: TestClient, cookbook: Cookbook
 
 
 def test_update_recipe_can_clear_cookbook(client: TestClient, cookbook: CookbookRead):
-    created = RecipeRead.model_validate(
-        client.post("/recipes/", json={"name": "Pot au Feu", "cookbook_id": cookbook.id}).json()
-    )
+    created = RecipeRead.model_validate(client.post("/recipes/", json={"name": "Pot au Feu", "cookbook_id": cookbook.id}).json())
     assert created.cookbook is not None
 
     # An explicit null IS "set", so exclude_unset keeps it and the FK is cleared.

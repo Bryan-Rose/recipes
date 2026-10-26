@@ -15,12 +15,8 @@ if TYPE_CHECKING:
 class Cookbook(Base):
     __tablename__ = "cookbooks"
 
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, index=True, nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     name: Mapped[str] = mapped_column(String, nullable=False)
     author_id: Mapped[int] = mapped_column(ForeignKey("authors.id"), nullable=False)
     author: Mapped[Author] = relationship(back_populates="cookbooks")

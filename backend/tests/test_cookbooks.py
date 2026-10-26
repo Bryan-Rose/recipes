@@ -77,4 +77,3 @@ def test_created_cookbook_appears_in_list(client: TestClient, cookbook: Cookbook
     assert len(response.json()) == 1
     listed = CookbookRead.model_validate(response.json()[0])
     assert listed.name == "Mastering the Art of French Cooking"
-

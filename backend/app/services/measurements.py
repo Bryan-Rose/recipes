@@ -24,7 +24,7 @@ def create_measurement(db: Session, measurement_in: MeasurementCreate) -> Measur
 
 
 def update_measurement(db: Session, measurement: Measurement, measurement_in: MeasurementUpdate) -> Measurement:
-    for field, value in  measurement_in.model_dump(exclude_unset=True).items():
+    for field, value in measurement_in.model_dump(exclude_unset=True).items():
         setattr(measurement, field, value)
     db.commit()
     db.refresh(measurement)

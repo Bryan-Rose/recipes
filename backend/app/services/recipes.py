@@ -157,6 +157,7 @@ def get_requirements(db: Session, recipe_id: int) -> Sequence[Requirement]:
 
 ## Recipe Ingredients
 
+
 def create_recipe_ingredient(db: Session, recipe_id: int, ri_in: RecipeIngredientCreate) -> RecipeIngredient:
     db_model = RecipeIngredient(**ri_in.model_dump())
     db_model.recipe_id = recipe_id
@@ -181,12 +182,13 @@ def delete_recipe_ingredient(db: Session, recipe_ingredient: RecipeIngredient) -
 
 
 def get_recipe_ingredient(db: Session, recipe_id: int, recipe_ingredient_id: int) -> RecipeIngredient | None:
-    return db.execute(select(RecipeIngredient)
-                      .where(RecipeIngredient.recipe_id == recipe_id, RecipeIngredient.id == recipe_ingredient_id)).scalar()
-
+    return db.execute(
+        select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe_id, RecipeIngredient.id == recipe_ingredient_id)
+    ).scalar()
 
 
 def get_recipe_ingredients(db: Session, recipe_id: int) -> Sequence[RecipeIngredient]:
     return db.execute(select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe_id)).scalars().all()
+
 
 ## Recipe Ingredients

@@ -49,6 +49,7 @@ def current_user(db_session) -> User:
 @pytest.fixture()
 def client(db_session, current_user):
     """Signed in as current_user through a real session cookie; clear client.cookies for anonymous requests."""
+
     def override_get_db():
         # The real get_db closes a fresh session per request; this one is
         # shared across requests, so a failed request must roll it back.

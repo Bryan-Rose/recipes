@@ -24,7 +24,7 @@ def create_cookbook(db: Session, cookbook_in: CookbookCreate) -> Cookbook:
 
 
 def update_cookbook(db: Session, cookbook: Cookbook, cookbook_in: CookbookUpdate) -> Cookbook:
-    for field, value in  cookbook_in.model_dump(exclude_unset=True).items():
+    for field, value in cookbook_in.model_dump(exclude_unset=True).items():
         setattr(cookbook, field, value)
     db.commit()
     db.refresh(cookbook)
