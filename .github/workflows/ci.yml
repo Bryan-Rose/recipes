@@ -4,8 +4,11 @@
 name: CI
 
 on:
-  push:
+  # PRs are the only way into main (ruleset); this also runs once more on main after merging.
+  # Pushing a feature branch alone doesn't run CI; opening its PR does.
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read

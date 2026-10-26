@@ -32,5 +32,9 @@ make e2e         # Playwright browser tests against the Docker stack and a mock 
 make check-full  # all of the above, as CI runs it
 ```
 
+All changes land through pull requests: `main` is protected, and a PR can
+merge only once CI's `fast` and `full` checks pass. See the Workflow section
+of `AGENTS.md` for the branch, `gh pr create`, and merge steps.
+
 See `AGENTS.md` for how the codebase and its tests are organised, and
 `frontend/README.md` for frontend specifics.
