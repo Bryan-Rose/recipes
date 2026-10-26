@@ -23,6 +23,7 @@ npm run dev                          # http://localhost:5173
 npm run dev      # Vite dev server
 npm run build    # tsc -b, then vite build — the typecheck is part of the build
 npm run lint     # oxlint
+npm test         # Vitest + Testing Library; API mocked with MSW (src/test/server.ts)
 npm run gen:api  # regenerate src/api/schema.d.ts from the backend (in-process, no server needed)
 npm run check:api  # fail if schema.d.ts is stale (part of `make check`)
 ```

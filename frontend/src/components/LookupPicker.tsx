@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 
 import { findByName } from '../api/lookups'
 import { describeError } from '../api/errors'
@@ -17,10 +17,8 @@ interface LookupPickerProps<T extends Lookup> {
  * A <select> over one of the lookup tables, with an inline "add new" that
  * creates the row and selects it.
  *
- * The duplicate check before creating is not just a nicety: these names are
- * unique in the database but no handler catches IntegrityError, so posting an
- * existing name returns an unhandled 500. Matching against the already-loaded
- * list turns that into simply selecting the row that exists.
+ * Names are unique, and posting an existing one returns 409. Matching against
+ * the already-loaded list first turns that into simply selecting the existing row.
  */
 export function LookupPicker<T extends Lookup>({
   label,
@@ -34,6 +32,7 @@ export function LookupPicker<T extends Lookup>({
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const selectId = useId()
 
   async function commit() {
     const name = draft.trim()
@@ -67,8 +66,9 @@ export function LookupPicker<T extends Lookup>({
 
   return (
     <div className="field">
-      <label>{label}</label>
+      <label htmlFor={selectId}>{label}</label>
       <select
+        id={selectId}
         value={value ?? ''}
         disabled={disabled || options === undefined}
         onChange={(event) => onChange(Number(event.target.value))}
@@ -88,6 +88,7 @@ export function LookupPicker<T extends Lookup>({
           <input
             type="text"
             autoFocus
+            aria-label={`New ${label.toLowerCase()} name`}
             value={draft}
             placeholder={`New ${label.toLowerCase()}`}
             onChange={(event) => setDraft(event.target.value)}

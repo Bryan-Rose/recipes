@@ -17,6 +17,7 @@ backend-check:
 frontend-check:
 	cd frontend && npm run build
 	cd frontend && npm run lint
+	cd frontend && npm test
 
 # The frontend's generated API types must match the backend's OpenAPI schema.
 contract-check:
