@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user
 from app.database import get_db
+from app.models.user import User
 from app.schemas.recipes import (
     RecipeCreate,
     RecipeIngredientCreate,
@@ -41,10 +43,9 @@ def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
 
 
 @recipe_router.post("/", response_model=RecipeRead, status_code=status.HTTP_201_CREATED)
-def create_recipe(recipe_in: RecipeCreate, db: Session = Depends(get_db)):
-    placeholder_created_user_id = 999
+def create_recipe(recipe_in: RecipeCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     try:
-        return recipes_service.create_recipe(db, recipe_in, placeholder_created_user_id)
+        return recipes_service.create_recipe(db, recipe_in, user.id)
     except recipes_service.UnknownTagError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Unknown tag ids: {e.args[0]}")
 

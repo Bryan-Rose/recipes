@@ -313,3 +313,16 @@
   align-items: center;
   flex-wrap: wrap;
 }
+
+/* --- Login ---------------------------------------------------------------- */
+
+.login-card {
+  max-width: 24rem;
+  margin: 2rem auto;
+  padding: 2rem;
+}
+
+.login-divider {
+  text-align: center;
+  margin: -0.5rem 0;
+}

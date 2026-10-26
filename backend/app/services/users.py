@@ -15,7 +15,9 @@ def hash_password(password: str) -> str:
     return f"scrypt${salt.hex()}${digest.hex()}"
 
 
-def verify_password(password: str, hashed: str) -> bool:
+def verify_password(password: str, hashed: str | None) -> bool:
+    if hashed is None or hashed.count("$") != 2:
+        return False
     _, salt, digest = hashed.split("$")
     candidate = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2**14, r=8, p=1)
     return secrets.compare_digest(candidate.hex(), digest)

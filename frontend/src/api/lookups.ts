@@ -13,10 +13,9 @@ import { api } from './client'
 import type { Author, Cookbook, Ingredient, Lookup, Measurement, Preparation } from './types'
 
 /**
- * `name` is `unique=True` on all of these tables, but no service or router
- * catches IntegrityError — so POSTing a name that already exists comes back as
- * an unhandled 500 rather than a 409. Callers should check the cached list
- * before creating; `findByName` below is how the pickers do it.
+ * `name` is unique on all of these tables, and POSTing a duplicate returns 409.
+ * Callers check the cached list before creating to skip that round trip;
+ * `findByName` below is how the pickers do it.
  */
 export function findByName<T extends Lookup>(items: readonly T[] | undefined, name: string): T | undefined {
   const needle = name.trim().toLowerCase()

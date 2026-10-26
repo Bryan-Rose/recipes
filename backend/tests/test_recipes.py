@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.models.user import User
 from app.schemas.cookbook import CookbookRead
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
@@ -22,12 +23,12 @@ def test_create_recipe(client: TestClient):
     assert recipe.updated_at is not None
 
 
-def test_create_recipe_uses_placeholder_user(client: TestClient):
+def test_create_recipe_is_attributed_to_current_user(client: TestClient, current_user: User):
     response = client.post("/recipes/", json={"name": "Ratatouille"})
 
     assert response.status_code == 201
     recipe = RecipeRead.model_validate(response.json())
-    assert recipe.created_user_id == 999
+    assert recipe.created_user_id == current_user.id
 
 
 def test_create_recipe_with_cookbook(client: TestClient, cookbook: CookbookRead):

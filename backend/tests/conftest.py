@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401 — registers every model, same reason as models/__init__.py
+from app.auth import SESSION_COOKIE
 from app.database import Base, get_db
 from app.main import app as fastapi_app
 from app.models.user import User
@@ -16,8 +17,7 @@ from app.schemas.preparation import PreparationRead
 from app.schemas.recipes import RecipeRead
 from app.schemas.tag import TagRead
 from app.schemas.user import UserRead
-
-PLACEHOLDER_USER_ID = 999
+from app.services import auth as auth_service
 
 
 @pytest.fixture(scope="function")
@@ -30,9 +30,6 @@ def db_session():
     Base.metadata.create_all(engine)
     TestingSessionLocal = sessionmaker(bind=engine)
     session = TestingSessionLocal()
-    # POST /recipes/ attributes every recipe to this user until there is auth.
-    session.add(User(id=PLACEHOLDER_USER_ID, username="placeholder", full_name="Placeholder", hashed_password="x"))
-    session.commit()
     try:
         yield session
     finally:
@@ -40,7 +37,18 @@ def db_session():
 
 
 @pytest.fixture()
-def client(db_session):
+def current_user(db_session) -> User:
+    # Admin so user-management routes are reachable. No password: hashing is slow,
+    # and tests that need one create their own user.
+    user = User(username="admin", full_name="Admin", is_superuser=True)
+    db_session.add(user)
+    db_session.commit()
+    return user
+
+
+@pytest.fixture()
+def client(db_session, current_user):
+    """Signed in as current_user through a real session cookie; clear client.cookies for anonymous requests."""
     def override_get_db():
         # The real get_db closes a fresh session per request; this one is
         # shared across requests, so a failed request must roll it back.
@@ -52,6 +60,7 @@ def client(db_session):
 
     fastapi_app.dependency_overrides[get_db] = override_get_db
     with TestClient(fastapi_app) as test_client:
+        test_client.cookies.set(SESSION_COOKIE, auth_service.create_session(db_session, current_user, days=1))
         yield test_client
     fastapi_app.dependency_overrides.clear()
 

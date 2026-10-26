@@ -30,20 +30,11 @@ from app.models.preparation import Preparation
 from app.models.recipe import Recipe, RecipeIngredient, Requirement, Step
 from app.models.user import User
 
-# app/routers/recipes.py attributes every new recipe to this id while there is
-# no auth layer. Seeding a matching row keeps the foreign key honest — SQLite
-# does not enforce foreign keys by default, so without this the reference is
-# simply dangling and nothing complains.
-PLACEHOLDER_USER_ID = 999
-
 
 def seed(db: Session) -> None:
-    user = User(
-        id=PLACEHOLDER_USER_ID,
-        username="placeholder",
-        full_name="Placeholder User",
-        hashed_password="not-a-real-hash",
-    )
+    # Sample recipes need an author. No password, so nobody can sign in as it;
+    # create real accounts with scripts/create_user.py.
+    user = User(username="sample", full_name="Sample Data")
     db.add(user)
 
     # "whole" is the neutral default: RecipeIngredient.preparation_id is
@@ -88,7 +79,7 @@ def seed(db: Session) -> None:
         active_cook_time="20 minutes",
         inactive_cook_time="0 minutes",
         servings="4",
-        created_user_id=PLACEHOLDER_USER_ID,
+        created_user=user,
         recipe_ingredients=[
             ingredient_row("spaghetti", "pound", 1),
             ingredient_row("egg", "whole", 4, "beaten"),
@@ -115,7 +106,7 @@ def seed(db: Session) -> None:
         active_cook_time="15 minutes",
         inactive_cook_time="10 minutes",
         servings="Makes about 12",
-        created_user_id=PLACEHOLDER_USER_ID,
+        created_user=user,
         recipe_ingredients=[
             ingredient_row("flour", "cup", 2),
             ingredient_row("sugar", "tablespoon", 2),
@@ -144,7 +135,7 @@ def seed(db: Session) -> None:
         active_cook_time="10 minutes",
         inactive_cook_time="12 minutes",
         servings="6",
-        created_user_id=PLACEHOLDER_USER_ID,
+        created_user=user,
         recipe_ingredients=[
             ingredient_row("butter", "cup", 1, "melted"),
             ingredient_row("garlic", "clove", 6, "minced"),
@@ -181,7 +172,7 @@ def main() -> None:
             print("recipes already present — skipping seed (use --reset to start over)")
             return
         seed(db)
-        print("seeded sample data")
+        print("seeded sample data — now create your account: uv run python -m scripts.create_user <username> --admin")
 
 
 if __name__ == "__main__":

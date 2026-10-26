@@ -9,6 +9,7 @@ The frontend needs the API running alongside it. Two terminals:
 ```bash
 # terminal 1 — from backend/
 uv run python -m scripts.init_db    # first time only: create tables + seed data
+uv run python -m scripts.create_user <you> --admin   # first time only: your login
 uv run uvicorn app.main:app --reload
 
 # terminal 2 — from frontend/
@@ -73,4 +74,5 @@ form saves each child as you change it, rather than diffing the whole tree.
   already-loaded list before offering to create a new row, to avoid the round trip.
 - **No pagination or search on the API.** `GET /recipes/` returns every recipe
   fully nested; the list page filters client-side.
-- **No auth.** New recipes are attributed to a hardcoded placeholder user.
+- **Session-cookie auth.** `App.tsx` shows `LoginPage` until `/auth/me` succeeds. Any 401 marks the user
+  signed out (see `main.tsx`). SSO is a full-page navigation to `/api/auth/oidc/login`, not a fetch.

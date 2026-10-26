@@ -19,9 +19,9 @@ export class ApiError extends Error {
     this.body = body
   }
 
-  /** A unique-constraint collision surfaces as a 500 — see notes in lookups.ts. */
+  /** The API answers 409 for any integrity error, of which a duplicate name is the usual one. */
   get isProbablyDuplicate(): boolean {
-    return this.status === 500
+    return this.status === 409
   }
 }
 

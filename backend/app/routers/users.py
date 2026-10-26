@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth import require_admin
 from app.database import get_db
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services import users as users_service
@@ -21,12 +22,12 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     return response
 
 
-@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_admin)])
 def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     return users_service.create_user(db, user_in)
 
 
-@router.patch("/{user_id}", response_model=UserRead)
+@router.patch("/{user_id}", response_model=UserRead, dependencies=[Depends(require_admin)])
 def update_user(user_id: int, user_in: UserUpdate, db: Session = Depends(get_db)):
     existing = users_service.get_user(db, user_id)
     if existing is None:
@@ -34,7 +35,7 @@ def update_user(user_id: int, user_in: UserUpdate, db: Session = Depends(get_db)
     return users_service.update_user(db, existing, user_in)
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     existing = users_service.get_user(db, user_id)
     if existing is None:

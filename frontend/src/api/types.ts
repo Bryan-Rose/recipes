@@ -10,6 +10,9 @@ import type { components } from './schema'
 
 type Schemas = components['schemas']
 
+export type User = Schemas['UserRead']
+export type AuthConfig = Schemas['AuthConfig']
+
 export type Author = Schemas['AuthorRead']
 export type Cookbook = Schemas['CookbookRead']
 export type Ingredient = Schemas['IngredientRead']

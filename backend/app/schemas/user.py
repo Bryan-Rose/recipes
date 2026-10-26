@@ -15,6 +15,8 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     full_name: str | None = None
     password: SecretStr | None = None
+    is_active: bool | None = None
+    is_superuser: bool | None = None
 
 
 class UserRead(UserBase):

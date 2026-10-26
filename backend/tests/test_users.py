@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.schemas.user import UserRead
 from app.services.users import verify_password
-from tests.conftest import PLACEHOLDER_USER_ID
 
 
 def test_create_user(client: TestClient):
@@ -40,11 +39,11 @@ def test_create_user_requires_password(client: TestClient):
     assert response.status_code == 422
 
 
-def test_list_users_has_only_placeholder(client: TestClient):
+def test_list_users_has_only_current_user(client: TestClient, current_user: User):
     response = client.get("/users/")
 
     assert response.status_code == 200
-    assert [u["id"] for u in response.json()] == [PLACEHOLDER_USER_ID]
+    assert [u["id"] for u in response.json()] == [current_user.id]
 
 
 def test_created_user_appears_in_list(client: TestClient, user: UserRead):
@@ -106,10 +105,10 @@ def test_delete_user_not_found(client: TestClient):
     assert response.status_code == 404
 
 
-def test_delete_user_with_recipes_is_refused(client: TestClient):
+def test_delete_user_with_recipes_is_refused(client: TestClient, current_user: User):
     client.post("/recipes/", json={"name": "Beef Bourguignon"})
 
-    response = client.delete(f"/users/{PLACEHOLDER_USER_ID}")
+    response = client.delete(f"/users/{current_user.id}")
 
     assert response.status_code == 409
-    assert client.get(f"/users/{PLACEHOLDER_USER_ID}").status_code == 200
+    assert client.get(f"/users/{current_user.id}").status_code == 200
