@@ -49,20 +49,26 @@ recipes.example.com {
 }
 ```
 
-**Caddy in Docker** (the production setup). A container can't reach the host's
-loopback, so the frontend joins Caddy's Docker network instead. Use the example
-override, which assumes that network is called `rproxy`:
+**Caddy in Docker** (the production setup). `compose.server.example.yml` is the
+server's compose file. The frontend runs as container `whattoeat` on Caddy's
+external `rproxy` network, with no host port. Copy it to the git-ignored
+`compose.server.yml`, and point compose at it from `.env` so plain
+`docker compose` commands use it and `git pull` never conflicts with your edits:
 
 ```bash
-cp compose.override.example.yml compose.override.yml   # git-ignored; compose loads it automatically
+cp compose.server.example.yml compose.server.yml
+echo 'COMPOSE_FILE=compose.server.yml' >> .env
 docker compose up -d --build
 ```
 
-and proxy to it with `reverse_proxy recipes:80`. Only the frontend joins `rproxy`.
-Its nginx reaches the backend over the stack's private network, so other containers
-on `rproxy` can't call the API around it. The server's own config then lives in
-`compose.override.yml`, so `git pull` keeps `compose.yml` current with no merge
-conflicts.
+Caddy reaches nginx on the container's own port, **80**, not the host port:
+
+```
+reverse_proxy whattoeat:80
+```
+
+When `compose.yml` changes upstream (a new setting or healthcheck), carry the
+change over to `compose.server.yml` by hand.
 
 **Updating:** back up, then rebuild. Migrations run automatically when the backend starts.
 

@@ -1,3 +1,3 @@
 .env
-# Per-server compose customisation (see README, Deploying)
-compose.override.yml
+# The server's own compose file, copied from compose.server.example.yml (see README, Deploying)
+compose.server.yml
