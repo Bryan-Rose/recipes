@@ -32,6 +32,10 @@ fuzz:
 # traces land in e2e/out (open e2e/out/report/index.html).
 E2E := docker compose -p recipes-e2e -f compose.yaml -f e2e/compose.e2e.yaml --profile e2e
 
+# The e2e runner writes e2e/out as this user (CI runners aren't uid 1000).
+e2e: export RECIPES_UID ?= $(shell id -u)
+e2e: export RECIPES_GID ?= $(shell id -g)
+
 e2e:
 	mkdir -p e2e/out
 	$(E2E) down -v --remove-orphans
