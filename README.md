@@ -49,24 +49,20 @@ recipes.example.com {
 }
 ```
 
-**Caddy in Docker.** It can't reach the host's loopback, so join the stacks on a
-shared network instead. Create `compose.override.yaml` next to `compose.yaml`
-(compose loads it automatically; it's git-ignored):
+**Caddy in Docker** (the production setup). A container can't reach the host's
+loopback, so the frontend joins Caddy's Docker network instead. Use the example
+override, which assumes that network is called `rproxy`:
 
-```yaml
-services:
-  frontend:
-    ports: !reset []          # no host port at all; Caddy reaches it over the network
-    networks:
-      default:
-      caddy:
-        aliases: [recipes]
-networks:
-  caddy:
-    external: true            # your Caddy container's network (`docker network ls`)
+```bash
+cp compose.override.example.yml compose.override.yml   # git-ignored; compose loads it automatically
+docker compose up -d --build
 ```
 
-and proxy to it with `reverse_proxy recipes:80`.
+and proxy to it with `reverse_proxy recipes:80`. Only the frontend joins `rproxy`.
+Its nginx reaches the backend over the stack's private network, so other containers
+on `rproxy` can't call the API around it. The server's own config then lives in
+`compose.override.yml`, so `git pull` keeps `compose.yml` current with no merge
+conflicts.
 
 **Updating:** back up, then rebuild. Migrations run automatically when the backend starts.
 
