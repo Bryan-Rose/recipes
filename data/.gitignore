@@ -1,0 +1,3 @@
+# Runtime data for docker compose (bind-mounted at /data); keep the folder, ignore its contents.
+*
+!.gitignore

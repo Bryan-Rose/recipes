@@ -1,0 +1,8 @@
+# Keep local state and secrets out of the image.
+.env
+*.db
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+tests

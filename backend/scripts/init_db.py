@@ -4,6 +4,7 @@ Run from the backend/ directory:
 
     uv run python -m scripts.init_db          # create tables, seed if empty
     uv run python -m scripts.init_db --reset  # drop everything first
+    uv run python -m scripts.init_db --no-seed  # create missing tables only
 
 This is deliberately a standalone script rather than a FastAPI startup hook.
 The test suite drives the app through `with TestClient(...)`, which fires
@@ -158,6 +159,7 @@ def seed(db: Session) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reset", action="store_true", help="drop all tables before creating them")
+    parser.add_argument("--no-seed", action="store_true", help="only create missing tables (used by the container on start)")
     args = parser.parse_args()
 
     if args.reset:
@@ -166,6 +168,8 @@ def main() -> None:
 
     Base.metadata.create_all(engine)
     print("created tables")
+    if args.no_seed:
+        return
 
     with SessionLocal() as db:
         if db.execute(select(Recipe).limit(1)).scalar_one_or_none() is not None:

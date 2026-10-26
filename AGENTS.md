@@ -16,8 +16,16 @@ uv run pytest                            # tests
 uv run ruff check .                      # lint
 uv run python -m scripts.init_db [--reset]  # create local app.db and seed sample data
 uv run python -m scripts.create_user <name> --admin [--sso-only]  # create a login (first admin)
-docker build -t recipes-api . && docker run -p 8000:8000 recipes-api
 ```
+
+Full stack in containers (run from the repo root):
+
+```bash
+docker compose up -d --build                                    # http://localhost:8080
+docker compose exec backend python -m scripts.create_user <name> --admin
+```
+
+`compose.yaml` runs two images. `frontend/Dockerfile` builds the SPA into nginx, and `frontend/nginx.conf` serves it and proxies `/api/` to `backend:8000` with the prefix stripped, mirroring the Vite dev proxy. `backend/Dockerfile` runs as a non-root user (uid `RECIPES_UID`, default 1000) with SQLite at `/data/app.db`, bind-mounted from the repo's `./data/` (git-ignored apart from its own `.gitignore`), and runs `init_db --no-seed` before uvicorn on every start. Compose passes the repo-root `.env` (see `.env.example`) to the backend. Only the frontend port is published.
 
 Frontend (run from `frontend/`):
 
