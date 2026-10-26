@@ -36,7 +36,7 @@ npm install
 npm run dev      # Vite dev server
 npm run build    # tsc -b, then vite build — typecheck is part of the build
 npm run lint     # oxlint
-npm run gen:api  # regenerate src/api/schema.d.ts from the running API — rerun after backend schema changes
+npm run gen:api  # regenerate src/api/schema.d.ts from the backend — rerun after backend schema changes
 ```
 
 Note `npm run build` is also the typecheck: `tsconfig.app.json` sets `noEmit`, so `tsc -b` only validates. Run it to check types without a full build.

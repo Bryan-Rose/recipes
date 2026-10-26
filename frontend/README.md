@@ -23,7 +23,8 @@ npm run dev                          # http://localhost:5173
 npm run dev      # Vite dev server
 npm run build    # tsc -b, then vite build — the typecheck is part of the build
 npm run lint     # oxlint
-npm run gen:api  # regenerate src/api/schema.d.ts from the running API
+npm run gen:api  # regenerate src/api/schema.d.ts from the backend (in-process, no server needed)
+npm run check:api  # fail if schema.d.ts is stale (part of `make check`)
 ```
 
 ## How it talks to the API
@@ -34,8 +35,9 @@ from the browser's point of view. A real deployment needs either CORS on the API
 or a reverse proxy in front of both.
 
 **Types are generated, not hand-written.** `npm run gen:api` reads the API's
-OpenAPI schema and writes `src/api/schema.d.ts`; the backend must be running.
-The Pydantic schemas are the single source of truth, so a backend change that
+OpenAPI schema (imported in-process) and writes `src/api/schema.d.ts`.
+The Pydantic schemas are the single source of truth. `npm run check:api` (part of
+`make check`) fails if the file is stale; once regenerated, a backend change that
 breaks the frontend shows up as a `npm run build` failure. Don't edit
 `schema.d.ts` — `src/api/types.ts` holds the friendly aliases everything else
 imports.
