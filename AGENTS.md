@@ -5,6 +5,24 @@ Two projects in one repo:
 - `backend/` — FastAPI app managed by [uv], Python 3.14. Layered as `models/` → `schemas/` → `services/` → `routers/`, with CRUD routes for recipes (and their nested steps, requirements, ingredients) plus authors, cookbooks, ingredients, measurements, preparations, tags, and users. Passwords are hashed with stdlib scrypt in `services/users.py`. pytest suite in `backend/tests/`. Cookie-session auth with optional OIDC SSO (see Backend auth below). Schema changes go through Alembic (see Migrations below).
 - `frontend/` — React 19 + TypeScript on Vite 8, using react-router and TanStack Query. It talks to the API through the Vite dev proxy (`/api` → `:8000`). See `frontend/README.md` for its structure and the API limitations that shape the UI.
 
+## Workflow: every change goes through a pull request
+
+`main` is protected by the GitHub ruleset "Protect main": no direct pushes, force pushes or deletion. A pull request can merge only after the required CI checks `fast` and `full` pass. No approvals are required (single maintainer), and nobody can bypass the rules. Use the `gh` CLI, which is installed and authenticated.
+
+```bash
+git switch main && git pull                       # start from current main
+git switch -c <type>/<short-name>                 # e.g. feat/recipe-search, fix/tag-409, docs/...
+# ... work, running `make check` and committing as you go ...
+git push -u origin HEAD
+gh pr create --fill                               # or --title/--body: what changed, why, how it was verified
+gh pr checks --watch                              # wait for fast + full
+gh run view --log-failed                          # if a check fails: read the failing log, fix, push again
+```
+
+- **One branch and one PR per task.** Never commit to `main`. Push the fix to the same branch and CI re-runs.
+- **Agents push task branches and open their PRs without asking.** That's the maintainer's standing approval for this repo. It doesn't cover pushing to `main`, force-pushing, or merging.
+- **Merging is the maintainer's call.** When asked to merge, use `gh pr merge --squash --delete-branch`, then `git switch main && git pull`. Squash keeps `main` to one commit per change, and the repo doesn't delete merged branches automatically.
+
 ## Commands
 
 Backend (run from `backend/`):
@@ -43,7 +61,7 @@ Note `npm run build` is also the typecheck: `tsconfig.app.json` sets `noEmit`, s
 
 ## Testing
 
-**Run `make check` before every commit.** It's the fast tier (~25s): ruff (lint and format), pyright, pytest with a coverage floor, the API contract check, tsc, oxlint and Vitest. CI (`.github/workflows/ci.yml`) runs it on every push, then `make fuzz` and `make e2e`. `make check-full` runs all three locally (needs Docker).
+**Run `make check` before every commit.** It's the fast tier (~25s): ruff (lint and format), pyright, pytest with a coverage floor, the API contract check, tsc, oxlint and Vitest. CI (`.github/workflows/ci.yml`) runs it on every pull request (and on `main` after merging), then `make fuzz` and `make e2e`. Its `fast` and `full` jobs are required checks: a PR can't merge until both pass. `make check-full` runs all three locally (needs Docker).
 
 | Layer | Where | What goes there |
 |---|---|---|
