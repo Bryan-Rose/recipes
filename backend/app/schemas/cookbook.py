@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
 from app.schemas.author import AuthorRead
-from app.schemas.fields import DbId, UtcDatetime
+from app.schemas.fields import DbId, Omittable, UtcDatetime
 
 
 class CookbookBase(BaseModel):
@@ -13,8 +13,8 @@ class CookbookCreate(CookbookBase):
 
 
 class CookbookUpdate(BaseModel):
-    name: str | None = None
-    author_id: DbId | None = None
+    name: Omittable[str] = None
+    author_id: Omittable[DbId] = None
 
 
 class CookbookRead(CookbookBase):

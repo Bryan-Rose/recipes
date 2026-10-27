@@ -250,3 +250,9 @@ def test_timestamps_carry_a_utc_offset(client: TestClient, recipe: RecipeRead):
 
     assert body["created_at"].endswith("Z") or body["created_at"].endswith("+00:00")
     assert body["updated_at"].endswith("Z") or body["updated_at"].endswith("+00:00")
+
+
+def test_update_recipe_rejects_null_name(client: TestClient, recipe: RecipeRead):
+    response = client.patch(f"/recipes/{recipe.id}", json={"name": None})
+
+    assert response.status_code == 422

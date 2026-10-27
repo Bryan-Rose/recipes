@@ -164,7 +164,15 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
                 <button
                   type="button"
                   onClick={async () => {
-                    await updateIngredient.mutateAsync({ id: item.id, patch: draft })
+                    await updateIngredient.mutateAsync({
+                      id: item.id,
+                      patch: {
+                        ingredient_id: draft.ingredient_id as number,
+                        measurement_id: draft.measurement_id as number,
+                        preparation_id: draft.preparation_id as number,
+                        amount: draft.amount,
+                      },
+                    })
                     setDrafts((current) => {
                       const { [item.id]: _discarded, ...rest } = current
                       return rest

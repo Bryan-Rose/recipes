@@ -1,10 +1,11 @@
 """Field types for values that cross the API boundary into or out of SQLite."""
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, TypeVar
 
 from fastapi import Path
-from pydantic import AfterValidator, Field, SecretStr
+from pydantic import AfterValidator, BeforeValidator, Field, SecretStr
+from pydantic.json_schema import SkipJsonSchema
 
 # Integers beyond SQLite's signed 64-bit range make the driver raise
 # OverflowError (a 500). The bound is tighter still: 2**53 - 1 is the largest
@@ -33,3 +34,18 @@ def _assume_utc(value: datetime) -> datetime:
 UtcDatetime = Annotated[datetime, AfterValidator(_assume_utc)]
 """SQLite drops tzinfo; stored timestamps are UTC (CURRENT_TIMESTAMP), so say so.
 Without an offset, browsers parse the value as local time."""
+
+
+def _reject_null(value: object) -> object:
+    if value is None:
+        raise ValueError("may be omitted, but not null")
+    return value
+
+
+T = TypeVar("T")
+
+# A TypeVar alias, not `type Omittable[T]`, which pydantic would emit as a $ref per use.
+Omittable = Annotated[T | SkipJsonSchema[None], BeforeValidator(_reject_null)]
+"""An update field for a NOT NULL column: leave it out to keep the value, but an
+explicit null is a 422 rather than reaching the database as a 409. Defaults
+aren't validated, so `= None` still marks the field as unset."""

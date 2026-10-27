@@ -178,3 +178,10 @@ def test_admin_cannot_delete_themselves(client: TestClient, current_user: User):
 
     assert response.status_code == 409
     assert client.get(f"/users/{current_user.id}").status_code == 200
+
+
+@pytest.mark.parametrize("field", ["full_name", "is_active", "is_superuser"])
+def test_update_user_rejects_null(client: TestClient, user: UserRead, field: str):
+    response = client.patch(f"/users/{user.id}", json={field: None})
+
+    assert response.status_code == 422
