@@ -40,12 +40,14 @@ export function CreateRecipeForm() {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (!canSave) return
+    const recipeIngredients = ingredients.map((row) => row.value).filter(isComplete)
+    // Never drop a row silently; canSave should already have blocked this.
+    if (recipeIngredients.length !== ingredients.length) return
 
     const body: RecipeCreate = {
       ...scalars,
       name: scalars.name.trim(),
-      // canSave blocks incomplete rows, so the filter only narrows the type.
-      recipe_ingredients: ingredients.map((row) => row.value).filter(isComplete),
+      recipe_ingredients: recipeIngredients,
       requirements: requirements
         .map((row) => row.value.trim())
         .filter((name) => name !== '')
