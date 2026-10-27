@@ -9,6 +9,7 @@ from app.auth import SESSION_COOKIE
 from app.database import Base, get_db
 from app.main import app as fastapi_app
 from app.models.user import User
+from app.routers import auth as auth_router
 from app.schemas.author import AuthorRead
 from app.schemas.cookbook import CookbookRead
 from app.schemas.ingredient import IngredientRead
@@ -61,6 +62,7 @@ def client(db_session, current_user):
             raise
 
     fastapi_app.dependency_overrides[get_db] = override_get_db
+    auth_router._failed_logins.clear()
     with TestClient(fastapi_app) as test_client:
         test_client.cookies.set(SESSION_COOKIE, auth_service.create_session(db_session, current_user, days=1))
         yield test_client

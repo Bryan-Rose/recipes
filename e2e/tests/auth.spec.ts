@@ -41,6 +41,26 @@ test('a deep link opens straight to its page after signing in', async ({ page })
   await expect(page.getByRole('heading', { name: 'New recipe' })).toBeVisible()
 })
 
+test('repeated wrong passwords lock the account for a while', async ({ page, baseURL }) => {
+  // A throwaway user, so the lockout can't affect other tests.
+  const admin = await apiAs(baseURL!, ADMIN)
+  const user = { username: `locked-${unique()}`, password: 'first-password' }
+  expect((await admin.post('/api/users/', { data: { ...user, full_name: 'Locked Out' } })).status()).toBe(201)
+  for (let i = 0; i < 10; i++) {
+    const response = await page.request.post('/api/auth/login', { data: { ...user, password: 'wrong-password' } })
+    expect(response.status()).toBe(401)
+  }
+
+  // Even the right password is refused now.
+  await page.goto('/')
+  await page.getByLabel('Username').fill(user.username)
+  await page.getByLabel('Password').fill(user.password)
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+
+  await expect(page.getByText('Too many failed sign-in attempts. Try again later.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeHidden()
+})
+
 test('a session revoked elsewhere sends the browser back to login', async ({ page, baseURL }) => {
   // A throwaway user, so changing its password can't affect other tests.
   const admin = await apiAs(baseURL!, ADMIN)
