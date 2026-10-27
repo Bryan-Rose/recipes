@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Path
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator, Field, SecretStr
 
 # Integers beyond SQLite's signed 64-bit range make the driver raise
 # OverflowError (a 500). The bound is tighter still: 2**53 - 1 is the largest
@@ -19,6 +19,11 @@ PositiveInt = Annotated[int, Field(ge=1, le=_MAX_INT)]
 
 IdPath = Annotated[int, Path(ge=1, le=_MAX_INT)]
 """A row id in the URL path."""
+
+MIN_PASSWORD_LENGTH = 8
+
+NewPassword = Annotated[SecretStr, Field(min_length=MIN_PASSWORD_LENGTH)]
+"""A password being set. Login takes any string, so older short passwords still work."""
 
 
 def _assume_utc(value: datetime) -> datetime:

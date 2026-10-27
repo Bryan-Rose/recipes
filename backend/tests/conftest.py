@@ -120,5 +120,5 @@ def tag(client) -> TagRead:
 
 @pytest.fixture()
 def user(client) -> UserRead:
-    response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child", "password": "s3cret"})
+    response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child", "password": "s3cret-pw"})
     return UserRead.model_validate(response.json())

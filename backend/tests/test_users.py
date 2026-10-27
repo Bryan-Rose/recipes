@@ -1,3 +1,6 @@
+import io
+import sys
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -6,10 +9,11 @@ from app.models.recipe import Recipe
 from app.models.user import User
 from app.schemas.user import UserRead
 from app.services.users import verify_password
+from scripts import create_user
 
 
 def test_create_user(client: TestClient):
-    response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child", "password": "s3cret"})
+    response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child", "password": "s3cret-pw"})
 
     assert response.status_code == 201
     user = UserRead.model_validate(response.json())
@@ -20,7 +24,7 @@ def test_create_user(client: TestClient):
 
 
 def test_create_user_does_not_return_password(client: TestClient):
-    response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child", "password": "s3cret"})
+    response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child", "password": "s3cret-pw"})
 
     assert "password" not in response.json()
     assert "hashed_password" not in response.json()
@@ -30,8 +34,8 @@ def test_create_user_stores_hashed_password(client: TestClient, db_session: Sess
     stored = db_session.get_one(User, user.id)
 
     assert stored is not None
-    assert stored.hashed_password != "s3cret"
-    assert verify_password("s3cret", stored.hashed_password)
+    assert stored.hashed_password != "s3cret-pw"
+    assert verify_password("s3cret-pw", stored.hashed_password)
     assert not verify_password("wrong", stored.hashed_password)
 
 
@@ -39,6 +43,25 @@ def test_create_user_requires_password(client: TestClient):
     response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child"})
 
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize("password", ["", "7-chars"])
+def test_create_user_rejects_short_password(client: TestClient, password: str):
+    response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child", "password": password})
+
+    assert response.status_code == 422
+
+
+def test_update_user_rejects_short_password(client: TestClient, user: UserRead):
+    assert client.patch(f"/users/{user.id}", json={"password": "short"}).status_code == 422
+
+
+def test_create_user_script_rejects_short_password(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(sys, "argv", ["create_user", "julia", "--password-stdin"])
+    monkeypatch.setattr(sys, "stdin", io.StringIO("short\n"))
+
+    with pytest.raises(SystemExit, match="at least 8"):
+        create_user.main()
 
 
 def test_list_users_has_only_current_user(client: TestClient, current_user: User):
@@ -84,7 +107,7 @@ def test_update_user_password(client: TestClient, db_session: Session, user: Use
     assert response.status_code == 200
     stored = db_session.get_one(User, user.id)
     assert verify_password("n3w-s3cret", stored.hashed_password)
-    assert not verify_password("s3cret", stored.hashed_password)
+    assert not verify_password("s3cret-pw", stored.hashed_password)
 
 
 def test_update_user_not_found(client: TestClient):
@@ -121,7 +144,7 @@ def test_delete_user_with_recipes_is_refused(client: TestClient, db_session: Ses
 
 
 def test_create_admin_user(client: TestClient):
-    response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child", "password": "s3cret", "is_superuser": True})
+    response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child", "password": "s3cret-pw", "is_superuser": True})
 
     assert response.status_code == 201
     assert response.json()["is_superuser"] is True

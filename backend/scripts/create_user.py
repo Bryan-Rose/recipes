@@ -19,6 +19,7 @@ from sqlalchemy import select
 import app.models  # noqa: F401 — registers every model on Base.metadata
 from app.database import SessionLocal
 from app.models.user import User
+from app.schemas.fields import MIN_PASSWORD_LENGTH
 from app.services.users import hash_password
 
 
@@ -34,15 +35,17 @@ def main() -> None:
     hashed_password = None
     if args.password_stdin:
         password = sys.stdin.read().rstrip("\n")
-        if not password:
-            raise SystemExit("no password on stdin")
+        if len(password) < MIN_PASSWORD_LENGTH:
+            raise SystemExit(f"password on stdin must be at least {MIN_PASSWORD_LENGTH} characters")
         hashed_password = hash_password(password)
     elif not args.sso_only:
         if not sys.stdin.isatty():
             raise SystemExit("needs an interactive terminal to prompt for the password (or use --password-stdin)")
         password = getpass.getpass("Password: ")
-        if not password or password != getpass.getpass("Repeat password: "):
-            raise SystemExit("passwords were empty or did not match")
+        if len(password) < MIN_PASSWORD_LENGTH:
+            raise SystemExit(f"password must be at least {MIN_PASSWORD_LENGTH} characters")
+        if password != getpass.getpass("Repeat password: "):
+            raise SystemExit("passwords did not match")
         hashed_password = hash_password(password)
 
     with SessionLocal() as db:
