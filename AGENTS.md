@@ -37,6 +37,7 @@ uv run python -m scripts.init_db [--reset]  # migrate local app.db to head and s
 uv run alembic revision --autogenerate -m "<what changed>"  # after changing a model; review the file
 uv run alembic upgrade head                 # apply migrations (init_db also does this)
 uv run python -m scripts.create_user <name> --admin [--sso-only]  # create a login (first admin)
+uv run python -m scripts.pr_review --pr <N> [--dry-run] [--post-comment]  # Claude review of a PR (CI: .github/workflows/pr-review.yml)
 ```
 
 Full stack in containers (run from the repo root):
