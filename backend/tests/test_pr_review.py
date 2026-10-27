@@ -132,7 +132,7 @@ def test_pr_prompt_adds_guide_conversation_and_full_files(monkeypatch):
     responses = {
         "pr view": json.dumps(pr),
         "pr diff": "+x",
-        "api -H Accept: application/vnd.github.raw repos/{owner}/{repo}/contents/AGENTS.md?ref=sha": "Use Omittable.",
+        "api -H Accept: application/vnd.github.raw repos/{owner}/{repo}/contents/AGENTS.md?ref=sha": "Guide text.",
         "api -H Accept: application/vnd.github.raw repos/{owner}/{repo}/contents/a.py?ref=sha": "full a.py",
         "api -H Accept: application/vnd.github.raw repos/{owner}/{repo}/contents/big.lock?ref=sha": "x" * 5000,
     }
@@ -147,8 +147,62 @@ def test_pr_prompt_adds_guide_conversation_and_full_files(monkeypatch):
     monkeypatch.setattr(pr_review, "MAX_INPUT_CHARS", 3000)
     prompt = pr_review.pr_prompt(1, extra_issue=None)
 
-    assert prompt.index("<guide>\nUse Omittable.") < prompt.index("<pr ")
+    assert prompt.index("<guide>\nGuide text.") < prompt.index("<pr ")
     assert '<comment author="maintainer">' in prompt and "old review" not in prompt
     assert '<file path="a.py">\nfull a.py\n</file>' in prompt
-    assert "Full text not included (binary or too large; see the diff): big.lock, img.png" in prompt
+    assert "Full text not included (binary, too large or unavailable; see the diff): big.lock, img.png" in prompt
     assert not any("gone.py" in " ".join(args) for args, _ in calls)
+
+
+def test_pr_prompt_stays_under_the_limit_when_files_are_omitted(monkeypatch, capsys):
+    files = [{"path": f"assets/image_{n:03}.png"} for n in range(60)] + [{"path": "a.py"}]
+    pr = {**EMPTY_PR, "files": files}
+    calls = []
+    gh = fake_gh({"pr view": json.dumps(pr), "pr diff": "+x"}, calls)
+
+    def gh_binary_or_filler(*args, stdin=None):
+        if args[0] == "api":
+            if args[-1].startswith("repos/{owner}/{repo}/contents/assets/"):
+                raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+            calls.append((args, stdin))
+            return "y" * 400
+        return gh(*args, stdin=stdin)
+
+    monkeypatch.setattr(pr_review, "gh", gh_binary_or_filler)
+    # Sweep the limit across the point where a.py stops fitting beside the 60 omitted paths.
+    included = set()
+    for limit in range(3300, 6000):  # the fixed parts alone are ~3260 chars
+        monkeypatch.setattr(pr_review, "MAX_INPUT_CHARS", limit)
+        prompt = pr_review.pr_prompt(1, extra_issue=None)
+        assert len(prompt) <= limit
+        included.add('<file path="a.py">' in prompt)
+    assert included == {True, False}
+    assert "can't include assets/image_000.png" in capsys.readouterr().err
+
+
+def test_pr_prompt_says_when_the_guide_is_unavailable(monkeypatch):
+    pr = {**EMPTY_PR, "files": [{"path": "a b#1.py"}]}
+    calls = []
+    gh = fake_gh({"pr view": json.dumps(pr), "pr diff": "+x"}, calls)
+
+    def gh_no_guide(*args, stdin=None):
+        if "AGENTS.md" in args[-1]:
+            raise pr_review.ReviewError("gh api failed: HTTP 403 rate limit")
+        return gh(*args, stdin=stdin)
+
+    monkeypatch.setattr(pr_review, "gh", gh_no_guide)
+    prompt = pr_review.pr_prompt(1, extra_issue=None)
+
+    assert "Project guide (AGENTS.md) unavailable." in prompt
+    assert calls[-1][0][-1] == "repos/{owner}/{repo}/contents/a%20b%231.py?ref=sha"
+
+
+def test_pr_prompt_skips_fetching_files_once_the_budget_is_spent(monkeypatch):
+    pr = {**EMPTY_PR, "files": [{"path": "a.py"}]}
+    calls = []
+    monkeypatch.setattr(pr_review, "gh", fake_gh({"pr view": json.dumps(pr), "pr diff": "+x" * 500}, calls))
+    monkeypatch.setattr(pr_review, "MAX_INPUT_CHARS", 500)
+    prompt = pr_review.pr_prompt(1, extra_issue=None)
+
+    assert not any("contents/a.py" in args[-1] for args, _ in calls)
+    assert prompt.endswith("see the diff): a.py")

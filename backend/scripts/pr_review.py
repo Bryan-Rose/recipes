@@ -14,6 +14,7 @@ import json
 import os
 import subprocess
 import sys
+from urllib.parse import quote
 
 import anthropic
 
@@ -83,10 +84,11 @@ def pr_from_event() -> int | None:
 
 
 def file_at(path: str, ref: str) -> str | None:
-    """A file's text at a commit, or None if it is missing or binary."""
+    """A file's text at a commit, or None (with a warning in the log) if it can't be read as text."""
     try:
-        return gh("api", "-H", "Accept: application/vnd.github.raw", f"repos/{{owner}}/{{repo}}/contents/{path}?ref={ref}")
-    except ReviewError, UnicodeDecodeError:
+        return gh("api", "-H", "Accept: application/vnd.github.raw", f"repos/{{owner}}/{{repo}}/contents/{quote(path)}?ref={ref}")
+    except (ReviewError, UnicodeDecodeError) as e:
+        print(f"Warning: can't include {path}: {e}", file=sys.stderr)
         return None
 
 
@@ -108,25 +110,30 @@ def pr_prompt(pr: int, extra_issue: int | None) -> str:
             parts.append(f'<comment author="{c["author"]["login"]}">\n{c["body"]}\n</comment>')
     parts.append("Files: " + ", ".join(f["path"] for f in data["files"]))
     parts.append(f"<diff>\n{diff}\n</diff>")
-    if guide := file_at("AGENTS.md", data["headRefOid"]):
-        parts.insert(0, f"<guide>\n{guide}\n</guide>")
+    # The PR's own AGENTS.md, so a PR that changes the rules is reviewed against them; the diff shows any edit.
+    guide = file_at("AGENTS.md", data["headRefOid"])
+    parts.insert(0, f"<guide>\n{guide}\n</guide>" if guide else "Project guide (AGENTS.md) unavailable.")
 
     # Full files go last and only while they fit, so a big lockfile can't push the PR over the limit.
-    budget = MAX_INPUT_CHARS - sum(len(part) for part in parts) - 1000
+    # Every part costs its length plus a "\n\n" separator; the omitted line is reserved for up front.
+    header = "Review this pull request.\n\n"
+    omitted_prefix = "Full text not included (binary, too large or unavailable; see the diff): "
+    reserve = len(omitted_prefix) + sum(len(f["path"]) + 2 for f in data["files"]) + 2
+    budget = MAX_INPUT_CHARS - len(header) - sum(len(part) + 2 for part in parts) - reserve
     omitted = []
     for f in data["files"]:
         if f.get("changeType") == "DELETED":
             continue
-        text = file_at(f["path"], data["headRefOid"])
+        text = file_at(f["path"], data["headRefOid"]) if budget > 0 else None
         block = f'<file path="{f["path"]}">\n{text}\n</file>'
-        if text is None or len(block) > budget:
+        if text is None or len(block) + 2 > budget:
             omitted.append(f["path"])
             continue
         parts.append(block)
-        budget -= len(block)
+        budget -= len(block) + 2
     if omitted:
-        parts.append("Full text not included (binary or too large; see the diff): " + ", ".join(omitted))
-    return "Review this pull request.\n\n" + "\n\n".join(parts)
+        parts.append(omitted_prefix + ", ".join(omitted))
+    return header + "\n\n".join(parts)
 
 
 def code_prompt(path: str) -> str:
