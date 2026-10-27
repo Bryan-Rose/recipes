@@ -185,3 +185,4 @@ def test_update_user_rejects_null(client: TestClient, user: UserRead, field: str
     response = client.patch(f"/users/{user.id}", json={field: None})
 
     assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"][-1] == field

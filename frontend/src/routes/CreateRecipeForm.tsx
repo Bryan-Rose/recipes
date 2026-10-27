@@ -44,13 +44,8 @@ export function CreateRecipeForm() {
     const body: RecipeCreate = {
       ...scalars,
       name: scalars.name.trim(),
-      // Only complete rows reach here — canSave blocks the rest.
-      recipe_ingredients: ingredients.map((row) => ({
-        ingredient_id: row.value.ingredient_id as number,
-        measurement_id: row.value.measurement_id as number,
-        preparation_id: row.value.preparation_id as number,
-        amount: row.value.amount,
-      })),
+      // canSave blocks incomplete rows, so the filter only narrows the type.
+      recipe_ingredients: ingredients.map((row) => row.value).filter(isComplete),
       requirements: requirements
         .map((row) => row.value.trim())
         .filter((name) => name !== '')

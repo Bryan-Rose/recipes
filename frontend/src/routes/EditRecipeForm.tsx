@@ -164,15 +164,8 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
                 <button
                   type="button"
                   onClick={async () => {
-                    await updateIngredient.mutateAsync({
-                      id: item.id,
-                      patch: {
-                        ingredient_id: draft.ingredient_id as number,
-                        measurement_id: draft.measurement_id as number,
-                        preparation_id: draft.preparation_id as number,
-                        amount: draft.amount,
-                      },
-                    })
+                    if (!isComplete(draft)) return
+                    await updateIngredient.mutateAsync({ id: item.id, patch: draft })
                     setDrafts((current) => {
                       const { [item.id]: _discarded, ...rest } = current
                       return rest
@@ -206,12 +199,8 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
               className="primary"
               disabled={!isComplete(newRow) || createIngredient.isPending}
               onClick={async () => {
-                await createIngredient.mutateAsync({
-                  ingredient_id: newRow.ingredient_id as number,
-                  measurement_id: newRow.measurement_id as number,
-                  preparation_id: newRow.preparation_id as number,
-                  amount: newRow.amount,
-                })
+                if (!isComplete(newRow)) return
+                await createIngredient.mutateAsync(newRow)
                 setNewRow(null)
               }}
             >

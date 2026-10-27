@@ -285,3 +285,4 @@ def test_update_recipe_ingredient_rejects_null(
     response = client.patch(f"/recipes/{recipe.id}/{PREFIX}/{ri_id}", json={field: None})
 
     assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"][-1] == field

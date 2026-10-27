@@ -85,3 +85,4 @@ def test_update_cookbook_rejects_null(client: TestClient, cookbook: CookbookRead
     response = client.patch(f"/cookbooks/{cookbook.id}", json={field: None})
 
     assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"][-1] == field

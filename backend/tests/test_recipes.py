@@ -256,3 +256,4 @@ def test_update_recipe_rejects_null_name(client: TestClient, recipe: RecipeRead)
     response = client.patch(f"/recipes/{recipe.id}", json={"name": None})
 
     assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"][-1] == "name"

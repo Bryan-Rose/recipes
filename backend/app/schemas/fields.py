@@ -38,14 +38,15 @@ Without an offset, browsers parse the value as local time."""
 
 def _reject_null(value: object) -> object:
     if value is None:
-        raise ValueError("may be omitted, but not null")
+        raise ValueError("must not be null; omit the field to leave it unchanged")
     return value
 
 
-T = TypeVar("T")
+_T = TypeVar("_T")
 
 # A TypeVar alias, not `type Omittable[T]`, which pydantic would emit as a $ref per use.
-Omittable = Annotated[T | SkipJsonSchema[None], BeforeValidator(_reject_null)]
+# None stays in the union only so `= None` type-checks; the validator rejects it at runtime.
+Omittable = Annotated[_T | SkipJsonSchema[None], BeforeValidator(_reject_null)]
 """An update field for a NOT NULL column: leave it out to keep the value, but an
 explicit null is a 422 rather than reaching the database as a 409. Defaults
 aren't validated, so `= None` still marks the field as unset."""
