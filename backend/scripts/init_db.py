@@ -13,11 +13,14 @@ backend/ on every test run.
 """
 
 import argparse
+import sqlite3
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import MetaData, inspect, select
+from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
+from sqlalchemy import Engine, MetaData, inspect, select
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401 — registers every model on Base.metadata
@@ -159,6 +162,25 @@ def seed(db: Session) -> None:
     db.commit()
 
 
+def backup(engine: Engine, config: Config) -> str | None:
+    """Copy a SQLite database aside before migrating it, named for the revision it was at.
+
+    Skipped when there's nothing to migrate or nothing to lose (a new database).
+    """
+    if engine.dialect.name != "sqlite":
+        return None
+    with engine.connect() as connection:
+        current = MigrationContext.configure(connection).get_current_revision()
+    if current in (None, ScriptDirectory.from_config(config).get_current_head()):
+        return None
+    path = f"{engine.url.database}.pre-{current}.bak"
+    source, target = sqlite3.connect(str(engine.url.database)), sqlite3.connect(path)
+    source.backup(target)
+    target.close()
+    source.close()
+    return path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reset", action="store_true", help="drop all tables before migrating")
@@ -180,7 +202,10 @@ def main() -> None:
             "Recreate it with --reset (this deletes its data)."
         )
 
-    command.upgrade(Config(Path(__file__).resolve().parent.parent / "alembic.ini"), "head")
+    config = Config(Path(__file__).resolve().parent.parent / "alembic.ini")
+    if path := backup(engine, config):
+        print(f"backed up database to {path}")
+    command.upgrade(config, "head")
     print("migrated to latest schema")
     if args.no_seed:
         return

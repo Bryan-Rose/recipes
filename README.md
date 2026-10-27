@@ -72,7 +72,12 @@ reverse_proxy whattoeat.docker.internal:80
 When `compose.yml` changes upstream (a new setting or healthcheck), carry the
 change over to `compose.server.yml` by hand.
 
-**Updating:** back up, then rebuild. Migrations run automatically when the backend starts.
+**Updating:** rebuild. Migrations run automatically when the backend starts, in
+one transaction, so a migration that fails leaves the database as it was. Before
+migrating, the backend copies the database to `data/app.db.pre-<revision>.bak`
+(the revision it was at), so a migration that succeeds but mangles data can be
+undone by stopping the stack and copying the backup over `data/app.db`. Backups
+are never pruned; delete old ones once you're happy with the update.
 
 ```bash
 git pull
