@@ -62,12 +62,14 @@ Note `npm run build` is also the typecheck: `tsconfig.app.json` sets `noEmit`, s
 
 ## Testing
 
+**Every change ships with full test coverage in the same PR, e2e included.** Cover each layer the change touches: backend tests for new endpoints and rules, Vitest for new UI, and an e2e journey in `e2e/tests/` for any user-visible behavior. Run `make e2e` (or `make check-full`) before opening the PR. If a change genuinely has nothing a user can exercise (a refactor, docs, CI), say so in the PR body instead of skipping silently.
+
 **Run `make check` before every commit.** It's the fast tier (~25s): ruff (lint and format), pyright, pytest with a coverage floor, the API contract check, tsc, oxlint and Vitest. CI (`.github/workflows/ci.yml`) runs it on every pull request (and on `main` after merging), then `make fuzz` and `make e2e`. Its `fast` and `full` jobs are required checks: a PR can't merge until both pass. `make check-full` runs all three locally (needs Docker).
 
 | Layer | Where | What goes there |
 |---|---|---|
 | Backend API/integration | `backend/tests/` | Every endpoint and rule, through the real app via `TestClient`. Use the fixtures in `conftest.py`. |
-| Migrations | `backend/tests/test_migrations.py` | Already covers drift; just add the migration. |
+| Migrations | `backend/tests/test_migrations.py` | Covers drift and upgrade/downgrade on an empty database. A migration that touches existing rows (backfill, new non-null column, type change, split or merge) also needs a test that inserts rows at the previous revision, upgrades, and checks the data. |
 | API fuzzing | `backend/tests/fuzz/` | Schemathesis covers every OpenAPI operation automatically. Touch it only to exclude an operation that would break the signed-in session (see the comments there). |
 | Contract | `frontend/scripts/api-types.sh` | After any backend schema change, run `npm run gen:api` and commit `schema.d.ts`, or `make check` fails. |
 | Frontend components | `frontend/src/**/*.test.tsx` | Vitest + Testing Library. The API is mocked with MSW (`src/test/server.ts`), and an unmocked request fails the test. Render with `renderWithProviders` (`src/test/render.tsx`) so the app's real QueryClient and 401 handling apply. Query by role and label, which also enforces accessible markup. |
@@ -105,6 +107,7 @@ Note `npm run build` is also the typecheck: `tsconfig.app.json` sets `noEmit`, s
 
 ## Migrations
 
+- **Every change must work on an existing database after `alembic upgrade head`.** Production is upgraded in place on every deploy (see `backend/Dockerfile`), never recreated, so don't assume an empty or freshly seeded database. New non-null columns need a `server_default` or a backfill. Existing rows must stay valid under new constraints. App code must cope with data written by older versions, for example `NULL`s in rows created before a column existed. Test this as described under Testing.
 - **Every model change needs a migration.** Run `uv run alembic revision --autogenerate -m "..."` from `backend/`, then read the generated file in `migrations/versions/`. Autogenerate misses some things: column renames come out as drop plus add (which loses data, so rewrite them as `alter_column`), and so do type changes that SQLite reports loosely. Data backfills must be written by hand.
 - **SQLite needs batch mode.** `render_as_batch=True` is set in `migrations/env.py`, so column alters and drops become `with op.batch_alter_table(...)` blocks that rebuild the table (copy, drop, rename). `env.py` turns `PRAGMA foreign_keys` OFF for the migration, which is required for that rebuild, and then runs `PRAGMA foreign_key_check`, failing the migration if it left dangling references.
 - **Constraints are named by convention** (`MetaData(naming_convention=...)` in `app/database.py`), so later migrations can drop or alter them by name. Don't remove the convention: existing constraint names depend on it.
