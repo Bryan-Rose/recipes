@@ -6,6 +6,7 @@ import { LoginPage } from './routes/LoginPage'
 import { RecipeDetail } from './routes/RecipeDetail'
 import { RecipeEdit } from './routes/RecipeEdit'
 import { RecipeList } from './routes/RecipeList'
+import { UserAdmin } from './routes/UserAdmin'
 import './App.css'
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           </Link>
           {user && (
             <div className="row">
+              {user.is_superuser && <Link to="/users">Users</Link>}
               <span className="muted">{user.full_name}</span>
               <button type="button" className="ghost" onClick={() => logout.mutate()} disabled={logout.isPending}>
                 Sign out
@@ -38,14 +40,14 @@ function App() {
         ) : !user ? (
           <LoginPage />
         ) : (
-          <AppRoutes />
+          <AppRoutes isAdmin={user.is_superuser} />
         )}
       </main>
     </>
   )
 }
 
-function AppRoutes() {
+function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
   return (
     <Routes>
       <Route path="/login" element={<Navigate to="/" replace />} />
@@ -53,6 +55,7 @@ function AppRoutes() {
       <Route path="/recipes/new" element={<RecipeEdit />} />
       <Route path="/recipes/:recipeId" element={<RecipeDetail />} />
       <Route path="/recipes/:recipeId/edit" element={<RecipeEdit />} />
+      <Route path="/users" element={isAdmin ? <UserAdmin /> : <NotFound />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )

@@ -859,6 +859,11 @@ export interface components {
              * Format: password
              */
             password: string;
+            /**
+             * Is Superuser
+             * @default false
+             */
+            is_superuser: boolean;
         };
         /** UserRead */
         UserRead: {

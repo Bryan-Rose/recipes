@@ -10,6 +10,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: SecretStr
+    is_superuser: bool = False
 
 
 class UserUpdate(BaseModel):

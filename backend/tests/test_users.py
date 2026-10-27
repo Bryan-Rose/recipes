@@ -1,6 +1,8 @@
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.models.recipe import Recipe
 from app.models.user import User
 from app.schemas.user import UserRead
 from app.services.users import verify_password
@@ -105,9 +107,50 @@ def test_delete_user_not_found(client: TestClient):
     assert response.status_code == 404
 
 
-def test_delete_user_with_recipes_is_refused(client: TestClient, current_user: User):
-    client.post("/recipes/", json={"name": "Beef Bourguignon"})
+def test_delete_user_with_recipes_is_refused(client: TestClient, db_session: Session, user: UserRead):
+    recipe_id = client.post("/recipes/", json={"name": "Beef Bourguignon"}).json()["id"]
+    # Recipes are attributed to whoever is signed in, so reassign this one to `user`.
+    db_session.get_one(Recipe, recipe_id).created_user_id = user.id
+    db_session.commit()
 
+    response = client.delete(f"/users/{user.id}")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "User has recipes"
+    assert client.get(f"/users/{user.id}").status_code == 200
+
+
+def test_create_admin_user(client: TestClient):
+    response = client.post("/users/", json={"username": "julia", "full_name": "Julia Child", "password": "s3cret", "is_superuser": True})
+
+    assert response.status_code == 201
+    assert response.json()["is_superuser"] is True
+
+
+def test_update_user_active_and_admin(client: TestClient, user: UserRead):
+    response = client.patch(f"/users/{user.id}", json={"is_active": False, "is_superuser": True})
+
+    assert response.status_code == 200
+    assert response.json()["is_active"] is False
+    assert response.json()["is_superuser"] is True
+
+
+@pytest.mark.parametrize("change", [{"is_active": False}, {"is_superuser": False}])
+def test_admin_cannot_lock_themselves_out(client: TestClient, current_user: User, change: dict):
+    response = client.patch(f"/users/{current_user.id}", json=change)
+
+    assert response.status_code == 409
+    assert current_user.is_active and current_user.is_superuser
+
+
+def test_admin_can_still_rename_themselves(client: TestClient, current_user: User):
+    response = client.patch(f"/users/{current_user.id}", json={"full_name": "Boss", "is_active": True})
+
+    assert response.status_code == 200
+    assert response.json()["full_name"] == "Boss"
+
+
+def test_admin_cannot_delete_themselves(client: TestClient, current_user: User):
     response = client.delete(f"/users/{current_user.id}")
 
     assert response.status_code == 409
