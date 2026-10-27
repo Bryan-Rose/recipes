@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
 from app.schemas.cookbook import CookbookRead
-from app.schemas.fields import DbId, PositiveInt, UtcDatetime
+from app.schemas.fields import DbId, Omittable, PositiveInt, UtcDatetime
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
@@ -27,10 +27,10 @@ class RecipeIngredientRead(BaseModel):
 
 
 class RecipeIngredientUpdate(BaseModel):
-    ingredient_id: DbId | None = None
-    measurement_id: DbId | None = None
-    amount: PositiveInt | None = None
-    preparation_id: DbId | None = None
+    ingredient_id: Omittable[DbId] = None
+    measurement_id: Omittable[DbId] = None
+    amount: Omittable[PositiveInt] = None
+    preparation_id: Omittable[DbId] = None
 
 
 ## Recipe Ingredient
@@ -94,7 +94,7 @@ class RecipeCreate(RecipeBase):
 
 
 class RecipeUpdate(BaseModel):
-    name: str | None = None
+    name: Omittable[str] = None
     cookbook_id: DbId | None = None
     cookbook_page: PositiveInt | None = None
     active_cook_time: str | None = None

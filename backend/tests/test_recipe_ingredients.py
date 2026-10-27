@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -266,3 +267,22 @@ def test_recipe_ingredients_appear_on_the_parent_recipe(
     assert response.status_code == 200
     parent = RecipeRead.model_validate(response.json())
     assert parent.recipe_ingredients == [created]
+
+
+@pytest.mark.parametrize("field", ["ingredient_id", "measurement_id", "preparation_id", "amount"])
+def test_update_recipe_ingredient_rejects_null(
+    client: TestClient,
+    db_session: Session,
+    recipe: RecipeRead,
+    ingredient: IngredientRead,
+    measurement: MeasurementRead,
+    preparation: PreparationRead,
+    field: str,
+):
+    _create(client, recipe.id, _payload(ingredient, measurement, preparation))
+    ri_id = _only_id(db_session, recipe.id)
+
+    response = client.patch(f"/recipes/{recipe.id}/{PREFIX}/{ri_id}", json={field: None})
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"][-1] == field

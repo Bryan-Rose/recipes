@@ -5,6 +5,8 @@
  * components only, which is what Vite's fast refresh needs to work properly.
  */
 
+import type { RecipeIngredientCreate } from '../api/types'
+
 /** The scalar half of a recipe — everything `RecipeUpdate` accepts. */
 export interface RecipeScalars {
   name: string
@@ -40,7 +42,7 @@ export const emptyIngredient: IngredientDraft = {
 }
 
 /** The API requires all three ids, so a row is only submittable once complete. */
-export function isComplete(draft: IngredientDraft): boolean {
+export function isComplete(draft: IngredientDraft): draft is IngredientDraft & RecipeIngredientCreate {
   return (
     draft.ingredient_id !== null &&
     draft.measurement_id !== null &&

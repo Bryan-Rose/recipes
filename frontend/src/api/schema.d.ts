@@ -583,9 +583,9 @@ export interface components {
         /** CookbookUpdate */
         CookbookUpdate: {
             /** Name */
-            name?: string | null;
+            name?: string;
             /** Author Id */
-            author_id?: number | null;
+            author_id?: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -722,13 +722,13 @@ export interface components {
         /** RecipeIngredientUpdate */
         RecipeIngredientUpdate: {
             /** Ingredient Id */
-            ingredient_id?: number | null;
+            ingredient_id?: number;
             /** Measurement Id */
-            measurement_id?: number | null;
+            measurement_id?: number;
             /** Amount */
-            amount?: number | null;
+            amount?: number;
             /** Preparation Id */
-            preparation_id?: number | null;
+            preparation_id?: number;
         };
         /** RecipeRead */
         RecipeRead: {
@@ -783,7 +783,7 @@ export interface components {
         /** RecipeUpdate */
         RecipeUpdate: {
             /** Name */
-            name?: string | null;
+            name?: string;
             /** Cookbook Id */
             cookbook_id?: number | null;
             /** Cookbook Page */
@@ -891,13 +891,13 @@ export interface components {
         /** UserUpdate */
         UserUpdate: {
             /** Full Name */
-            full_name?: string | null;
+            full_name?: string;
             /** Password */
             password?: string | null;
             /** Is Active */
-            is_active?: boolean | null;
+            is_active?: boolean;
             /** Is Superuser */
-            is_superuser?: boolean | null;
+            is_superuser?: boolean;
         };
         /** ValidationError */
         ValidationError: {

@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.schemas.author import AuthorRead
@@ -77,3 +78,11 @@ def test_created_cookbook_appears_in_list(client: TestClient, cookbook: Cookbook
     assert len(response.json()) == 1
     listed = CookbookRead.model_validate(response.json()[0])
     assert listed.name == "Mastering the Art of French Cooking"
+
+
+@pytest.mark.parametrize("field", ["name", "author_id"])
+def test_update_cookbook_rejects_null(client: TestClient, cookbook: CookbookRead, field: str):
+    response = client.patch(f"/cookbooks/{cookbook.id}", json={field: None})
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"][-1] == field
