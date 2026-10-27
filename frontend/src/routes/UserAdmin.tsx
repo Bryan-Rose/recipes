@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { useMe } from '../api/auth'
+import { MIN_PASSWORD_LENGTH, useMe } from '../api/auth'
 import { describeError } from '../api/errors'
 import type { User } from '../api/types'
 import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from '../api/users'
@@ -69,6 +69,7 @@ function CreateUserForm() {
             type="password"
             autoComplete="new-password"
             required
+            minLength={MIN_PASSWORD_LENGTH}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -172,6 +173,7 @@ function UserRow({ user, isMe }: { user: User; isMe: boolean }) {
                 type="password"
                 autoComplete="new-password"
                 placeholder="Leave blank to keep"
+                minLength={MIN_PASSWORD_LENGTH}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />

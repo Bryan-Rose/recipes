@@ -59,4 +59,7 @@ export function useChangePassword() {
 }
 
 /** Where the SSO button sends the browser; a full navigation, not a fetch. */
+// Matches NewPassword in backend/app/schemas/fields.py.
+export const MIN_PASSWORD_LENGTH = 8
+
 export const OIDC_LOGIN_URL = '/api/auth/oidc/login'

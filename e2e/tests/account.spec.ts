@@ -21,6 +21,14 @@ test('a user changes their own password and their other sessions end', async ({ 
   await page.getByRole('link', { name: 'Password Changer' }).click()
   const form = page.getByRole('form', { name: 'Change password' })
 
+  // Too short: the browser refuses to submit, so no error comes back from the API.
+  await form.getByLabel('Current password').fill(user.password)
+  await form.getByLabel('New password', { exact: true }).fill('short')
+  await form.getByLabel('Confirm new password').fill('short')
+  await form.getByRole('button', { name: 'Change password' }).click()
+  expect(await form.getByLabel('New password', { exact: true }).evaluate((el: HTMLInputElement) => el.validity.tooShort)).toBe(true)
+  await expect(form.getByRole('status')).toHaveCount(0)
+
   await form.getByLabel('Current password').fill('wrong-password')
   await form.getByLabel('New password', { exact: true }).fill('second-password')
   await form.getByLabel('Confirm new password').fill('second-password')

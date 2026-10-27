@@ -29,13 +29,13 @@ describe('account page', () => {
     const user = userEvent.setup()
     renderWithProviders(<App />, { route: '/account' })
 
-    await user.type(await screen.findByLabelText('Current password'), 'old')
-    await user.type(screen.getByLabelText('New password'), 'n3w')
-    await user.type(screen.getByLabelText('Confirm new password'), 'n3w')
+    await user.type(await screen.findByLabelText('Current password'), 'old-password')
+    await user.type(screen.getByLabelText('New password'), 'n3w-password')
+    await user.type(screen.getByLabelText('Confirm new password'), 'n3w-password')
     await user.click(screen.getByRole('button', { name: 'Change password' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('Password changed')
-    expect(body).toEqual({ current_password: 'old', new_password: 'n3w' })
+    expect(body).toEqual({ current_password: 'old-password', new_password: 'n3w-password' })
     expect(screen.getByLabelText('New password')).toHaveValue('')
   })
 
@@ -51,11 +51,11 @@ describe('account page', () => {
     const user = userEvent.setup()
     renderWithProviders(<App />, { route: '/account' })
 
-    await user.type(await screen.findByLabelText('New password'), 'n3w')
-    await user.type(screen.getByLabelText('Confirm new password'), 'n3w')
+    await user.type(await screen.findByLabelText('New password'), 'n3w-password')
+    await user.type(screen.getByLabelText('Confirm new password'), 'n3w-password')
     await user.click(screen.getByRole('button', { name: 'Change password' }))
 
-    await expect.poll(() => body).toEqual({ new_password: 'n3w' })
+    await expect.poll(() => body).toEqual({ new_password: 'n3w-password' })
   })
 
   it('refuses mismatched passwords without calling the API', async () => {
@@ -63,11 +63,19 @@ describe('account page', () => {
     const user = userEvent.setup()
     renderWithProviders(<App />, { route: '/account' })
 
-    await user.type(await screen.findByLabelText('New password'), 'one')
-    await user.type(screen.getByLabelText('Confirm new password'), 'two')
+    await user.type(await screen.findByLabelText('New password'), 'one-password')
+    await user.type(screen.getByLabelText('Confirm new password'), 'two-password')
 
     expect(screen.getByText('The new passwords don’t match.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Change password' })).toBeDisabled()
+  })
+
+  it('requires a new password of at least 8 characters', async () => {
+    signedIn()
+    renderWithProviders(<App />, { route: '/account' })
+
+    // jsdom doesn't implement tooShort; e2e/tests/account.spec.ts checks the browser enforces it.
+    expect(await screen.findByLabelText('New password')).toHaveAttribute('minlength', '8')
   })
 
   it('shows a wrong current password', async () => {
@@ -81,8 +89,8 @@ describe('account page', () => {
     renderWithProviders(<App />, { route: '/account' })
 
     await user.type(await screen.findByLabelText('Current password'), 'wrong')
-    await user.type(screen.getByLabelText('New password'), 'n3w')
-    await user.type(screen.getByLabelText('Confirm new password'), 'n3w')
+    await user.type(screen.getByLabelText('New password'), 'n3w-password')
+    await user.type(screen.getByLabelText('Confirm new password'), 'n3w-password')
     await user.click(screen.getByRole('button', { name: 'Change password' }))
 
     expect(await screen.findByText('Current password is incorrect')).toBeInTheDocument()

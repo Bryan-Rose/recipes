@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { useChangePassword, useMe } from '../api/auth'
+import { MIN_PASSWORD_LENGTH, useChangePassword, useMe } from '../api/auth'
 import { describeError } from '../api/errors'
 
 export function Account() {
@@ -56,6 +56,7 @@ export function Account() {
               type="password"
               autoComplete="new-password"
               required
+              minLength={MIN_PASSWORD_LENGTH}
               value={next}
               onChange={(e) => setNext(e.target.value)}
             />

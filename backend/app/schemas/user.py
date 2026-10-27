@@ -1,6 +1,6 @@
-from pydantic import BaseModel, ConfigDict, SecretStr, StrictBool
+from pydantic import BaseModel, ConfigDict, StrictBool
 
-from app.schemas.fields import UtcDatetime
+from app.schemas.fields import NewPassword, UtcDatetime
 
 
 class UserBase(BaseModel):
@@ -9,13 +9,13 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: SecretStr
+    password: NewPassword
     is_superuser: StrictBool = False
 
 
 class UserUpdate(BaseModel):
     full_name: str | None = None
-    password: SecretStr | None = None
+    password: NewPassword | None = None
     is_active: StrictBool | None = None
     is_superuser: StrictBool | None = None
 

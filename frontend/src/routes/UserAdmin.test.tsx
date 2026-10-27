@@ -51,12 +51,12 @@ describe('user admin', () => {
     const row = within(await screen.findByRole('listitem', { name: 'cook' }))
     await user.click(row.getByRole('checkbox', { name: 'Admin' }))
     await user.click(row.getByRole('button', { name: 'Edit' }))
-    await user.type(row.getByLabelText('New password'), 'n3w')
+    await user.type(row.getByLabelText('New password'), 'n3w-password')
     await user.click(row.getByRole('button', { name: 'Save' }))
 
     await expect.poll(() => patches).toEqual([
       { is_superuser: true },
-      { full_name: cook.full_name, password: 'n3w' },
+      { full_name: cook.full_name, password: 'n3w-password' },
     ])
   })
 
@@ -76,14 +76,14 @@ describe('user admin', () => {
     const form = within(await screen.findByRole('form', { name: 'Add a user' }))
     await user.type(form.getByLabelText('Username'), ' julia ')
     await user.type(form.getByLabelText('Full name'), 'Julia Child')
-    await user.type(form.getByLabelText('Password'), 's3cret')
+    await user.type(form.getByLabelText('Password'), 's3cret-pw')
     await user.click(form.getByRole('checkbox', { name: 'Admin' }))
     await user.click(form.getByRole('button', { name: 'Add user' }))
 
     await expect.poll(() => created).toEqual({
       username: 'julia',
       full_name: 'Julia Child',
-      password: 's3cret',
+      password: 's3cret-pw',
       is_superuser: true,
     })
     await expect.poll(() => form.getByLabelText('Username')).toHaveValue('')

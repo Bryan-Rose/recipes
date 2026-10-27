@@ -198,9 +198,17 @@ def test_admin_can_deactivate_and_promote(client: TestClient, cook: User):
 def test_change_password_requires_current_password(client: TestClient, cook: User):
     _login(client)
 
-    response = client.post("/auth/password", json={"current_password": "wrong", "new_password": "new"})
+    response = client.post("/auth/password", json={"current_password": "wrong", "new_password": "new password"})
 
     assert response.status_code == 403
+
+
+def test_change_password_rejects_short_password(client: TestClient, cook: User):
+    _login(client)
+
+    response = client.post("/auth/password", json={"current_password": "correct horse", "new_password": "short"})
+
+    assert response.status_code == 422
 
 
 def test_change_password_signs_out_other_sessions(client: TestClient, cook: User):
