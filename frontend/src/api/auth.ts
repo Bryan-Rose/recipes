@@ -51,5 +51,12 @@ export function useLogout() {
   })
 }
 
+/** Signs out your other sessions; this one stays signed in. */
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (body: { current_password?: string; new_password: string }) => api.post<void>('/auth/password', body),
+  })
+}
+
 /** Where the SSO button sends the browser; a full navigation, not a fetch. */
 export const OIDC_LOGIN_URL = '/api/auth/oidc/login'

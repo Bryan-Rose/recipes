@@ -2,6 +2,7 @@ import { Link, Navigate, Route, Routes } from 'react-router'
 
 import { useLogout, useMe } from './api/auth'
 import { ErrorState, Loading } from './components/Feedback'
+import { Account } from './routes/Account'
 import { LoginPage } from './routes/LoginPage'
 import { RecipeDetail } from './routes/RecipeDetail'
 import { RecipeEdit } from './routes/RecipeEdit'
@@ -23,7 +24,9 @@ function App() {
           {user && (
             <div className="row">
               {user.is_superuser && <Link to="/users">Users</Link>}
-              <span className="muted">{user.full_name}</span>
+              <Link to="/account" className="muted">
+                {user.full_name}
+              </Link>
               <button type="button" className="ghost" onClick={() => logout.mutate()} disabled={logout.isPending}>
                 Sign out
               </button>
@@ -55,6 +58,7 @@ function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
       <Route path="/recipes/new" element={<RecipeEdit />} />
       <Route path="/recipes/:recipeId" element={<RecipeDetail />} />
       <Route path="/recipes/:recipeId/edit" element={<RecipeEdit />} />
+      <Route path="/account" element={<Account />} />
       <Route path="/users" element={isAdmin ? <UserAdmin /> : <NotFound />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
