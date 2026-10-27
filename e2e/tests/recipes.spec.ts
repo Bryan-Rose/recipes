@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { COOK, signIn, unique } from './helpers'
+import { COOK, apiAs, signIn, unique } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -65,4 +65,23 @@ test('create, view, edit and delete a recipe', async ({ page }) => {
   await expect(page.getByText(renamed)).toBeHidden()
   await page.goto(detailUrl)
   await expect(page.getByText(renamed)).toBeHidden()
+})
+
+test('adding an ingredient someone else just created says it already exists', async ({ page, baseURL }) => {
+  const ingredient = `shallot-${unique()}`
+
+  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByRole('button', { name: '+ Add ingredient' }).click()
+  await expect(page.getByLabel('Ingredient', { exact: true })).toBeVisible()
+
+  // Created after the form loaded its list, so the picker can't match it and POSTs a duplicate.
+  const api = await apiAs(baseURL!, COOK)
+  expect((await api.post('/api/ingredients/', { data: { name: ingredient } })).status()).toBe(201)
+
+  await page.getByRole('button', { name: '+ New ingredient' }).click()
+  await page.getByLabel('New ingredient name').fill(ingredient)
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+
+  await expect(page.getByText('Already exists')).toBeVisible()
+  await expect(page.getByText(/constraint failed/)).toBeHidden()
 })

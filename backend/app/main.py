@@ -33,7 +33,12 @@ app.add_middleware(
 # rows that don't exist all surface as IntegrityError.
 @app.exception_handler(IntegrityError)
 def integrity_error_handler(_request: Request, exc: IntegrityError):
-    return JSONResponse(status_code=status.HTTP_409_CONFLICT, content={"detail": str(exc.orig)})
+    # The raw SQLite text names tables and columns, so don't send it.
+    if str(exc.orig).startswith("UNIQUE constraint failed"):
+        detail = "Already exists"
+    else:
+        detail = "Still in use, or refers to something that doesn't exist"
+    return JSONResponse(status_code=status.HTTP_409_CONFLICT, content={"detail": detail})
 
 
 signed_in = [Depends(get_current_user)]

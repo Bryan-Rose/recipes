@@ -8,9 +8,8 @@ describe('describeError', () => {
     expect(describeError(new ApiError(404, { detail: 'Not Found' }, 'fallback'))).toBe('not found')
   })
 
-  it('flags a 409 as a likely duplicate, keeping the server detail', () => {
-    const error = new ApiError(409, { detail: 'UNIQUE constraint failed: ingredients.name' }, 'fallback')
-    expect(describeError(error)).toBe('UNIQUE constraint failed: ingredients.name (a duplicate name may be the cause)')
+  it('shows the server detail for a 409', () => {
+    expect(describeError(new ApiError(409, { detail: 'Already exists' }, 'fallback'))).toBe('Already exists')
   })
 
   it('joins FastAPI validation messages', () => {

@@ -18,6 +18,7 @@ def test_duplicate_name_is_a_conflict(client: TestClient, ingredient: Ingredient
     response = client.post("/ingredients/", json={"name": ingredient.name})
 
     assert response.status_code == 409
+    assert response.json()["detail"] == "Already exists"
     assert client.get("/ingredients/").status_code == 200
 
 
@@ -47,6 +48,7 @@ def test_delete_author_with_cookbooks_is_a_conflict(client: TestClient, author: 
     response = client.delete(f"/authors/{author.id}")
 
     assert response.status_code == 409
+    assert response.json()["detail"] == "Still in use, or refers to something that doesn't exist"
     assert client.get(f"/authors/{author.id}").status_code == 200
 
 
@@ -92,6 +94,7 @@ def test_cookbook_with_unknown_author_is_rejected(client: TestClient):
     response = client.post("/cookbooks/", json={"name": "Nobody's Book", "author_id": 999})
 
     assert response.status_code == 409
+    assert response.json()["detail"] == "Still in use, or refers to something that doesn't exist"
 
 
 ## Values outside the safe integer range (found by fuzzing)

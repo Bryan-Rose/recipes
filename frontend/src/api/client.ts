@@ -18,11 +18,6 @@ export class ApiError extends Error {
     this.status = status
     this.body = body
   }
-
-  /** The API answers 409 for any integrity error, of which a duplicate name is the usual one. */
-  get isProbablyDuplicate(): boolean {
-    return this.status === 409
-  }
 }
 
 /** FastAPI puts a string or a list of validation errors on `detail`. */
