@@ -47,13 +47,13 @@ describe('LookupPicker', () => {
   })
 
   it('shows the error and keeps the draft when creating fails', async () => {
-    const conflict = new ApiError(409, { detail: 'UNIQUE constraint failed: ingredients.name' }, 'fallback')
+    const conflict = new ApiError(409, { detail: 'Already exists' }, 'fallback')
     const { onChange, user } = setup(vi.fn().mockRejectedValue(conflict))
 
     await user.click(screen.getByRole('button', { name: '+ New ingredient' }))
     await user.type(screen.getByLabelText('New ingredient name'), 'sugar{Enter}')
 
-    expect(await screen.findByText(/duplicate name may be the cause/)).toBeInTheDocument()
+    expect(await screen.findByText('Already exists')).toBeInTheDocument()
     expect(screen.getByLabelText('New ingredient name')).toHaveValue('sugar')
     expect(onChange).not.toHaveBeenCalled()
   })
