@@ -53,10 +53,15 @@ def delete_session(db: Session, token: str) -> None:
     db.commit()
 
 
+def revoke_other_sessions(db: Session, user: User, keep_token: str) -> None:
+    """Signs the user out of every session but `keep_token`'s. The caller commits."""
+    db.execute(delete(UserSession).where(UserSession.user_id == user.id, UserSession.token_hash != _hash_token(keep_token)))
+
+
 def change_password(db: Session, user: User, new_password: str, keep_token: str) -> None:
     """Sets the password and signs out every other session."""
     user.hashed_password = hash_password(new_password)
-    db.execute(delete(UserSession).where(UserSession.user_id == user.id, UserSession.token_hash != _hash_token(keep_token)))
+    revoke_other_sessions(db, user, keep_token)
     db.commit()
 
 
