@@ -76,6 +76,23 @@ describe('login page', () => {
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
   })
 
+  it('shows the lockout message after too many failed attempts', async () => {
+    server.use(
+      http.post('/api/auth/login', () =>
+        HttpResponse.json({ detail: 'Too many failed sign-in attempts. Try again later.' }, { status: 429 }),
+      ),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<App />)
+
+    await user.type(await screen.findByLabelText('Username'), 'cook')
+    await user.type(screen.getByLabelText('Password'), 'cook-password')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByText('Too many failed sign-in attempts. Try again later.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+  })
+
   it('offers SSO with the configured name, and hides the password form when disabled', async () => {
     server.use(
       http.get('/api/auth/config', () =>

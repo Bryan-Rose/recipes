@@ -1,3 +1,5 @@
+import time
+
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -15,6 +17,12 @@ from app.services.users import verify_password
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 _oauth = OAuth()
+
+# Failed password logins per username, as time.monotonic() stamps.
+# shortcut: in-process, so it resets on restart and isn't shared between workers; fine for one uvicorn process.
+_MAX_FAILURES = 10
+_FAILURE_WINDOW = 15 * 60
+_failed_logins: dict[str, list[float]] = {}
 
 
 def _set_session_cookie(response: Response, token: str, settings: Settings) -> None:
@@ -41,9 +49,25 @@ def auth_config(settings: Settings = Depends(get_settings)):
 def login(body: LoginRequest, response: Response, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)):
     if not settings.password_login_enabled:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Password login is disabled")
+    now = time.monotonic()
+    recent = [t for t in _failed_logins.get(body.username, []) if now - t < _FAILURE_WINDOW]
+    if len(recent) >= _MAX_FAILURES:
+        # Checked before the password, so a correct guess here gains nothing and costs no scrypt.
+        retry_after = int(_FAILURE_WINDOW - (now - recent[0])) + 1
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed sign-in attempts. Try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
     user = auth_service.authenticate(db, body.username, body.password.get_secret_value())
     if user is None:
+        # Drop expired entries now and then, so made-up usernames don't pile up.
+        if len(_failed_logins) > 10_000:
+            for name in [n for n, stamps in _failed_logins.items() if now - stamps[-1] >= _FAILURE_WINDOW]:
+                del _failed_logins[name]
+        _failed_logins[body.username] = [*recent, now]
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
+    _failed_logins.pop(body.username, None)
     _set_session_cookie(response, auth_service.create_session(db, user, settings.session_days), settings)
 
 

@@ -9,7 +9,8 @@ from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.services import auth as auth_service
 from app.services import users as users_service
 
-router = APIRouter(prefix="/users", tags=["users"])
+# Admin-only: the list would otherwise tell any user every username and who is admin.
+router = APIRouter(prefix="/users", tags=["users"], dependencies=[Depends(require_admin)])
 
 
 @router.get("/", response_model=list[UserRead])
@@ -25,7 +26,7 @@ def get_user(user_id: IdPath, db: Session = Depends(get_db)):
     return response
 
 
-@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_admin)])
+@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     return users_service.create_user(db, user_in)
 

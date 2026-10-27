@@ -12,6 +12,7 @@ from app.config import Settings, get_settings
 from app.main import app as fastapi_app
 from app.models.session import UserSession
 from app.models.user import User
+from app.routers import auth as auth_router
 from app.routers.auth import get_oidc_client
 from app.services import auth as auth_service
 from app.services.users import hash_password
@@ -57,7 +58,8 @@ def test_auth_config_is_public(client: TestClient):
 def test_non_admin_cannot_manage_users(client: TestClient, cook: User):
     _login(client)
 
-    assert client.get("/users/").status_code == 200
+    assert client.get("/users/").status_code == 403
+    assert client.get(f"/users/{cook.id}").status_code == 403
     assert client.post("/users/", json={"username": "x", "full_name": "X", "password": "pw"}).status_code == 403
     assert client.patch(f"/users/{cook.id}", json={"is_superuser": True}).status_code == 403
     assert client.delete(f"/users/{cook.id}").status_code == 403
@@ -113,6 +115,43 @@ def test_password_login_can_be_disabled(client: TestClient, cook: User):
     _use_settings(password_login_enabled=False)
 
     assert _login(client).status_code == 403
+
+
+def _fail_logins(client: TestClient, times: int, username: str = "cook") -> None:
+    for _ in range(times):
+        assert _login(client, username, "wrong").status_code == 401
+
+
+def test_repeated_failures_lock_the_username(client: TestClient, db_session: Session, cook: User):
+    db_session.add(User(username="other", full_name="Other", hashed_password=hash_password("correct horse")))
+    db_session.commit()
+    _fail_logins(client, 10)
+
+    response = _login(client)  # the right password doesn't help
+
+    assert response.status_code == 429
+    assert 0 < int(response.headers["retry-after"]) <= 15 * 60
+    assert SESSION_COOKIE not in client.cookies
+    assert _login(client, "other").status_code == 204  # counted per username
+
+
+def test_lockout_ends_after_the_window(client: TestClient, cook: User):
+    _fail_logins(client, 10)
+    assert _login(client).status_code == 429
+
+    # Age the recorded failures past the 15-minute window.
+    auth_router._failed_logins["cook"] = [t - 15 * 60 for t in auth_router._failed_logins["cook"]]
+
+    assert _login(client).status_code == 204
+
+
+def test_successful_login_resets_failures(client: TestClient, cook: User):
+    _fail_logins(client, 9)
+    assert _login(client).status_code == 204
+
+    _fail_logins(client, 9)
+
+    assert _login(client).status_code == 204
 
 
 ## Sessions
