@@ -39,23 +39,28 @@ test('an admin adds, edits, promotes, deactivates and deletes a user', async ({ 
 
   const row = page.getByRole('listitem', { name: username, exact: true })
   await expect(row.getByText('Julia Child')).toBeVisible()
-  expect(await loginStatus(baseURL!, { username, password: 'first-password' })).toBe(204)
 
+  // The new user signs in in their own browser.
+  const theirContext = await browser.newContext({ baseURL })
+  const theirs = await theirContext.newPage()
+  await theirs.goto('/users')
+  await signIn(theirs, { username, password: 'first-password' })
+  await expect(theirs.getByRole('heading', { name: 'Not found' })).toBeVisible()
+
+  // Resetting their password signs them out; only the new password works.
   await row.getByRole('button', { name: 'Edit' }).click()
   await row.getByLabel('Full name').fill('Julia McWilliams Child')
   await row.getByLabel('New password').fill('second-password')
   await row.getByRole('button', { name: 'Save' }).click()
   await expect(row.getByText('Julia McWilliams Child')).toBeVisible()
+  await theirs.reload()
+  await expect(theirs.getByRole('heading', { name: 'Sign in' })).toBeVisible()
   expect(await loginStatus(baseURL!, { username, password: 'first-password' })).toBe(401)
-  expect(await loginStatus(baseURL!, { username, password: 'second-password' })).toBe(204)
 
   // The checkboxes follow the server, so click() rather than check(), which expects an instant change.
-  // Promoted, the new user sees the Users page in their own browser.
+  // Promoted, they see the Users page once signed in again.
   await row.getByRole('checkbox', { name: 'Admin' }).click()
   await expect(row.getByRole('checkbox', { name: 'Admin' })).toBeChecked()
-  const theirContext = await browser.newContext({ baseURL })
-  const theirs = await theirContext.newPage()
-  await theirs.goto('/users')
   await signIn(theirs, { username, password: 'second-password' })
   await expect(theirs.getByRole('heading', { name: 'Users' })).toBeVisible()
 

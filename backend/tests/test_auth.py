@@ -178,6 +178,40 @@ def test_change_password_signs_out_other_sessions(client: TestClient, cook: User
     assert _login(client, password="battery staple").status_code == 204
 
 
+def test_admin_password_reset_signs_the_user_out(client: TestClient, cook: User):
+    admin_token = client.cookies[SESSION_COOKIE]
+    _login(client)
+    cook_token = client.cookies[SESSION_COOKIE]
+    client.cookies.set(SESSION_COOKIE, admin_token)
+
+    response = client.patch(f"/users/{cook.id}", json={"password": "battery staple"})
+
+    assert response.status_code == 200
+    assert client.get("/auth/me").status_code == 200
+    client.cookies.set(SESSION_COOKIE, cook_token)
+    assert client.get("/auth/me").status_code == 401
+    assert _login(client, password="battery staple").status_code == 204
+
+
+def test_admin_resetting_own_password_stays_signed_in(client: TestClient, current_user: User):
+    response = client.patch(f"/users/{current_user.id}", json={"password": "first password"})
+
+    assert response.status_code == 200
+    assert client.get("/auth/me").status_code == 200
+
+
+def test_admin_update_without_password_keeps_sessions(client: TestClient, cook: User):
+    admin_token = client.cookies[SESSION_COOKIE]
+    _login(client)
+    cook_token = client.cookies[SESSION_COOKIE]
+    client.cookies.set(SESSION_COOKIE, admin_token)
+
+    assert client.patch(f"/users/{cook.id}", json={"full_name": "Chef"}).status_code == 200
+
+    client.cookies.set(SESSION_COOKIE, cook_token)
+    assert client.get("/auth/me").status_code == 200
+
+
 def test_sso_only_user_can_set_a_password(client: TestClient, current_user: User):
     response = client.post("/auth/password", json={"new_password": "first password"})
 
