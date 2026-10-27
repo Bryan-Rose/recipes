@@ -7,6 +7,8 @@ import pytest
 
 from scripts import pr_review
 
+EMPTY_PR = {"title": "t", "body": "", "files": [], "closingIssuesReferences": [], "comments": [], "headRefOid": "sha"}
+
 
 def fake_gh(responses: dict[str, str], calls: list):
     def gh(*args, stdin=None):
@@ -37,7 +39,7 @@ def test_pr_number_from_event_with_null_body(tmp_path, monkeypatch):
 
 
 def test_pr_prompt_includes_linked_and_extra_issues(monkeypatch):
-    pr = {"title": "Fix", "body": None, "files": [{"path": "a.py"}], "closingIssuesReferences": [{"number": 3}]}
+    pr = {**EMPTY_PR, "title": "Fix", "body": None, "files": [{"path": "a.py"}], "closingIssuesReferences": [{"number": 3}]}
     responses = {
         "pr view": json.dumps(pr),
         "pr diff": "+new line",
@@ -52,19 +54,15 @@ def test_pr_prompt_includes_linked_and_extra_issues(monkeypatch):
 
 def test_api_failure_exits_nonzero_without_posting(monkeypatch, capsys):
     calls = []
-    monkeypatch.setattr(
-        pr_review, "gh", fake_gh({"pr view": json.dumps({"title": "t", "body": "", "files": [], "closingIssuesReferences": []})}, calls)
-    )
+    monkeypatch.setattr(pr_review, "gh", fake_gh({"pr view": json.dumps(EMPTY_PR)}, calls))
     monkeypatch.setattr(pr_review.anthropic, "Anthropic", lambda: fake_client("max_tokens"))
     assert pr_review.main(["--pr", "1", "--post-comment"]) == 1
     assert "Review incomplete" in capsys.readouterr().err
-    assert not any(args[0] in ("api", "pr") and "comment" in " ".join(args) for args, _ in calls)
+    assert not any(args[:2] == ("pr", "comment") or "PATCH" in args for args, _ in calls)
 
 
 def test_dry_run_prints_prompt_without_calling_api(monkeypatch, capsys):
-    monkeypatch.setattr(
-        pr_review, "gh", fake_gh({"pr view": json.dumps({"title": "t", "body": "", "files": [], "closingIssuesReferences": []})}, [])
-    )
+    monkeypatch.setattr(pr_review, "gh", fake_gh({"pr view": json.dumps(EMPTY_PR)}, []))
     monkeypatch.setattr(pr_review.anthropic, "Anthropic", lambda: pytest.fail("API called"))
     assert pr_review.main(["--pr", "1", "--dry-run"]) == 0
     assert "No linked issue." in capsys.readouterr().out
@@ -73,9 +71,7 @@ def test_dry_run_prints_prompt_without_calling_api(monkeypatch, capsys):
 def test_review_is_printed_saved_and_posted(tmp_path, monkeypatch, capsys):
     calls = []
     monkeypatch.setenv("GH_REPO", "")  # main() sets it; monkeypatch restores it afterwards
-    monkeypatch.setattr(
-        pr_review, "gh", fake_gh({"pr view": json.dumps({"title": "t", "body": "", "files": [], "closingIssuesReferences": []})}, calls)
-    )
+    monkeypatch.setattr(pr_review, "gh", fake_gh({"pr view": json.dumps(EMPTY_PR)}, calls))
     monkeypatch.setattr(pr_review.anthropic, "Anthropic", lambda: fake_client("end_turn"))
     out = tmp_path / "review.md"
     assert pr_review.main(["--pr", "1", "--repo", "o/r", "--output", str(out), "--post-comment"]) == 0
@@ -121,3 +117,38 @@ def test_code_mode_with_no_files_fails(tmp_path, monkeypatch, capsys):
     subprocess.run(["git", "init", "-q"], check=True)
     assert pr_review.main(["--mode", "code", "--path", "."]) == 1
     assert "No tracked text files" in capsys.readouterr().err
+
+
+def test_pr_prompt_adds_guide_conversation_and_full_files(monkeypatch):
+    pr = {
+        **EMPTY_PR,
+        "files": [{"path": "a.py"}, {"path": "big.lock"}, {"path": "gone.py", "changeType": "DELETED"}, {"path": "img.png"}],
+        "comments": [
+            {"author": {"login": "github-actions"}, "body": f"{pr_review.MARKER}\nold review"},
+            {"author": {"login": "maintainer"}, "body": "Declined: point 3, IngredientDraft has only API fields."},
+        ],
+    }
+    calls = []
+    responses = {
+        "pr view": json.dumps(pr),
+        "pr diff": "+x",
+        "api -H Accept: application/vnd.github.raw repos/{owner}/{repo}/contents/AGENTS.md?ref=sha": "Use Omittable.",
+        "api -H Accept: application/vnd.github.raw repos/{owner}/{repo}/contents/a.py?ref=sha": "full a.py",
+        "api -H Accept: application/vnd.github.raw repos/{owner}/{repo}/contents/big.lock?ref=sha": "x" * 5000,
+    }
+    gh = fake_gh(responses, calls)
+
+    def gh_with_binary(*args, stdin=None):
+        if args[-1].endswith("img.png?ref=sha"):
+            raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+        return gh(*args, stdin=stdin)
+
+    monkeypatch.setattr(pr_review, "gh", gh_with_binary)
+    monkeypatch.setattr(pr_review, "MAX_INPUT_CHARS", 3000)
+    prompt = pr_review.pr_prompt(1, extra_issue=None)
+
+    assert prompt.index("<guide>\nUse Omittable.") < prompt.index("<pr ")
+    assert '<comment author="maintainer">' in prompt and "old review" not in prompt
+    assert '<file path="a.py">\nfull a.py\n</file>' in prompt
+    assert "Full text not included (binary or too large; see the diff): big.lock, img.png" in prompt
+    assert not any("gone.py" in " ".join(args) for args, _ in calls)
