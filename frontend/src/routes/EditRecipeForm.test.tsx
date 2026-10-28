@@ -3,9 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import App from '../App'
 import type { Recipe } from '../api/types'
 import { renderWithProviders } from '../test/render'
-import { server } from '../test/server'
+import { server, signedIn } from '../test/server'
 import { EditRecipeForm } from './EditRecipeForm'
 
 const recipe: Recipe = {
@@ -126,5 +127,89 @@ describe('recipe editor when a save fails', () => {
     release()
     expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled()
+  })
+
+  it('keeps text typed into a new step while it was being added', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    server.use(
+      http.post('/api/recipes/7/steps/', async () => {
+        await gate
+        return HttpResponse.json({ id: 4, text: 'Add salt' }, { status: 201 })
+      }),
+      http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
+      http.get('/api/recipes/', () => HttpResponse.json([recipe])),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.click(screen.getByRole('button', { name: '+ Add step' }))
+    await user.keyboard('Add salt')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await user.type(screen.getByDisplayValue('Add salt'), ' and pepper')
+    release()
+
+    await expect.poll(() => screen.getByRole('button', { name: 'Add' })).toBeEnabled()
+    expect(screen.getByDisplayValue('Add salt and pepper')).toBeInTheDocument()
+  })
+
+  it('keeps text typed into a step while its edit was saving', async () => {
+    signedIn()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    let patched = false
+    // After the save, the refetch renames the recipe so the test can see it has landed.
+    const saved: Recipe = { ...recipe, name: 'Soup v2', steps: [{ id: 3, text: 'Boil water fast' }] }
+    server.use(
+      http.patch('/api/recipes/7/steps/3', async () => {
+        patched = true
+        await gate
+        return HttpResponse.json({ id: 3, text: 'Boil water fast' })
+      }),
+      http.get('/api/recipes/7', () => HttpResponse.json(patched ? saved : recipe)),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<App />, { route: '/recipes/7/edit' })
+
+    const field = await screen.findByDisplayValue('Boil water')
+    await user.type(field, ' fast')
+    await user.tab()
+    await expect.poll(() => patched).toBe(true)
+    await user.type(field, '!')
+    release()
+
+    expect(await screen.findByRole('link', { name: /Soup v2/ })).toBeInTheDocument()
+    expect(field).toHaveValue('Boil water fast!')
+    expect(field).toHaveAccessibleDescription('Unsaved')
+  })
+})
+
+describe('ingredient editor when a save fails', () => {
+  const lookup = { id: 1, name: 'leek' }
+  const withIngredient: Recipe = {
+    ...recipe,
+    recipe_ingredients: [{ id: 5, ingredient: lookup, measurement: lookup, preparation: lookup, amount: 2 }],
+  }
+
+  beforeEach(() => {
+    server.use(
+      http.get('/api/cookbooks/', () => HttpResponse.json([])),
+      http.get('/api/ingredients/', () => HttpResponse.json([lookup])),
+      http.get('/api/measurements/', () => HttpResponse.json([lookup])),
+      http.get('/api/preparations/', () => HttpResponse.json([lookup])),
+    )
+  })
+
+  it('shows the error and keeps the edited amount', async () => {
+    server.use(http.patch('/api/recipes/7/recipeingredients/5', failure))
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={withIngredient} />)
+
+    const amount = screen.getByLabelText('Amount')
+    await user.type(amount, '5')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+    expect(amount).toHaveValue(25)
   })
 })

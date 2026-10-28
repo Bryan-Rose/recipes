@@ -118,5 +118,5 @@ test('a step that fails to save keeps its text for a retry', async ({ page, base
   await field.blur()
   await expect(page.getByText('Server unavailable')).toBeVisible()
   await expect(field).toHaveValue('Whisk the eggs well.')
-  await expect(page.getByText('Unsaved')).toBeVisible()
+  await expect(page.getByText('Unsaved', { exact: true })).toBeVisible()
 })

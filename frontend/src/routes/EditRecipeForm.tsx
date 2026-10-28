@@ -163,13 +163,20 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
               {dirty && (
                 <button
                   type="button"
-                  onClick={async () => {
+                  onClick={() => {
                     if (!isComplete(draft)) return
-                    await updateIngredient.mutateAsync({ id: item.id, patch: draft })
-                    setDrafts((current) => {
-                      const { [item.id]: _discarded, ...rest } = current
-                      return rest
-                    })
+                    // mutate(), not mutateAsync(): a failure shows through updateIngredient.error
+                    // and keeps the draft, rather than escaping as an unhandled rejection.
+                    updateIngredient.mutate(
+                      { id: item.id, patch: draft },
+                      {
+                        onSuccess: () =>
+                          setDrafts((current) => {
+                            const { [item.id]: _discarded, ...rest } = current
+                            return rest
+                          }),
+                      },
+                    )
                   }}
                   disabled={!isComplete(draft) || updateIngredient.isPending}
                 >
@@ -180,7 +187,7 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
                 type="button"
                 className="ghost"
                 aria-label={`Remove ingredient ${index + 1}`}
-                onClick={() => void deleteIngredient.mutateAsync(item.id)}
+                onClick={() => deleteIngredient.mutate(item.id)}
               >
                 ✕
               </button>
@@ -198,10 +205,9 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
               type="button"
               className="primary"
               disabled={!isComplete(newRow) || createIngredient.isPending}
-              onClick={async () => {
+              onClick={() => {
                 if (!isComplete(newRow)) return
-                await createIngredient.mutateAsync(newRow)
-                setNewRow(null)
+                createIngredient.mutate(newRow, { onSuccess: () => setNewRow(null) })
               }}
             >
               Add
@@ -306,6 +312,8 @@ function TextChildSection<TBody>({
 
     if (!(await run(() => onUpdate({ id: item.id, patch: toBody(trimmed) })))) return
     setDrafts((current) => {
+      // Text typed while the save was in flight hasn't been sent; keep it.
+      if (current[item.id]?.trim() !== trimmed) return current
       const { [item.id]: _discarded, ...rest } = current
       return rest
     })
@@ -372,10 +380,12 @@ function TextChildSection<TBody>({
               className="primary"
               disabled={newText.trim() === '' || creating}
               onClick={async () => {
+                const sent = newText.trim()
                 setCreating(true)
-                const saved = await run(() => onCreate(toBody(newText.trim())))
+                const saved = await run(() => onCreate(toBody(sent)))
                 setCreating(false)
-                if (saved) setNewText(null)
+                // As in commit(): keep text typed while the request was in flight.
+                if (saved) setNewText((current) => (current?.trim() === sent ? null : current))
               }}
             >
               Add
