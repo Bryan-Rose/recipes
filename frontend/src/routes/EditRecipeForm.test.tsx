@@ -129,7 +129,7 @@ describe('recipe editor when a save fails', () => {
     expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled()
   })
 
-  it('keeps text typed into a new step while it was being added', async () => {
+  it('makes a new step read-only while it is being added', async () => {
     let release!: () => void
     const gate = new Promise<void>((resolve) => (release = resolve))
     server.use(
@@ -146,11 +146,13 @@ describe('recipe editor when a save fails', () => {
     await user.click(screen.getByRole('button', { name: '+ Add step' }))
     await user.keyboard('Add salt')
     await user.click(screen.getByRole('button', { name: 'Add' }))
-    await user.type(screen.getByDisplayValue('Add salt'), ' and pepper')
+    const field = screen.getByDisplayValue('Add salt')
+    await expect.poll(() => field).toHaveAttribute('readonly')
+    await user.type(field, ' and pepper')
+    expect(field).toHaveValue('Add salt')
     release()
 
-    await expect.poll(() => screen.getByRole('button', { name: 'Add' })).toBeEnabled()
-    expect(screen.getByDisplayValue('Add salt and pepper')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '+ Add step' })).toBeInTheDocument()
   })
 
   it('keeps text typed into a step while its edit was saving', async () => {

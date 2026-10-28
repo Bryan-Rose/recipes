@@ -322,7 +322,7 @@ function TextChildSection<TBody>({
   function field(
     value: string,
     onValueChange: (next: string) => void,
-    extra: { onBlur?: () => void; autoFocus?: boolean; 'aria-describedby'?: string } = {},
+    extra: { onBlur?: () => void; autoFocus?: boolean; readOnly?: boolean; 'aria-describedby'?: string } = {},
   ) {
     const shared = {
       value,
@@ -373,19 +373,18 @@ function TextChildSection<TBody>({
       {newText !== null && (
         <div className="child-row">
           <span className="child-row__index">+</span>
-          <div className="child-row__body">{field(newText, setNewText, { autoFocus: true })}</div>
+          <div className="child-row__body">{/* Read-only while adding: text typed then would become a second step. */}
+          {field(newText, setNewText, { autoFocus: true, readOnly: creating })}</div>
           <div className="row">
             <button
               type="button"
               className="primary"
               disabled={newText.trim() === '' || creating}
               onClick={async () => {
-                const sent = newText.trim()
                 setCreating(true)
-                const saved = await run(() => onCreate(toBody(sent)))
+                const saved = await run(() => onCreate(toBody(newText.trim())))
                 setCreating(false)
-                // As in commit(): keep text typed while the request was in flight.
-                if (saved) setNewText((current) => (current?.trim() === sent ? null : current))
+                if (saved) setNewText(null)
               }}
             >
               Add
