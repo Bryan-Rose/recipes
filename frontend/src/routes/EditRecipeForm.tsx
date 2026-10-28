@@ -212,7 +212,15 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
             >
               Add
             </button>
-            <button type="button" className="ghost" onClick={() => setNewRow(null)}>
+            <button
+              type="button"
+              className="ghost"
+              disabled={createIngredient.isPending}
+              onClick={() => {
+                setNewRow(null)
+                createIngredient.reset() // its error refers to the row being discarded
+              }}
+            >
               Cancel
             </button>
           </div>
