@@ -148,6 +148,7 @@ describe('recipe editor when a save fails', () => {
     await user.click(screen.getByRole('button', { name: 'Add' }))
     const field = screen.getByDisplayValue('Add salt')
     await expect.poll(() => field).toHaveAttribute('readonly')
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
     await user.type(field, ' and pepper')
     expect(field).toHaveValue('Add salt')
     release()
@@ -213,5 +214,23 @@ describe('ingredient editor when a save fails', () => {
 
     expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
     expect(amount).toHaveValue(25)
+  })
+
+  it('shows the error and keeps a new ingredient row', async () => {
+    server.use(http.post('/api/recipes/7/recipeingredients/', failure))
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.click(screen.getByRole('button', { name: '+ Add ingredient' }))
+    for (const label of ['Ingredient', 'Measurement', 'Preparation']) {
+      const picker = screen.getByLabelText(label)
+      await expect.poll(() => picker).toBeEnabled() // disabled until its options load
+      await user.selectOptions(picker, 'leek')
+    }
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Ingredient')).toHaveValue('1')
+    expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled()
   })
 })
