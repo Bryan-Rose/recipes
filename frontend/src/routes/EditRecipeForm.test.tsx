@@ -242,7 +242,7 @@ describe('ingredient editor when a save fails', () => {
     await user.click(screen.getByRole('button', { name: '+ Add ingredient' }))
     for (const label of ['Ingredient', 'Measurement', 'Preparation']) {
       const picker = screen.getByLabelText(label)
-      await expect.poll(() => picker).toBeEnabled()
+      await expect.poll(() => picker).toBeEnabled() // disabled until its options load
       await user.selectOptions(picker, 'leek')
     }
     await user.click(screen.getByRole('button', { name: 'Add' }))
@@ -250,5 +250,31 @@ describe('ingredient editor when a save fails', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByText(/Server unavailable/)).not.toBeInTheDocument()
+  })
+
+  it('disables Cancel while a new ingredient is being added', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    server.use(
+      http.post('/api/recipes/7/recipeingredients/', async () => {
+        await gate
+        return failure()
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.click(screen.getByRole('button', { name: '+ Add ingredient' }))
+    for (const label of ['Ingredient', 'Measurement', 'Preparation']) {
+      const picker = screen.getByLabelText(label)
+      await expect.poll(() => picker).toBeEnabled() // disabled until its options load
+      await user.selectOptions(picker, 'leek')
+    }
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await expect.poll(() => screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    release()
+
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
   })
 })
