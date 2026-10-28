@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import {
@@ -163,13 +163,20 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
               {dirty && (
                 <button
                   type="button"
-                  onClick={async () => {
+                  onClick={() => {
                     if (!isComplete(draft)) return
-                    await updateIngredient.mutateAsync({ id: item.id, patch: draft })
-                    setDrafts((current) => {
-                      const { [item.id]: _discarded, ...rest } = current
-                      return rest
-                    })
+                    // mutate(), not mutateAsync(): a failure shows through updateIngredient.error
+                    // and keeps the draft, rather than escaping as an unhandled rejection.
+                    updateIngredient.mutate(
+                      { id: item.id, patch: draft },
+                      {
+                        onSuccess: () =>
+                          setDrafts((current) => {
+                            const { [item.id]: _discarded, ...rest } = current
+                            return rest
+                          }),
+                      },
+                    )
                   }}
                   disabled={!isComplete(draft) || updateIngredient.isPending}
                 >
@@ -180,7 +187,7 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
                 type="button"
                 className="ghost"
                 aria-label={`Remove ingredient ${index + 1}`}
-                onClick={() => void deleteIngredient.mutateAsync(item.id)}
+                onClick={() => deleteIngredient.mutate(item.id)}
               >
                 ✕
               </button>
@@ -198,10 +205,9 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
               type="button"
               className="primary"
               disabled={!isComplete(newRow) || createIngredient.isPending}
-              onClick={async () => {
+              onClick={() => {
                 if (!isComplete(newRow)) return
-                await createIngredient.mutateAsync(newRow)
-                setNewRow(null)
+                createIngredient.mutate(newRow, { onSuccess: () => setNewRow(null) })
               }}
             >
               Add
@@ -267,14 +273,26 @@ function TextChildSection<TBody>({
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [newText, setNewText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Only the Add button uses this; a blur save or delete must not disable it.
+  const [creating, setCreating] = useState(false)
+  const hintId = useId()
 
+  // Resolves false on failure, so callers keep the typed text for a retry.
   async function run(action: () => Promise<unknown>) {
     setError(null)
     try {
       await action()
+      return true
     } catch (caught) {
       setError(describeError(caught))
+      return false
     }
+  }
+
+  // Matches what commit() would send: blank or unchanged drafts are discarded.
+  function isUnsaved(item: TextChild) {
+    const trimmed = drafts[item.id]?.trim()
+    return trimmed !== undefined && trimmed !== '' && trimmed !== item.text
   }
 
   async function commit(item: TextChild) {
@@ -292,8 +310,10 @@ function TextChildSection<TBody>({
       return
     }
 
-    await run(() => onUpdate({ id: item.id, patch: toBody(trimmed) }))
+    if (!(await run(() => onUpdate({ id: item.id, patch: toBody(trimmed) })))) return
     setDrafts((current) => {
+      // Text typed while the save was in flight hasn't been sent; keep it.
+      if (current[item.id]?.trim() !== trimmed) return current
       const { [item.id]: _discarded, ...rest } = current
       return rest
     })
@@ -302,7 +322,7 @@ function TextChildSection<TBody>({
   function field(
     value: string,
     onValueChange: (next: string) => void,
-    extra: { onBlur?: () => void; autoFocus?: boolean } = {},
+    extra: { onBlur?: () => void; autoFocus?: boolean; readOnly?: boolean; 'aria-describedby'?: string } = {},
   ) {
     const shared = {
       value,
@@ -327,7 +347,16 @@ function TextChildSection<TBody>({
             {field(
               drafts[item.id] ?? item.text,
               (next) => setDrafts((current) => ({ ...current, [item.id]: next })),
-              { onBlur: () => void commit(item) },
+              {
+                onBlur: () => void commit(item),
+                'aria-describedby': isUnsaved(item) ? `${hintId}-${item.id}` : undefined,
+              },
+            )}
+            {/* Shows while typing, and stays after a failed save once the error box clears. */}
+            {isUnsaved(item) && (
+              <span id={`${hintId}-${item.id}`} className="muted">
+                Unsaved
+              </span>
             )}
           </div>
           <button
@@ -344,20 +373,23 @@ function TextChildSection<TBody>({
       {newText !== null && (
         <div className="child-row">
           <span className="child-row__index">+</span>
-          <div className="child-row__body">{field(newText, setNewText, { autoFocus: true })}</div>
+          <div className="child-row__body">{/* Read-only while adding: text typed then would become a second step. */}
+          {field(newText, setNewText, { autoFocus: true, readOnly: creating })}</div>
           <div className="row">
             <button
               type="button"
               className="primary"
-              disabled={newText.trim() === ''}
+              disabled={newText.trim() === '' || creating}
               onClick={async () => {
-                await run(() => onCreate(toBody(newText.trim())))
-                setNewText(null)
+                setCreating(true)
+                const saved = await run(() => onCreate(toBody(newText.trim())))
+                setCreating(false)
+                if (saved) setNewText(null)
               }}
             >
               Add
             </button>
-            <button type="button" className="ghost" onClick={() => setNewText(null)}>
+            <button type="button" className="ghost" disabled={creating} onClick={() => setNewText(null)}>
               Cancel
             </button>
           </div>

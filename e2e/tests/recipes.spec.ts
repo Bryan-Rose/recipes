@@ -85,3 +85,38 @@ test('adding an ingredient someone else just created says it already exists', as
   await expect(page.getByText('Already exists')).toBeVisible()
   await expect(page.getByText(/constraint failed/)).toBeHidden()
 })
+
+test('a step that fails to save keeps its text for a retry', async ({ page, baseURL }) => {
+  const api = await apiAs(baseURL!, COOK)
+  const created = await api.post('/api/recipes/', { data: { name: `E2E Retry ${unique()}` } })
+  expect(created.status()).toBe(201)
+  const { id } = (await created.json()) as { id: number }
+
+  await page.goto(`/recipes/${id}/edit`)
+  await page.route(`**/api/recipes/${id}/steps/`, (route) =>
+    route.fulfill({ status: 503, json: { detail: 'Server unavailable' } }),
+  )
+  await page.getByRole('button', { name: '+ Add step' }).click()
+  const field = page.getByPlaceholder('Describe this step…')
+  await field.fill('Whisk the eggs.')
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+
+  await expect(page.getByText('Server unavailable')).toBeVisible()
+  await expect(field).toHaveValue('Whisk the eggs.')
+
+  await page.unroute(`**/api/recipes/${id}/steps/`)
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.getByText('Server unavailable')).toBeHidden()
+  await expect(page.getByRole('button', { name: '+ Add step' })).toBeVisible()
+  await expect(field).toHaveValue('Whisk the eggs.') // now the saved row
+
+  // A failed edit to a saved step stays in the field, flagged as unsaved.
+  await page.route(`**/api/recipes/${id}/steps/*`, (route) =>
+    route.fulfill({ status: 503, json: { detail: 'Server unavailable' } }),
+  )
+  await field.fill('Whisk the eggs well.')
+  await field.blur()
+  await expect(page.getByText('Server unavailable')).toBeVisible()
+  await expect(field).toHaveValue('Whisk the eggs well.')
+  await expect(page.getByText('Unsaved', { exact: true })).toBeVisible()
+})
