@@ -268,12 +268,15 @@ function TextChildSection<TBody>({
   const [newText, setNewText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Resolves false on failure, so callers keep the typed text for a retry.
   async function run(action: () => Promise<unknown>) {
     setError(null)
     try {
       await action()
+      return true
     } catch (caught) {
       setError(describeError(caught))
+      return false
     }
   }
 
@@ -292,7 +295,7 @@ function TextChildSection<TBody>({
       return
     }
 
-    await run(() => onUpdate({ id: item.id, patch: toBody(trimmed) }))
+    if (!(await run(() => onUpdate({ id: item.id, patch: toBody(trimmed) })))) return
     setDrafts((current) => {
       const { [item.id]: _discarded, ...rest } = current
       return rest
@@ -351,8 +354,7 @@ function TextChildSection<TBody>({
               className="primary"
               disabled={newText.trim() === ''}
               onClick={async () => {
-                await run(() => onCreate(toBody(newText.trim())))
-                setNewText(null)
+                if (await run(() => onCreate(toBody(newText.trim())))) setNewText(null)
               }}
             >
               Add
