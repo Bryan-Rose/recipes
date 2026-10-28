@@ -267,16 +267,20 @@ function TextChildSection<TBody>({
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [newText, setNewText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   // Resolves false on failure, so callers keep the typed text for a retry.
   async function run(action: () => Promise<unknown>) {
     setError(null)
+    setSaving(true)
     try {
       await action()
       return true
     } catch (caught) {
       setError(describeError(caught))
       return false
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -332,6 +336,10 @@ function TextChildSection<TBody>({
               (next) => setDrafts((current) => ({ ...current, [item.id]: next })),
               { onBlur: () => void commit(item) },
             )}
+            {/* A failed save keeps the draft; this flags it once the error box clears. */}
+            {drafts[item.id] !== undefined && drafts[item.id] !== item.text && (
+              <span className="muted">Unsaved</span>
+            )}
           </div>
           <button
             type="button"
@@ -352,7 +360,7 @@ function TextChildSection<TBody>({
             <button
               type="button"
               className="primary"
-              disabled={newText.trim() === ''}
+              disabled={newText.trim() === '' || saving}
               onClick={async () => {
                 if (await run(() => onCreate(toBody(newText.trim())))) setNewText(null)
               }}

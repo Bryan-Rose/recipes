@@ -109,4 +109,14 @@ test('a step that fails to save keeps its text for a retry', async ({ page, base
   await expect(page.getByText('Server unavailable')).toBeHidden()
   await expect(page.getByRole('button', { name: '+ Add step' })).toBeVisible()
   await expect(field).toHaveValue('Whisk the eggs.') // now the saved row
+
+  // A failed edit to a saved step stays in the field, flagged as unsaved.
+  await page.route(`**/api/recipes/${id}/steps/*`, (route) =>
+    route.fulfill({ status: 503, json: { detail: 'Server unavailable' } }),
+  )
+  await field.fill('Whisk the eggs well.')
+  await field.blur()
+  await expect(page.getByText('Server unavailable')).toBeVisible()
+  await expect(field).toHaveValue('Whisk the eggs well.')
+  await expect(page.getByText('Unsaved')).toBeVisible()
 })

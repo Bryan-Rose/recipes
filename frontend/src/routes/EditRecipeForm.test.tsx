@@ -52,3 +52,53 @@ describe('recipe editor when a save fails', () => {
     expect(screen.getByDisplayValue('Boil water fast')).toBeInTheDocument()
   })
 })
+
+describe('recipe editor', () => {
+  beforeEach(() => {
+    server.use(http.get('/api/cookbooks/', () => HttpResponse.json([])))
+  })
+
+  it('flags a step whose edit failed as unsaved, after the error clears', async () => {
+    server.use(
+      http.patch('/api/recipes/7/steps/3', failure),
+      http.post('/api/recipes/7/steps/', () => HttpResponse.json({ id: 4, text: 'Add salt' }, { status: 201 })),
+      http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
+      http.get('/api/recipes/', () => HttpResponse.json([recipe])),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.type(screen.getByDisplayValue('Boil water'), ' fast')
+    await user.tab()
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '+ Add step' }))
+    await user.keyboard('Add salt')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByRole('button', { name: '+ Add step' })).toBeInTheDocument()
+    expect(screen.queryByText(/Server unavailable/)).not.toBeInTheDocument()
+    expect(screen.getByText('Unsaved')).toBeInTheDocument()
+  })
+
+  it('disables Add while a step is saving', async () => {
+    let release!: () => void
+    server.use(
+      http.post('/api/recipes/7/steps/', async () => {
+        await new Promise<void>((resolve) => (release = resolve))
+        return failure()
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.click(screen.getByRole('button', { name: '+ Add step' }))
+    await user.keyboard('Add salt')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    await expect.poll(() => screen.getByRole('button', { name: 'Add' })).toBeDisabled()
+    release()
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled()
+  })
+})
