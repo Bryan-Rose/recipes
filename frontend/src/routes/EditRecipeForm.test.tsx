@@ -51,12 +51,6 @@ describe('recipe editor when a save fails', () => {
     expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
     expect(screen.getByDisplayValue('Boil water fast')).toBeInTheDocument()
   })
-})
-
-describe('recipe editor', () => {
-  beforeEach(() => {
-    server.use(http.get('/api/cookbooks/', () => HttpResponse.json([])))
-  })
 
   it('flags a step whose edit failed as unsaved, after the error clears', async () => {
     server.use(
@@ -78,14 +72,46 @@ describe('recipe editor', () => {
 
     expect(await screen.findByRole('button', { name: '+ Add step' })).toBeInTheDocument()
     expect(screen.queryByText(/Server unavailable/)).not.toBeInTheDocument()
-    expect(screen.getByText('Unsaved')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Boil water fast')).toHaveAccessibleDescription('Unsaved')
+  })
+
+  it('does not flag a step that differs only by whitespace', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.type(screen.getByDisplayValue('Boil water'), ' ')
+    expect(screen.queryByText('Unsaved')).not.toBeInTheDocument()
+  })
+
+  it('accepts an Add click that blurs an edited step', async () => {
+    let posted: unknown
+    server.use(
+      http.patch('/api/recipes/7/steps/3', () => HttpResponse.json({ id: 3, text: 'Boil water fast' })),
+      http.post('/api/recipes/7/steps/', async ({ request }) => {
+        posted = await request.json()
+        return HttpResponse.json({ id: 4, text: 'Add salt' }, { status: 201 })
+      }),
+      http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
+      http.get('/api/recipes/', () => HttpResponse.json([recipe])),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.click(screen.getByRole('button', { name: '+ Add step' }))
+    await user.keyboard('Add salt')
+    await user.type(screen.getByDisplayValue('Boil water'), ' fast')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    await expect.poll(() => posted).toEqual({ text: 'Add salt' })
   })
 
   it('disables Add while a step is saving', async () => {
+    // Created before the request, so release() exists whenever the poll passes.
     let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
     server.use(
       http.post('/api/recipes/7/steps/', async () => {
-        await new Promise<void>((resolve) => (release = resolve))
+        await gate
         return failure()
       }),
     )

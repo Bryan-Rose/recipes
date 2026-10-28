@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import {
@@ -267,21 +267,26 @@ function TextChildSection<TBody>({
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [newText, setNewText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  // Only the Add button uses this; a blur save or delete must not disable it.
+  const [creating, setCreating] = useState(false)
+  const hintId = useId()
 
   // Resolves false on failure, so callers keep the typed text for a retry.
   async function run(action: () => Promise<unknown>) {
     setError(null)
-    setSaving(true)
     try {
       await action()
       return true
     } catch (caught) {
       setError(describeError(caught))
       return false
-    } finally {
-      setSaving(false)
     }
+  }
+
+  // Matches what commit() would send: blank or unchanged drafts are discarded.
+  function isUnsaved(item: TextChild) {
+    const trimmed = drafts[item.id]?.trim()
+    return trimmed !== undefined && trimmed !== '' && trimmed !== item.text
   }
 
   async function commit(item: TextChild) {
@@ -309,7 +314,7 @@ function TextChildSection<TBody>({
   function field(
     value: string,
     onValueChange: (next: string) => void,
-    extra: { onBlur?: () => void; autoFocus?: boolean } = {},
+    extra: { onBlur?: () => void; autoFocus?: boolean; 'aria-describedby'?: string } = {},
   ) {
     const shared = {
       value,
@@ -334,11 +339,16 @@ function TextChildSection<TBody>({
             {field(
               drafts[item.id] ?? item.text,
               (next) => setDrafts((current) => ({ ...current, [item.id]: next })),
-              { onBlur: () => void commit(item) },
+              {
+                onBlur: () => void commit(item),
+                'aria-describedby': isUnsaved(item) ? `${hintId}-${item.id}` : undefined,
+              },
             )}
-            {/* A failed save keeps the draft; this flags it once the error box clears. */}
-            {drafts[item.id] !== undefined && drafts[item.id] !== item.text && (
-              <span className="muted">Unsaved</span>
+            {/* Shows while typing, and stays after a failed save once the error box clears. */}
+            {isUnsaved(item) && (
+              <span id={`${hintId}-${item.id}`} className="muted">
+                Unsaved
+              </span>
             )}
           </div>
           <button
@@ -360,9 +370,12 @@ function TextChildSection<TBody>({
             <button
               type="button"
               className="primary"
-              disabled={newText.trim() === '' || saving}
+              disabled={newText.trim() === '' || creating}
               onClick={async () => {
-                if (await run(() => onCreate(toBody(newText.trim())))) setNewText(null)
+                setCreating(true)
+                const saved = await run(() => onCreate(toBody(newText.trim())))
+                setCreating(false)
+                if (saved) setNewText(null)
               }}
             >
               Add
