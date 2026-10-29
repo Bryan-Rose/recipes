@@ -108,8 +108,8 @@ def pr_prompt(pr: int, extra_issue: int | None) -> str:
     if not issues:
         parts.append("No linked issue.")
     for c in data["comments"]:
-        # The repo is public: anyone else's comment could "settle" review points. This also drops the bot's own review.
-        if c["authorAssociation"] in TRUSTED:
+        # The repo is public: anyone else's comment could "settle" review points. The marker skips earlier reviews.
+        if c["authorAssociation"] in TRUSTED and not c["body"].startswith(MARKER):
             parts.append(f'<comment author="{c["author"]["login"]}">\n{c["body"]}\n</comment>')
     parts.append("Files: " + ", ".join(f["path"] for f in data["files"]))
     parts.append(f"<diff>\n{diff}\n</diff>")
@@ -117,10 +117,10 @@ def pr_prompt(pr: int, extra_issue: int | None) -> str:
     guide = file_at("AGENTS.md", data["headRefOid"])
     parts.insert(0, f"<guide>\n{guide}\n</guide>" if guide else "Project guide (AGENTS.md) unavailable.")
 
-    # Full files go last and only while they fit, so a big lockfile can't push the PR over the limit.
+    # Full files go last and only while they fit, so a big generated file (e.g. schema.d.ts) can't push the PR over the limit.
     # Every part costs its length plus a "\n\n" separator; the omitted line is reserved for up front.
     header = "Review this pull request.\n\n"
-    omitted_prefix = "Full text not included (binary, too large or unavailable; see the diff): "
+    omitted_prefix = "Full text not included (lockfile, binary, too large or unavailable; see the diff): "
     reserve = len(omitted_prefix) + sum(len(f["path"]) + 2 for f in data["files"]) + 2
     budget = MAX_INPUT_CHARS - len(header) - sum(len(part) + 2 for part in parts) - reserve
     omitted = []

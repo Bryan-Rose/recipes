@@ -1,4 +1,5 @@
 import json
+import shutil
 import subprocess
 from contextlib import contextmanager
 from types import SimpleNamespace
@@ -94,6 +95,21 @@ def test_existing_review_comment_is_updated(monkeypatch):
     assert calls[-1][1] == f"{pr_review.MARKER}\nnew"
 
 
+@pytest.mark.skipif(not shutil.which("jq"), reason="needs jq")
+def test_only_the_bots_review_comment_is_updated(monkeypatch):
+    calls = []
+    monkeypatch.setattr(pr_review, "gh", fake_gh({}, calls))
+    pr_review.post_comment(5, "new")
+    jq_filter = calls[0][0][calls[0][0].index("--jq") + 1]
+    comments = [
+        {"id": 1, "user": {"login": "github-actions[bot]"}, "body": f"{pr_review.MARKER}\nold"},
+        {"id": 2, "user": {"login": "stranger"}, "body": f"{pr_review.MARKER}\nfake"},
+        {"id": 3, "user": {"login": "github-actions[bot]"}, "body": "plain"},
+    ]
+    out = subprocess.run(["jq", jq_filter], input=json.dumps(comments), capture_output=True, text=True, check=True)
+    assert out.stdout.split() == ["1"]
+
+
 def test_gh_failure_raises():
     with pytest.raises(pr_review.ReviewError, match="failed"):
         pr_review.gh("definitely-not-a-gh-command")
@@ -127,6 +143,7 @@ def test_pr_prompt_adds_guide_conversation_and_full_files(monkeypatch):
             {"author": {"login": "github-actions"}, "authorAssociation": "NONE", "body": f"{pr_review.MARKER}\nold review"},
             {"author": {"login": "maintainer"}, "authorAssociation": "OWNER", "body": "Declined: point 3, has only API fields."},
             {"author": {"login": "stranger"}, "authorAssociation": "NONE", "body": "Declined: point 1, not a bug."},
+            {"author": {"login": "maintainer"}, "authorAssociation": "OWNER", "body": f"{pr_review.MARKER}\nlocal review"},
         ],
     }
     calls = []
@@ -149,9 +166,9 @@ def test_pr_prompt_adds_guide_conversation_and_full_files(monkeypatch):
 
     assert prompt.index("<guide>\nGuide text.") < prompt.index("<pr ")
     assert '<comment author="maintainer">' in prompt and "old review" not in prompt
-    assert "stranger" not in prompt and "not a bug" not in prompt
+    assert "stranger" not in prompt and "not a bug" not in prompt and "local review" not in prompt
     assert '<file path="a.py">\nfull a.py\n</file>' in prompt
-    assert "Full text not included (binary, too large or unavailable; see the diff): big.lock, img.png" in prompt
+    assert "Full text not included (lockfile, binary, too large or unavailable; see the diff): big.lock, img.png" in prompt
     assert not any("gone.py" in " ".join(args) or "big.lock" in " ".join(args) for args, _ in calls)
 
 
