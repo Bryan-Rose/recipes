@@ -23,6 +23,8 @@ MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-5-5")
 MAX_INPUT_CHARS = int(os.environ.get("REVIEW_MAX_CHARS", "400000"))
 # Hidden marker so reruns update the same comment instead of adding a new one.
 MARKER = "<!-- claude-pr-review -->"
+TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
+LOCKFILES = (".lock", "-lock.json")
 
 SYSTEM_PROMPT = """You are an expert, language-agnostic code reviewer.
 Your goal is to evaluate code changes or codebases to improve correctness, security, maintainability and overall system health.
@@ -106,7 +108,8 @@ def pr_prompt(pr: int, extra_issue: int | None) -> str:
     if not issues:
         parts.append("No linked issue.")
     for c in data["comments"]:
-        if not c["body"].startswith(MARKER):  # the reviewer's own earlier review
+        # The repo is public: anyone else's comment could "settle" review points. This also drops the bot's own review.
+        if c["authorAssociation"] in TRUSTED:
             parts.append(f'<comment author="{c["author"]["login"]}">\n{c["body"]}\n</comment>')
     parts.append("Files: " + ", ".join(f["path"] for f in data["files"]))
     parts.append(f"<diff>\n{diff}\n</diff>")
@@ -123,6 +126,9 @@ def pr_prompt(pr: int, extra_issue: int | None) -> str:
     omitted = []
     for f in data["files"]:
         if f.get("changeType") == "DELETED":
+            continue
+        if f["path"].endswith(LOCKFILES):  # the diff already shows the change; the full text is hundreds of KB
+            omitted.append(f["path"])
             continue
         text = file_at(f["path"], data["headRefOid"]) if budget > 0 else None
         block = f'<file path="{f["path"]}">\n{text}\n</file>'
@@ -175,7 +181,7 @@ def post_comment(pr: int, review: str) -> None:
     body = f"{MARKER}\n{review}"
     ids = gh(
         "api", f"repos/{{owner}}/{{repo}}/issues/{pr}/comments", "--paginate",
-        "--jq", f'.[] | select(.body | startswith("{MARKER}")) | .id',
+        "--jq", f'.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("{MARKER}"))) | .id',
     )  # fmt: skip
     if ids:
         gh("api", "-X", "PATCH", f"repos/{{owner}}/{{repo}}/issues/comments/{ids.split()[-1]}", "-F", "body=@-", stdin=body)

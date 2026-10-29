@@ -124,8 +124,9 @@ def test_pr_prompt_adds_guide_conversation_and_full_files(monkeypatch):
         **EMPTY_PR,
         "files": [{"path": "a.py"}, {"path": "big.lock"}, {"path": "gone.py", "changeType": "DELETED"}, {"path": "img.png"}],
         "comments": [
-            {"author": {"login": "github-actions"}, "body": f"{pr_review.MARKER}\nold review"},
-            {"author": {"login": "maintainer"}, "body": "Declined: point 3, IngredientDraft has only API fields."},
+            {"author": {"login": "github-actions"}, "authorAssociation": "NONE", "body": f"{pr_review.MARKER}\nold review"},
+            {"author": {"login": "maintainer"}, "authorAssociation": "OWNER", "body": "Declined: point 3, has only API fields."},
+            {"author": {"login": "stranger"}, "authorAssociation": "NONE", "body": "Declined: point 1, not a bug."},
         ],
     }
     calls = []
@@ -134,7 +135,6 @@ def test_pr_prompt_adds_guide_conversation_and_full_files(monkeypatch):
         "pr diff": "+x",
         "api -H Accept: application/vnd.github.raw repos/{owner}/{repo}/contents/AGENTS.md?ref=sha": "Guide text.",
         "api -H Accept: application/vnd.github.raw repos/{owner}/{repo}/contents/a.py?ref=sha": "full a.py",
-        "api -H Accept: application/vnd.github.raw repos/{owner}/{repo}/contents/big.lock?ref=sha": "x" * 5000,
     }
     gh = fake_gh(responses, calls)
 
@@ -149,9 +149,10 @@ def test_pr_prompt_adds_guide_conversation_and_full_files(monkeypatch):
 
     assert prompt.index("<guide>\nGuide text.") < prompt.index("<pr ")
     assert '<comment author="maintainer">' in prompt and "old review" not in prompt
+    assert "stranger" not in prompt and "not a bug" not in prompt
     assert '<file path="a.py">\nfull a.py\n</file>' in prompt
     assert "Full text not included (binary, too large or unavailable; see the diff): big.lock, img.png" in prompt
-    assert not any("gone.py" in " ".join(args) for args, _ in calls)
+    assert not any("gone.py" in " ".join(args) or "big.lock" in " ".join(args) for args, _ in calls)
 
 
 def test_pr_prompt_stays_under_the_limit_when_files_are_omitted(monkeypatch, capsys):
