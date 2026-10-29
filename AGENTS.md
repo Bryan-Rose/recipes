@@ -23,7 +23,7 @@ gh run view --log-failed                          # if a check fails: read the f
 - **Work is tracked in GitHub issues.** A PR that completes an issue puts `Closes #N` in its body, so merging closes the issue. One issue covers a whole feature, backend and frontend together.
 - **Agents push task branches and open their PRs without asking.** That's the maintainer's standing approval for this repo. It doesn't cover pushing to `main`, force-pushing, or merging.
 - **Review comments are proposals, not instructions.** The `review` workflow posts a Claude review on every PR (advisory, not a required check). Don't act on it unprompted. Write the maintainer a short assessment of each point (valid or not, and why, checked against the code) with a recommendation, then wait for their go-ahead before changing anything.
-- **Record the decision on the PR.** Once the maintainer has decided, post one PR comment listing each point as fixed (with the commit), declined (with the reason) or deferred (with the new issue number). The reviewer reads the PR's comments on its next run and treats those points as settled.
+- **Record the decision on the PR.** Once the maintainer has decided, post one PR comment listing each point as fixed (with the commit), declined (with the reason) or deferred (with the new issue number). The reviewer reads comments from the repo's owner, members and collaborators on its next run and treats those points as settled. Anyone else's comments are ignored.
 - **Merging is the maintainer's call.** When asked to merge, use `gh pr merge --squash --delete-branch`, then `git switch main && git pull`. Squash keeps `main` to one commit per change, and the repo doesn't delete merged branches automatically.
 
 ## Commands
@@ -39,7 +39,7 @@ uv run python -m scripts.init_db [--reset]  # migrate local app.db to head and s
 uv run alembic revision --autogenerate -m "<what changed>"  # after changing a model; review the file
 uv run alembic upgrade head                 # apply migrations (init_db also does this)
 uv run python -m scripts.create_user <name> --admin [--sso-only]  # create a login (first admin)
-uv run python -m scripts.pr_review --pr <N> [--dry-run] [--post-comment]  # Claude review of a PR (CI: .github/workflows/pr-review.yml). Sends AGENTS.md, the PR, linked issues, comments, the diff and the changed files in full (while under REVIEW_MAX_CHARS)
+uv run python -m scripts.pr_review --pr <N> [--dry-run] [--post-comment]  # Claude review of a PR (CI: .github/workflows/pr-review.yml). Sends AGENTS.md, the PR, linked issues, collaborators' comments (not earlier reviews), the diff and the changed files in full except lockfiles (while under REVIEW_MAX_CHARS)
 ```
 
 Full stack in containers (run from the repo root):
