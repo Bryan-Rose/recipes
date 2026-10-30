@@ -23,7 +23,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: read
-    uses: Bryan-Rose/agent-kit/.github/workflows/claude-review.yml@main # switch to @v1 once tagged
+    uses: Bryan-Rose/agent-kit/.github/workflows/claude-review.yml@v1
     with:
       model: ${{ inputs.model || 'claude-haiku-5-5' }}
     # Only the API secret: `inherit` would hand every repo secret to agent-kit's workflow.
