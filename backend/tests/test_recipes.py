@@ -116,14 +116,14 @@ def test_get_recipe_not_found(client: TestClient):
 
 
 def test_update_recipe(client: TestClient, recipe: RecipeRead):
-    patch_response = client.patch(f"/recipes/{recipe.id}", json={"servings": "8"})
+    patch_response = client.patch(f"/recipes/{recipe.id}", json={"servings": 8})
     assert patch_response.status_code == 200
 
     response = client.get(f"/recipes/{recipe.id}")
     assert response.status_code == 200
     updated = RecipeRead.model_validate(response.json())
 
-    assert updated.servings == "8"
+    assert updated.servings == 8
     # RecipeUpdate is all-optional and the service relies on exclude_unset, so
     # the fields we did not send must survive untouched.
     assert updated.name == recipe.name
@@ -133,7 +133,7 @@ def test_update_recipe(client: TestClient, recipe: RecipeRead):
 def test_update_recipe_preserves_cookbook(client: TestClient, cookbook: CookbookRead):
     created = RecipeRead.model_validate(client.post("/recipes/", json={"name": "Cassoulet", "cookbook_id": cookbook.id}).json())
 
-    patch_response = client.patch(f"/recipes/{created.id}", json={"servings": "6"})
+    patch_response = client.patch(f"/recipes/{created.id}", json={"servings": 6})
     assert patch_response.status_code == 200
 
     updated = RecipeRead.model_validate(patch_response.json())
@@ -259,3 +259,8 @@ def test_update_recipe_rejects_null(client: TestClient, recipe: RecipeRead, fiel
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"][-1] == field
+
+
+def test_servings_must_be_a_positive_number(client: TestClient, recipe: RecipeRead):
+    for servings in (0, "a crowd"):
+        assert client.patch(f"/recipes/{recipe.id}", json={"servings": servings}).status_code == 422

@@ -86,7 +86,7 @@ class RecipeBase(BaseModel):
     cookbook_page: PositiveInt | None = None
     active_cook_time: str | None = None
     inactive_cook_time: str | None = None
-    servings: str | None = None
+    servings: PositiveInt | None = None
 
 
 class RecipeCreate(RecipeBase):
@@ -102,7 +102,7 @@ class RecipeUpdate(BaseModel):
     cookbook_page: PositiveInt | None = None
     active_cook_time: str | None = None
     inactive_cook_time: str | None = None
-    servings: str | None = None
+    servings: PositiveInt | None = None
     # Replaces the recipe's full tag set when present.
     tag_ids: Omittable[list[DbId]] = None
 

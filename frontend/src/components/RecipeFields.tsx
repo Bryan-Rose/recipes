@@ -65,9 +65,10 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
           <label htmlFor="recipe-servings">Servings</label>
           <input
             id="recipe-servings"
-            type="text"
+            type="number"
+            min="1"
             value={value.servings ?? ''}
-            onChange={(event) => set('servings', orNull(event.target.value))}
+            onChange={(event) => set('servings', event.target.value === '' ? null : Number(event.target.value))}
             placeholder="4"
           />
         </div>

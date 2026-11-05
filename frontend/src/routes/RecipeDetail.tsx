@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { useDeleteRecipe, useRecipe } from '../api/recipes'
 import { describeError } from '../api/errors'
-import type { RecipeIngredient } from '../api/types'
+import type { Recipe, RecipeIngredient } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
-import { formatAmount } from '../components/amount'
+import { formatAmount, scaleAmount } from '../components/amount'
 
 export function RecipeDetail() {
   const { recipeId } = useParams()
@@ -12,6 +13,8 @@ export function RecipeDetail() {
   const navigate = useNavigate()
   const { data: recipe, isPending, error } = useRecipe(Number.isNaN(id) ? undefined : id)
   const deleteRecipe = useDeleteRecipe()
+  // The servings box as typed; null until the reader changes it. Resets on load.
+  const [servingsDraft, setServingsDraft] = useState<string | null>(null)
 
   if (Number.isNaN(id)) return <ErrorState error={new Error('invalid id')} what="this recipe" />
   if (isPending) return <Loading what="recipe" />
@@ -20,13 +23,16 @@ export function RecipeDetail() {
   const meta = [
     recipe.active_cook_time && { label: 'Active', value: recipe.active_cook_time },
     recipe.inactive_cook_time && { label: 'Inactive', value: recipe.inactive_cook_time },
-    recipe.servings && { label: 'Servings', value: recipe.servings },
     recipe.cookbook && {
       label: 'From',
       value: `${recipe.cookbook.name}${recipe.cookbook_page ? `, p. ${recipe.cookbook_page}` : ''}`,
     },
     recipe.cookbook && { label: 'Author', value: recipe.cookbook.author.name },
   ].filter((item): item is { label: string; value: string } => Boolean(item))
+
+  const typed = Number(servingsDraft)
+  // Scale against the recipe's own servings; a cleared or invalid box means unscaled.
+  const servings = Number.isInteger(typed) && typed >= 1 ? typed : (recipe.servings ?? null)
 
   const handleDelete = async () => {
     if (!confirm(`Delete “${recipe.name}”? This cannot be undone.`)) return
@@ -54,8 +60,11 @@ export function RecipeDetail() {
 
       {deleteRecipe.error && <p className="error-box">{describeError(deleteRecipe.error)}</p>}
 
-      {meta.length > 0 && (
+      {(meta.length > 0 || recipe.servings != null) && (
         <div className="card detail-meta">
+          {recipe.servings != null && servings != null && (
+            <ServingsScaler value={servingsDraft ?? String(recipe.servings)} servings={servings} onChange={setServingsDraft} />
+          )}
           {meta.map((item) => (
             <div key={item.label} className="detail-meta__item">
               <span className="detail-meta__label">{item.label}</span>
@@ -74,7 +83,7 @@ export function RecipeDetail() {
             ) : (
               <ul className="ingredient-list">
                 {recipe.recipe_ingredients.map((item) => (
-                  <li key={item.id}>{formatIngredient(item)}</li>
+                  <li key={item.id}>{formatIngredient(item, recipe, servings)}</li>
                 ))}
               </ul>
             )}
@@ -117,9 +126,13 @@ export function RecipeDetail() {
  * The "whole" measurement is really an absence and reads badly if printed:
  * it means the ingredient is simply counted.
  */
-function formatIngredient(item: RecipeIngredient) {
+function formatIngredient(item: RecipeIngredient, recipe: Recipe, servings: number | null) {
+  const amount =
+    recipe.servings != null && servings != null && servings !== recipe.servings
+      ? scaleAmount(item.amount_numerator, item.amount_denominator, servings, recipe.servings)
+      : { numerator: item.amount_numerator, denominator: item.amount_denominator, exact: true }
   const counted = item.measurement.name.toLowerCase() === 'whole'
-  const plural = item.amount_numerator > item.amount_denominator
+  const plural = amount.numerator > amount.denominator
 
   const unit = counted ? '' : `${plural ? pluralize(item.measurement.name) : item.measurement.name} `
   const name = counted && plural ? pluralize(item.ingredient.name) : item.ingredient.name
@@ -127,13 +140,51 @@ function formatIngredient(item: RecipeIngredient) {
 
   return (
     <>
-      <span className="ingredient-amount">{formatAmount(item.amount_numerator, item.amount_denominator)}</span>{' '}
+      <span className="ingredient-amount">
+        {amount.exact ? '' : <abbr title="rounded">≈</abbr>}
+        {formatAmount(amount.numerator, amount.denominator)}
+      </span>{' '}
       <span>
         {unit}
         {name}
       </span>
       {preparation && <span className="ingredient-prep">, {preparation}</span>}
     </>
+  )
+}
+
+/** The servings count as an editable number with −/+ steppers. */
+function ServingsScaler({
+  value,
+  servings,
+  onChange,
+}: {
+  value: string
+  servings: number
+  onChange: (next: string) => void
+}) {
+  return (
+    <div className="detail-meta__item">
+      <label htmlFor="detail-servings" className="detail-meta__label">
+        Servings
+      </label>
+      <div className="row servings-scaler">
+        <button type="button" aria-label="Fewer servings" disabled={servings <= 1} onClick={() => onChange(String(servings - 1))}>
+          −
+        </button>
+        <input
+          id="detail-servings"
+          type="number"
+          min="1"
+          inputMode="numeric"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <button type="button" aria-label="More servings" onClick={() => onChange(String(servings + 1))}>
+          +
+        </button>
+      </div>
+    </div>
   )
 }
 

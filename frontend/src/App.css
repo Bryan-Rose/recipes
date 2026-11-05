@@ -360,3 +360,12 @@
 .amount-fields input {
   min-width: 0;
 }
+
+.servings-scaler {
+  gap: 0.25rem;
+}
+
+.servings-scaler input {
+  width: 4rem;
+  text-align: center;
+}

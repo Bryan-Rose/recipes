@@ -29,3 +29,19 @@ export function formatAmount(numerator: number, denominator: number) {
   const glyph = FRACTIONS[fraction][2]
   return whole === 0 ? glyph : `${whole} ${glyph}`
 }
+
+/**
+ * Scales n/d by factor/base and rounds to the nearest eighth or third, the
+ * finest fractions formatAmount can show. A nonzero amount never rounds to 0.
+ * `exact` is false when rounding changed the value.
+ */
+export function scaleAmount(numerator: number, denominator: number, factor: number, base: number) {
+  const scaledNumerator = numerator * factor
+  const scaledDenominator = denominator * base
+  const value = scaledNumerator / scaledDenominator
+  const [best] = [8, 3]
+    .map((d) => ({ numerator: Math.max(1, Math.round(value * d)), denominator: d }))
+    .sort((a, b) => Math.abs(a.numerator / a.denominator - value) - Math.abs(b.numerator / b.denominator - value))
+  const exact = best.numerator * scaledDenominator === scaledNumerator * best.denominator
+  return { ...best, exact }
+}

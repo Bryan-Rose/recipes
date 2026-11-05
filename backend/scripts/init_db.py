@@ -86,7 +86,7 @@ def seed(db: Session) -> None:
         cookbook_page=212,
         active_cook_time="20 minutes",
         inactive_cook_time="0 minutes",
-        servings="4",
+        servings=4,
         created_user=user,
         recipe_ingredients=[
             ingredient_row("spaghetti", "pound", 1),
@@ -113,7 +113,7 @@ def seed(db: Session) -> None:
         name="Buttermilk Pancakes",
         active_cook_time="15 minutes",
         inactive_cook_time="10 minutes",
-        servings="Makes about 12",
+        servings=12,
         created_user=user,
         recipe_ingredients=[
             ingredient_row("flour", "cup", 2),
@@ -142,7 +142,7 @@ def seed(db: Session) -> None:
         cookbook_page=87,
         active_cook_time="10 minutes",
         inactive_cook_time="12 minutes",
-        servings="6",
+        servings=6,
         created_user=user,
         recipe_ingredients=[
             ingredient_row("butter", "cup", 1, "melted"),
