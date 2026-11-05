@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.models.user import User
@@ -252,8 +253,9 @@ def test_timestamps_carry_a_utc_offset(client: TestClient, recipe: RecipeRead):
     assert body["updated_at"].endswith("Z") or body["updated_at"].endswith("+00:00")
 
 
-def test_update_recipe_rejects_null_name(client: TestClient, recipe: RecipeRead):
-    response = client.patch(f"/recipes/{recipe.id}", json={"name": None})
+@pytest.mark.parametrize("field", ["name", "tag_ids"])
+def test_update_recipe_rejects_null(client: TestClient, recipe: RecipeRead, field: str):
+    response = client.patch(f"/recipes/{recipe.id}", json={field: None})
 
     assert response.status_code == 422
-    assert response.json()["detail"][0]["loc"][-1] == "name"
+    assert response.json()["detail"][0]["loc"][-1] == field
