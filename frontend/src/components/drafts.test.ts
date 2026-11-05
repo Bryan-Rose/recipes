@@ -3,18 +3,22 @@ import { describe, expect, it } from 'vitest'
 import { emptyIngredient, isComplete } from './drafts'
 
 describe('isComplete', () => {
-  const full = { ingredient_id: 1, measurement_id: 2, preparation_id: 3, amount: 2 }
+  const full = { ingredient_id: 1, measurement_id: 2, preparation_id: 3, amount_numerator: 7, amount_denominator: 2 as const }
 
-  it('accepts a row with all ids and a whole amount', () => {
+  it('accepts a row with both ids and a fractional amount', () => {
     expect(isComplete(full)).toBe(true)
   })
 
-  it.each(['ingredient_id', 'measurement_id', 'preparation_id'] as const)('rejects a missing %s', (field) => {
+  it('accepts a row without a preparation', () => {
+    expect(isComplete({ ...full, preparation_id: null })).toBe(true)
+  })
+
+  it.each(['ingredient_id', 'measurement_id'] as const)('rejects a missing %s', (field) => {
     expect(isComplete({ ...full, [field]: null })).toBe(false)
   })
 
-  it('rejects a fractional amount, which the API cannot store', () => {
-    expect(isComplete({ ...full, amount: 0.5 })).toBe(false)
+  it('rejects a zero amount', () => {
+    expect(isComplete({ ...full, amount_numerator: 0 })).toBe(false)
   })
 
   it('starts incomplete', () => {

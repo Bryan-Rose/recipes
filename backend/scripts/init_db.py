@@ -14,6 +14,7 @@ backend/ on every test run.
 
 import argparse
 import sqlite3
+from fractions import Fraction
 from pathlib import Path
 
 from alembic import command
@@ -42,7 +43,7 @@ def seed(db: Session) -> None:
 
     # "whole" is the neutral default: RecipeIngredient.preparation_id is
     # non-nullable, so every ingredient row needs some preparation selected.
-    preparations = {name: Preparation(name=name) for name in ("whole", "chopped", "diced", "minced", "sliced", "melted", "beaten")}
+    preparations = {name: Preparation(name=name) for name in ("chopped", "diced", "minced", "sliced", "melted", "beaten")}
     measurements = {name: Measurement(name=name) for name in ("cup", "tablespoon", "teaspoon", "ounce", "pound", "gram", "clove", "whole")}
     ingredients = {
         name: Ingredient(name=name)
@@ -71,12 +72,14 @@ def seed(db: Session) -> None:
     essentials = Cookbook(name="Essentials of Classic Italian Cooking", author=hazan)
     db.add_all([mastering, essentials])
 
-    def ingredient_row(ingredient: str, measurement: str, amount: int, preparation: str = "whole") -> RecipeIngredient:
+    def ingredient_row(ingredient: str, measurement: str, amount: Fraction | int, preparation: str | None = None) -> RecipeIngredient:
+        amount = Fraction(amount)
         return RecipeIngredient(
             ingredient=ingredients[ingredient],
             measurement=measurements[measurement],
-            preparation=preparations[preparation],
-            amount=amount,
+            preparation=preparations[preparation] if preparation else None,
+            amount_numerator=amount.numerator,
+            amount_denominator=amount.denominator,
         )
 
     carbonara = Recipe(
@@ -118,9 +121,9 @@ def seed(db: Session) -> None:
             ingredient_row("flour", "cup", 2),
             ingredient_row("sugar", "tablespoon", 2),
             ingredient_row("egg", "whole", 2, "beaten"),
-            ingredient_row("milk", "cup", 2),
+            ingredient_row("milk", "cup", Fraction(3, 2)),
             ingredient_row("butter", "tablespoon", 3, "melted"),
-            ingredient_row("salt", "teaspoon", 1),
+            ingredient_row("salt", "teaspoon", Fraction(1, 2)),
         ],
         requirements=[
             Requirement(name="Griddle or heavy skillet"),

@@ -308,7 +308,7 @@
 
 .ingredient-fields {
   display: grid;
-  grid-template-columns: 5rem repeat(3, minmax(0, 1fr));
+  grid-template-columns: 8.5rem repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
   flex: 1;
   min-width: 0;
@@ -349,4 +349,14 @@
 .login-divider {
   text-align: center;
   margin: -0.5rem 0;
+}
+
+/* Whole-number box and fraction dropdown, side by side under one label. */
+.amount-fields {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.amount-fields input {
+  min-width: 0;
 }

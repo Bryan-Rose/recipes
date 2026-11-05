@@ -1,7 +1,7 @@
 """Field types for values that cross the API boundary into or out of SQLite."""
 
 from datetime import UTC, datetime
-from typing import Annotated, TypeVar
+from typing import Annotated, Literal, TypeVar
 
 from fastapi import Path
 from pydantic import AfterValidator, BeforeValidator, Field, SecretStr
@@ -17,6 +17,9 @@ DbId = Annotated[int, Field(ge=1, le=_MAX_INT)]
 
 PositiveInt = Annotated[int, Field(ge=1, le=_MAX_INT)]
 """A stored count such as an amount or page number."""
+
+Denominator = Literal[1, 2, 3, 4, 8]
+"""The denominators an ingredient amount may use: halves, thirds, quarters, eighths."""
 
 IdPath = Annotated[int, Path(ge=1, le=_MAX_INT)]
 """A row id in the URL path."""

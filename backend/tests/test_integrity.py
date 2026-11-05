@@ -8,7 +8,7 @@ from app.schemas.preparation import PreparationRead
 
 
 def _recipe_ingredient(ingredient: IngredientRead, measurement: MeasurementRead, preparation: PreparationRead) -> dict:
-    return {"ingredient_id": ingredient.id, "measurement_id": measurement.id, "preparation_id": preparation.id, "amount": 1}
+    return {"ingredient_id": ingredient.id, "measurement_id": measurement.id, "preparation_id": preparation.id, "amount_numerator": 1}
 
 
 ## Duplicates
@@ -70,7 +70,7 @@ def test_recipe_with_unknown_cookbook_is_rejected(client: TestClient):
 
 
 def test_recipe_with_unknown_ingredient_is_rejected(client: TestClient, measurement: MeasurementRead, preparation: PreparationRead):
-    ri = {"ingredient_id": 999, "measurement_id": measurement.id, "preparation_id": preparation.id, "amount": 1}
+    ri = {"ingredient_id": 999, "measurement_id": measurement.id, "preparation_id": preparation.id, "amount_numerator": 1}
 
     response = client.post("/recipes/", json={"name": "R", "recipe_ingredients": [ri]})
 
@@ -82,7 +82,7 @@ def test_nested_recipe_ingredient_with_unknown_ingredient_is_rejected(
     client: TestClient, measurement: MeasurementRead, preparation: PreparationRead
 ):
     recipe = client.post("/recipes/", json={"name": "R"}).json()
-    ri = {"ingredient_id": 999, "measurement_id": measurement.id, "preparation_id": preparation.id, "amount": 1}
+    ri = {"ingredient_id": 999, "measurement_id": measurement.id, "preparation_id": preparation.id, "amount_numerator": 1}
 
     response = client.post(f"/recipes/{recipe['id']}/recipeingredients/", json=ri)
 
@@ -116,6 +116,6 @@ def test_huge_body_id_is_rejected_not_crashed(client: TestClient):
 def test_non_positive_amount_is_rejected(
     client: TestClient, measurement: MeasurementRead, preparation: PreparationRead, ingredient: IngredientRead
 ):
-    ri = {**_recipe_ingredient(ingredient, measurement, preparation), "amount": 0}
+    ri = {**_recipe_ingredient(ingredient, measurement, preparation), "amount_numerator": 0}
 
     assert client.post("/recipes/", json={"name": "R", "recipe_ingredients": [ri]}).status_code == 422

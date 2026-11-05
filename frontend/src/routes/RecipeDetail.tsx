@@ -4,6 +4,7 @@ import { useDeleteRecipe, useRecipe } from '../api/recipes'
 import { describeError } from '../api/errors'
 import type { RecipeIngredient } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
+import { formatAmount } from '../components/amount'
 
 export function RecipeDetail() {
   const { recipeId } = useParams()
@@ -111,23 +112,22 @@ export function RecipeDetail() {
 }
 
 /**
- * "2 cups butter, melted".
+ * "1 ½ cups butter, melted".
  *
- * Two measurement values are really absences and read badly if printed: the
- * "whole" preparation (which the non-nullable column forces every row to carry)
- * and the "whole" measurement, which means the ingredient is simply counted.
+ * The "whole" measurement is really an absence and reads badly if printed:
+ * it means the ingredient is simply counted.
  */
 function formatIngredient(item: RecipeIngredient) {
   const counted = item.measurement.name.toLowerCase() === 'whole'
-  const plural = item.amount !== 1
+  const plural = item.amount_numerator > item.amount_denominator
 
   const unit = counted ? '' : `${plural ? pluralize(item.measurement.name) : item.measurement.name} `
   const name = counted && plural ? pluralize(item.ingredient.name) : item.ingredient.name
-  const preparation = item.preparation.name.toLowerCase() === 'whole' ? null : item.preparation.name
+  const preparation = item.preparation?.name
 
   return (
     <>
-      <span className="ingredient-amount">{item.amount}</span>{' '}
+      <span className="ingredient-amount">{formatAmount(item.amount_numerator, item.amount_denominator)}</span>{' '}
       <span>
         {unit}
         {name}

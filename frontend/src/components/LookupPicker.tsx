@@ -8,9 +8,11 @@ interface LookupPickerProps<T extends Lookup> {
   label: string
   options: readonly T[] | undefined
   value: number | null
-  onChange: (id: number) => void
+  onChange: (id: number | null) => void
   onCreate: (name: string) => Promise<T>
   disabled?: boolean
+  /** Makes the field optional: this label becomes a selectable "nothing picked" option. */
+  noneLabel?: string
 }
 
 /**
@@ -27,6 +29,7 @@ export function LookupPicker<T extends Lookup>({
   onChange,
   onCreate,
   disabled,
+  noneLabel,
 }: LookupPickerProps<T>) {
   const [isAdding, setIsAdding] = useState(false)
   const [draft, setDraft] = useState('')
@@ -71,10 +74,10 @@ export function LookupPicker<T extends Lookup>({
         id={selectId}
         value={value ?? ''}
         disabled={disabled || options === undefined}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onChange={(event) => onChange(event.target.value === '' ? null : Number(event.target.value))}
       >
-        <option value="" disabled>
-          {options === undefined ? 'Loading…' : `Select ${label.toLowerCase()}…`}
+        <option value="" disabled={noneLabel === undefined}>
+          {options === undefined ? 'Loading…' : (noneLabel ?? `Select ${label.toLowerCase()}…`)}
         </option>
         {options?.map((option) => (
           <option key={option.id} value={option.id}>

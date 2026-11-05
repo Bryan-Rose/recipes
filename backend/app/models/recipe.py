@@ -75,7 +75,9 @@ class Requirement(Base):
 class RecipeIngredient(Base):
     __tablename__ = "recipe_ingredients"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    # An improper fraction, reduced by the service: "3 ½" is 7/2.
+    amount_numerator: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount_denominator: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
 
     recipe_id: Mapped[int] = mapped_column(Integer, ForeignKey("recipes.id"), nullable=False)
     recipe: Mapped[Recipe] = relationship(back_populates="recipe_ingredients")
@@ -83,8 +85,8 @@ class RecipeIngredient(Base):
     ingredient_id: Mapped[int] = mapped_column(Integer, ForeignKey("ingredients.id"), nullable=False)
     ingredient: Mapped[Ingredient] = relationship(back_populates="recipe_ingredients")
 
-    preparation_id: Mapped[int] = mapped_column(Integer, ForeignKey("preparations.id"), nullable=False)
-    preparation: Mapped[Preparation] = relationship()
+    preparation_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("preparations.id"), nullable=True)
+    preparation: Mapped[Preparation | None] = relationship()
 
     measurement_id: Mapped[int] = mapped_column(Integer, ForeignKey("measurements.id"), nullable=False)
     measurement: Mapped[Measurement] = relationship(back_populates="recipe_ingredients")

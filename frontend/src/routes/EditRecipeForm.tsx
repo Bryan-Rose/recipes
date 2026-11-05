@@ -146,8 +146,9 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
         const saved: IngredientDraft = {
           ingredient_id: item.ingredient.id,
           measurement_id: item.measurement.id,
-          preparation_id: item.preparation.id,
-          amount: item.amount,
+          preparation_id: item.preparation?.id ?? null,
+          amount_numerator: item.amount_numerator,
+          amount_denominator: item.amount_denominator,
         }
         const draft = drafts[item.id] ?? saved
         const dirty = JSON.stringify(draft) !== JSON.stringify(saved)

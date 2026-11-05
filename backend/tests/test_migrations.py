@@ -113,3 +113,36 @@ def test_backup_before_migrating(scratch_config: Config):
     with copy.connect() as connection:
         assert MigrationContext.configure(connection).get_current_revision() == before
     copy.dispose()
+
+
+def test_fractions_and_optional_preparation_migrate_existing_rows(alembic_config: Config):
+    command.upgrade(alembic_config, "f09df3d53f43")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        for sql in (
+            "INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)",
+            "INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'r', 1)",
+            "INSERT INTO ingredients (id, name) VALUES (1, 'egg')",
+            "INSERT INTO measurements (id, name) VALUES (1, 'whole')",
+            "INSERT INTO preparations (id, name) VALUES (1, 'whole'), (2, 'beaten')",
+            (
+                "INSERT INTO recipe_ingredients (id, amount, recipe_id, ingredient_id, measurement_id, preparation_id)"
+                " VALUES (1, 3, 1, 1, 1, 1), (2, 2, 1, 1, 1, 2)"
+            ),
+        ):
+            connection.execute(text(sql))
+
+    command.upgrade(alembic_config, "f78e129999c4")
+    rows = "SELECT id, amount_numerator, amount_denominator, preparation_id FROM recipe_ingredients ORDER BY id"
+    with engine.begin() as connection:
+        assert connection.execute(text(rows)).all() == [(1, 3, 1, None), (2, 2, 1, 2)]
+        assert connection.execute(text("SELECT name FROM preparations")).scalars().all() == ["beaten"]
+        assert connection.execute(text("SELECT name FROM measurements")).scalars().all() == ["whole"]  # counted, kept
+        connection.execute(text("UPDATE recipe_ingredients SET amount_numerator = 1, amount_denominator = 2 WHERE id = 2"))
+
+    command.downgrade(alembic_config, "f09df3d53f43")
+    with engine.connect() as connection:
+        whole = connection.execute(text("SELECT id FROM preparations WHERE name = 'whole'")).scalar_one()
+        rows = "SELECT id, amount, preparation_id FROM recipe_ingredients ORDER BY id"
+        assert connection.execute(text(rows)).all() == [(1, 3, whole), (2, 1, 2)]
+    engine.dispose()

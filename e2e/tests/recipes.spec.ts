@@ -67,6 +67,29 @@ test('create, view, edit and delete a recipe', async ({ page }) => {
   await expect(page.getByText(renamed)).toBeHidden()
 })
 
+test('an ingredient takes a fractional amount and no preparation', async ({ page }) => {
+  const id = unique()
+  const ingredient = `flour-${id}`
+
+  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByLabel('Name').fill(`E2E Bread ${id}`)
+  await page.getByRole('button', { name: '+ Add ingredient' }).click()
+  await page.getByLabel('Amount').fill('2')
+  await page.getByRole('combobox', { name: 'Fraction' }).selectOption('½')
+  await createInline(page, 'Measurement', `scoop-${id}`)
+  await createInline(page, 'Ingredient', ingredient)
+  await expect(page.getByLabel('Preparation', { exact: true })).toHaveValue('') // None
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+
+  const row = page.getByRole('listitem').filter({ hasText: ingredient })
+  await expect(row).toHaveText(`2 ½ scoop-${id}s ${ingredient}`)
+
+  // The editor splits the stored 5/2 back into its two controls.
+  await page.getByRole('button', { name: 'Edit' }).click()
+  await expect(page.getByLabel('Amount')).toHaveValue('2')
+  await expect(page.getByRole('combobox', { name: 'Fraction' }).locator('option:checked')).toHaveText('½')
+})
+
 test('adding an ingredient someone else just created says it already exists', async ({ page, baseURL }) => {
   const ingredient = `shallot-${unique()}`
 
