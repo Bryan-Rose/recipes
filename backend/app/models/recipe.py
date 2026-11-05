@@ -77,7 +77,7 @@ class RecipeIngredient(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     # An improper fraction, reduced by the service: "3 ½" is 7/2.
     amount_numerator: Mapped[int] = mapped_column(Integer, nullable=False)
-    amount_denominator: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    amount_denominator: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
     recipe_id: Mapped[int] = mapped_column(Integer, ForeignKey("recipes.id"), nullable=False)
     recipe: Mapped[Recipe] = relationship(back_populates="recipe_ingredients")
