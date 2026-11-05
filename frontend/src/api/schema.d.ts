@@ -795,7 +795,7 @@ export interface components {
             /** Servings */
             servings?: string | null;
             /** Tag Ids */
-            tag_ids?: number[] | null;
+            tag_ids?: number[];
         };
         /** RequirementCreate */
         RequirementCreate: {
@@ -892,8 +892,11 @@ export interface components {
         UserUpdate: {
             /** Full Name */
             full_name?: string;
-            /** Password */
-            password?: string | null;
+            /**
+             * Password
+             * Format: password
+             */
+            password?: string;
             /** Is Active */
             is_active?: boolean;
             /** Is Superuser */

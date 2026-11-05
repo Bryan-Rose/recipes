@@ -281,18 +281,20 @@ function TextChildSection<TBody>({
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [newText, setNewText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Separate so Cancel clears only the add's error, not a failed save or delete.
+  const [createError, setCreateError] = useState<string | null>(null)
   // Only the Add button uses this; a blur save or delete must not disable it.
   const [creating, setCreating] = useState(false)
   const hintId = useId()
 
   // Resolves false on failure, so callers keep the typed text for a retry.
-  async function run(action: () => Promise<unknown>) {
+  async function run(action: () => Promise<unknown>, report = setError) {
     setError(null)
     try {
       await action()
       return true
     } catch (caught) {
-      setError(describeError(caught))
+      report(describeError(caught))
       return false
     }
   }
@@ -390,24 +392,36 @@ function TextChildSection<TBody>({
               disabled={newText.trim() === '' || creating}
               onClick={async () => {
                 setCreating(true)
-                const saved = await run(() => onCreate(toBody(newText.trim())))
+                setCreateError(null)
+                const saved = await run(() => onCreate(toBody(newText.trim())), setCreateError)
                 setCreating(false)
                 if (saved) setNewText(null)
               }}
             >
               Add
             </button>
-            <button type="button" className="ghost" disabled={creating} onClick={() => setNewText(null)}>
+            <button
+              type="button"
+              className="ghost"
+              disabled={creating}
+              onClick={() => {
+                setNewText(null)
+                setCreateError(null)
+              }}
+            >
               Cancel
             </button>
           </div>
         </div>
       )}
 
-      {error && (
-        <p className="error-box" style={{ marginTop: '0.75rem' }}>
-          {error}
-        </p>
+      {[error, createError].map(
+        (message, i) =>
+          message && (
+            <p key={i} className="error-box" style={{ marginTop: '0.75rem' }}>
+              {message}
+            </p>
+          ),
       )}
 
       {newText === null && (

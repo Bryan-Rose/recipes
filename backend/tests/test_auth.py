@@ -176,6 +176,21 @@ def test_expired_session_is_rejected(client: TestClient, db_session: Session, co
     assert client.get("/auth/me").status_code == 401
 
 
+def test_login_deletes_every_users_expired_sessions(client: TestClient, db_session: Session, cook: User):
+    other = User(username="gone", full_name="Never Returns", hashed_password=None)
+    live = User(username="live", full_name="Still Signed In", hashed_password=None)
+    db_session.add_all([other, live])
+    db_session.commit()
+    # The expired one goes last, so only the login's cleanup can remove it.
+    auth_service.create_session(db_session, live, days=1)
+    auth_service.create_session(db_session, other, days=-1)
+
+    _login(client)
+
+    assert db_session.execute(select(UserSession).where(UserSession.user_id == other.id)).first() is None
+    assert db_session.execute(select(UserSession).where(UserSession.user_id == live.id)).first() is not None
+
+
 def test_deactivating_a_user_ends_their_sessions(client: TestClient, db_session: Session, cook: User):
     _login(client)
     cook.is_active = False

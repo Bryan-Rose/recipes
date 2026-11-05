@@ -15,7 +15,7 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseModel):
     full_name: Omittable[str] = None
-    password: NewPassword | None = None
+    password: Omittable[NewPassword] = None
     is_active: Omittable[StrictBool] = None
     is_superuser: Omittable[StrictBool] = None
 

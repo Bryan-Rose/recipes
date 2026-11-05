@@ -101,7 +101,7 @@ class RecipeUpdate(BaseModel):
     inactive_cook_time: str | None = None
     servings: str | None = None
     # Replaces the recipe's full tag set when present.
-    tag_ids: list[DbId] | None = None
+    tag_ids: Omittable[list[DbId]] = None
 
 
 class RecipeRead(RecipeBase):

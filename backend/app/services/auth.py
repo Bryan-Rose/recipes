@@ -34,7 +34,7 @@ def authenticate(db: Session, username: str, password: str) -> User | None:
 def create_session(db: Session, user: User, days: int) -> str:
     """Returns the raw token for the cookie; only its hash is stored."""
     now = _utcnow()
-    db.execute(delete(UserSession).where(UserSession.user_id == user.id, UserSession.expires_at <= now))
+    db.execute(delete(UserSession).where(UserSession.expires_at <= now))
     token = secrets.token_urlsafe(32)
     db.add(UserSession(token_hash=_hash_token(token), user_id=user.id, created_at=now, expires_at=now + timedelta(days=days)))
     db.commit()
