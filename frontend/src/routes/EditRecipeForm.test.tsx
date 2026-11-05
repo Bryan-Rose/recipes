@@ -170,6 +170,30 @@ describe('recipe editor when a save fails', () => {
     expect(screen.queryByText(/Server unavailable/)).not.toBeInTheDocument()
   })
 
+  it('keeps a failed add on screen when another step is removed', async () => {
+    let deleted = false
+    server.use(
+      http.post('/api/recipes/7/steps/', failure),
+      http.delete('/api/recipes/7/steps/3', () => {
+        deleted = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+      http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
+      http.get('/api/recipes/', () => HttpResponse.json([recipe])),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.click(screen.getByRole('button', { name: '+ Add step' }))
+    await user.keyboard('Add salt')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Remove Method entry 1' }))
+    await expect.poll(() => deleted).toBe(true)
+    expect(screen.getByText(/Server unavailable/)).toBeInTheDocument()
+  })
+
   it('keeps a failed step save on screen when a new row is cancelled', async () => {
     server.use(http.patch('/api/recipes/7/steps/3', failure))
     const user = userEvent.setup()

@@ -290,7 +290,6 @@ function TextChildSection<TBody>({
   // Resolves false on failure, so callers keep the typed text for a retry.
   async function run(action: () => Promise<unknown>, report = setError) {
     setError(null)
-    setCreateError(null)
     try {
       await action()
       return true
@@ -393,6 +392,7 @@ function TextChildSection<TBody>({
               disabled={newText.trim() === '' || creating}
               onClick={async () => {
                 setCreating(true)
+                setCreateError(null)
                 const saved = await run(() => onCreate(toBody(newText.trim())), setCreateError)
                 setCreating(false)
                 if (saved) setNewText(null)
