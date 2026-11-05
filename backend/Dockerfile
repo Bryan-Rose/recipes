@@ -18,5 +18,5 @@ USER recipes
 
 EXPOSE 8000
 
-# create_all only adds missing tables; it never alters existing ones (see AGENTS.md on Alembic).
+# Migrates the database to head with Alembic on every start, so deploying a migration is just a rebuild.
 CMD ["sh", "-c", "python -m scripts.init_db --no-seed && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
