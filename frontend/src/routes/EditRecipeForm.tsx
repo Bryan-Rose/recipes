@@ -397,7 +397,15 @@ function TextChildSection<TBody>({
             >
               Add
             </button>
-            <button type="button" className="ghost" disabled={creating} onClick={() => setNewText(null)}>
+            <button
+              type="button"
+              className="ghost"
+              disabled={creating}
+              onClick={() => {
+                setNewText(null)
+                setError(null)
+              }}
+            >
               Cancel
             </button>
           </div>

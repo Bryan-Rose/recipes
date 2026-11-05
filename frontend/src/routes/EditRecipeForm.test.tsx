@@ -156,6 +156,20 @@ describe('recipe editor when a save fails', () => {
     expect(await screen.findByRole('button', { name: '+ Add step' })).toBeInTheDocument()
   })
 
+  it('clears a failed step add when the new row is cancelled', async () => {
+    server.use(http.post('/api/recipes/7/steps/', failure))
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.click(screen.getByRole('button', { name: '+ Add step' }))
+    await user.keyboard('Add salt')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByText(/Server unavailable/)).not.toBeInTheDocument()
+  })
+
   it('keeps text typed into a step while its edit was saving', async () => {
     signedIn()
     let release!: () => void
