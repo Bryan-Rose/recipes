@@ -178,13 +178,12 @@ def test_expired_session_is_rejected(client: TestClient, db_session: Session, co
 
 def test_login_deletes_every_users_expired_sessions(client: TestClient, db_session: Session, cook: User):
     other = User(username="gone", full_name="Never Returns", hashed_password=None)
-    db_session.add(other)
-    db_session.commit()
-    auth_service.create_session(db_session, other, days=-1)
     live = User(username="live", full_name="Still Signed In", hashed_password=None)
-    db_session.add(live)
+    db_session.add_all([other, live])
     db_session.commit()
+    # The expired one goes last, so only the login's cleanup can remove it.
     auth_service.create_session(db_session, live, days=1)
+    auth_service.create_session(db_session, other, days=-1)
 
     _login(client)
 
