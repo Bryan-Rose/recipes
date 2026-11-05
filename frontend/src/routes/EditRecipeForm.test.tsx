@@ -243,7 +243,7 @@ describe('ingredient editor when a save fails', () => {
   const lookup = { id: 1, name: 'leek' }
   const withIngredient: Recipe = {
     ...recipe,
-    recipe_ingredients: [{ id: 5, ingredient: lookup, measurement: lookup, preparation: lookup, amount: 2 }],
+    recipe_ingredients: [{ id: 5, ingredient: lookup, measurement: lookup, preparation: lookup, amount_numerator: 2, amount_denominator: 1 }],
   }
 
   beforeEach(() => {
@@ -328,5 +328,63 @@ describe('ingredient editor when a save fails', () => {
 
     expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled()
+  })
+})
+
+describe('ingredient amounts and preparation', () => {
+  const lookup = { id: 1, name: 'leek' }
+
+  beforeEach(() => {
+    server.use(
+      http.get('/api/cookbooks/', () => HttpResponse.json([])),
+      http.get('/api/ingredients/', () => HttpResponse.json([lookup])),
+      http.get('/api/measurements/', () => HttpResponse.json([lookup])),
+      http.get('/api/preparations/', () => HttpResponse.json([lookup])),
+    )
+  })
+
+  it('shows a stored improper fraction as a whole number and a fraction', async () => {
+    const withIngredient: Recipe = {
+      ...recipe,
+      recipe_ingredients: [
+        { id: 5, ingredient: lookup, measurement: lookup, preparation: null, amount_numerator: 7, amount_denominator: 2 },
+      ],
+    }
+    renderWithProviders(<EditRecipeForm recipe={withIngredient} />)
+
+    expect(screen.getByLabelText('Amount')).toHaveValue(3)
+    expect(screen.getByRole('combobox', { name: 'Fraction' })).toHaveDisplayValue('½')
+    await expect.poll(() => screen.getByLabelText('Preparation')).toHaveDisplayValue('None') // once options load
+  })
+
+  it('posts "½" with an empty whole number and no preparation', async () => {
+    let posted: unknown
+    server.use(
+      http.post('/api/recipes/7/recipeingredients/', async ({ request }) => {
+        posted = await request.json()
+        return failure()
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.click(screen.getByRole('button', { name: '+ Add ingredient' }))
+    for (const label of ['Ingredient', 'Measurement']) {
+      const picker = screen.getByLabelText(label)
+      await expect.poll(() => picker).toBeEnabled()
+      await user.selectOptions(picker, 'leek')
+    }
+    await user.clear(screen.getByLabelText('Amount'))
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled() // 0 is not an amount
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Fraction' }), '½')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    await expect.poll(() => posted).toEqual({
+      ingredient_id: 1,
+      measurement_id: 1,
+      preparation_id: null,
+      amount_numerator: 1,
+      amount_denominator: 2,
+    })
   })
 })

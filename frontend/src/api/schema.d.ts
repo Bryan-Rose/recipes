@@ -705,9 +705,15 @@ export interface components {
             /** Measurement Id */
             measurement_id: number;
             /** Preparation Id */
-            preparation_id: number;
-            /** Amount */
-            amount: number;
+            preparation_id?: number | null;
+            /** Amount Numerator */
+            amount_numerator: number;
+            /**
+             * Amount Denominator
+             * @default 1
+             * @enum {integer}
+             */
+            amount_denominator: 1 | 2 | 3 | 4 | 8;
         };
         /** RecipeIngredientRead */
         RecipeIngredientRead: {
@@ -715,9 +721,14 @@ export interface components {
             id: number;
             ingredient: components["schemas"]["IngredientRead"];
             measurement: components["schemas"]["MeasurementRead"];
-            preparation: components["schemas"]["PreparationRead"];
-            /** Amount */
-            amount: number;
+            preparation: components["schemas"]["PreparationRead"] | null;
+            /** Amount Numerator */
+            amount_numerator: number;
+            /**
+             * Amount Denominator
+             * @enum {integer}
+             */
+            amount_denominator: 1 | 2 | 3 | 4 | 8;
         };
         /** RecipeIngredientUpdate */
         RecipeIngredientUpdate: {
@@ -725,10 +736,15 @@ export interface components {
             ingredient_id?: number;
             /** Measurement Id */
             measurement_id?: number;
-            /** Amount */
-            amount?: number;
+            /** Amount Numerator */
+            amount_numerator?: number;
+            /**
+             * Amount Denominator
+             * @enum {integer}
+             */
+            amount_denominator?: 1 | 2 | 3 | 4 | 8;
             /** Preparation Id */
-            preparation_id?: number;
+            preparation_id?: number | null;
         };
         /** RecipeRead */
         RecipeRead: {

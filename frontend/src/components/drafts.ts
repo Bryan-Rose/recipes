@@ -6,6 +6,7 @@
  */
 
 import type { RecipeIngredientCreate } from '../api/types'
+import type { Denominator } from './amount'
 
 /** The scalar half of a recipe — everything `RecipeUpdate` accepts. */
 export interface RecipeScalars {
@@ -26,27 +27,32 @@ export const emptyScalars: RecipeScalars = {
   servings: null,
 }
 
-/** One ingredient row, mid-edit. Ids are null until something is picked. */
+/**
+ * One ingredient row, mid-edit. Ids are null until something is picked;
+ * preparation may stay null. The amount is an improper fraction: "3 ½" is 7/2.
+ */
 export interface IngredientDraft {
   ingredient_id: number | null
   measurement_id: number | null
   preparation_id: number | null
-  amount: number
+  amount_numerator: number
+  amount_denominator: Denominator
 }
 
 export const emptyIngredient: IngredientDraft = {
   ingredient_id: null,
   measurement_id: null,
   preparation_id: null,
-  amount: 1,
+  amount_numerator: 1,
+  amount_denominator: 1,
 }
 
-/** The API requires all three ids, so a row is only submittable once complete. */
+/** Submittable once an ingredient and measurement are picked and the amount is above zero. */
 export function isComplete(draft: IngredientDraft): draft is IngredientDraft & RecipeIngredientCreate {
   return (
     draft.ingredient_id !== null &&
     draft.measurement_id !== null &&
-    draft.preparation_id !== null &&
-    Number.isInteger(draft.amount)
+    Number.isInteger(draft.amount_numerator) &&
+    draft.amount_numerator >= 1
   )
 }

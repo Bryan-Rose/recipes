@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from fractions import Fraction
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -40,6 +41,13 @@ def _get_tags(db: Session, tag_ids: list[int]) -> list[Tag]:
     return tags
 
 
+def _reduce(ri: RecipeIngredient) -> RecipeIngredient:
+    """Store each amount one way only: 4/8 becomes 1/2."""
+    amount = Fraction(ri.amount_numerator, ri.amount_denominator)
+    ri.amount_numerator, ri.amount_denominator = amount.numerator, amount.denominator
+    return ri
+
+
 ## Recipe
 
 
@@ -56,7 +64,7 @@ def create_recipe(db: Session, recipe_in: RecipeCreate, created_user_id: int) ->
     db_model.created_user_id = created_user_id
     db_model.steps = [Step(**step.model_dump()) for step in recipe_in.steps]
     db_model.requirements = [Requirement(**req.model_dump()) for req in recipe_in.requirements]
-    db_model.recipe_ingredients = [RecipeIngredient(**ing.model_dump()) for ing in recipe_in.recipe_ingredients]
+    db_model.recipe_ingredients = [_reduce(RecipeIngredient(**ing.model_dump())) for ing in recipe_in.recipe_ingredients]
     db_model.tags = _get_tags(db, recipe_in.tag_ids)
     db.add(db_model)
     db.commit()
@@ -159,7 +167,7 @@ def get_requirements(db: Session, recipe_id: int) -> Sequence[Requirement]:
 
 
 def create_recipe_ingredient(db: Session, recipe_id: int, ri_in: RecipeIngredientCreate) -> RecipeIngredient:
-    db_model = RecipeIngredient(**ri_in.model_dump())
+    db_model = _reduce(RecipeIngredient(**ri_in.model_dump()))
     db_model.recipe_id = recipe_id
     db.add(db_model)
     db.commit()
@@ -170,6 +178,7 @@ def create_recipe_ingredient(db: Session, recipe_id: int, ri_in: RecipeIngredien
 def update_recipe_ingredient(db: Session, recipe_ingredient: RecipeIngredient, ri_in: RecipeIngredientUpdate) -> RecipeIngredient:
     for field, value in ri_in.model_dump(exclude_unset=True).items():
         setattr(recipe_ingredient, field, value)
+    _reduce(recipe_ingredient)
 
     db.commit()
     db.refresh(recipe_ingredient)

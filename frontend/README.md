@@ -69,10 +69,6 @@ form saves each child as you change it, rather than diffing the whole tree.
 
 ## Known API limitations that shape the UI
 
-- **Ingredient amounts are integers.** There is no way to enter "½ cup" until
-  `RecipeIngredient.amount` stops being an `Integer` column.
-- **Every ingredient needs a preparation.** `preparation_id` is non-nullable, so
-  the seed data includes a neutral `whole` that the UI hides when displaying.
 - **Duplicate names return 409.** The pickers still match against the
   already-loaded list before offering to create a new row, to avoid the round trip.
 - **No pagination or search on the API.** `GET /recipes/` returns every recipe

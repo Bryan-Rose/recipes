@@ -61,7 +61,7 @@ def test_create_recipe_with_nested_children(
                     "ingredient_id": ingredient.id,
                     "measurement_id": measurement.id,
                     "preparation_id": preparation.id,
-                    "amount": 3,
+                    "amount_numerator": 3,
                 }
             ],
         },
@@ -77,7 +77,7 @@ def test_create_recipe_with_nested_children(
     assert recipe_ingredient.ingredient == ingredient
     assert recipe_ingredient.measurement == measurement
     assert recipe_ingredient.preparation == preparation
-    assert recipe_ingredient.amount == 3
+    assert recipe_ingredient.amount_numerator == 3
 
 
 def test_create_recipe_requires_name(client: TestClient):
