@@ -170,6 +170,20 @@ describe('recipe editor when a save fails', () => {
     expect(screen.queryByText(/Server unavailable/)).not.toBeInTheDocument()
   })
 
+  it('keeps a failed step save on screen when a new row is cancelled', async () => {
+    server.use(http.patch('/api/recipes/7/steps/3', failure))
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.type(screen.getByDisplayValue('Boil water'), ' fast')
+    await user.click(screen.getByRole('button', { name: '+ Add step' }))
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByText(/Server unavailable/)).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Boil water fast')).toHaveAccessibleDescription('Unsaved')
+  })
+
   it('keeps text typed into a step while its edit was saving', async () => {
     signedIn()
     let release!: () => void
