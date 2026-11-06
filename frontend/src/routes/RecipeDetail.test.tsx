@@ -82,3 +82,24 @@ describe('serving scaler', () => {
     expect(screen.queryByLabelText('Servings')).not.toBeInTheDocument()
   })
 })
+
+describe('notes and source', () => {
+  beforeEach(() => signedIn())
+
+  it('shows notes with their line breaks and links the source by host', async () => {
+    show({ ...recipe, notes: 'Halve the salt.\nUse brown butter.', source_url: 'https://www.example.com/pancakes' })
+
+    const link = await screen.findByRole('link', { name: 'www.example.com' })
+    expect(link).toHaveAttribute('href', 'https://www.example.com/pancakes')
+    expect(screen.getByRole('heading', { name: 'Notes' })).toBeInTheDocument()
+    expect(screen.getByText(/Halve the salt/).textContent).toBe('Halve the salt.\nUse brown butter.')
+  })
+
+  it('omits both when unset', async () => {
+    show(recipe)
+
+    expect(await screen.findByText('milk', { exact: false })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Notes' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Source')).not.toBeInTheDocument()
+  })
+})

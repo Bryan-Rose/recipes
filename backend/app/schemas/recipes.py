@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
 from app.schemas.cookbook import CookbookRead
-from app.schemas.fields import DbId, Denominator, Omittable, PositiveInt, UtcDatetime
+from app.schemas.fields import DbId, Denominator, Omittable, PositiveInt, SourceUrl, UtcDatetime
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
@@ -87,6 +87,8 @@ class RecipeBase(BaseModel):
     active_cook_time: str | None = None
     inactive_cook_time: str | None = None
     servings: PositiveInt | None = None
+    notes: str | None = None
+    source_url: SourceUrl | None = None
 
 
 class RecipeCreate(RecipeBase):
@@ -103,6 +105,8 @@ class RecipeUpdate(BaseModel):
     active_cook_time: str | None = None
     inactive_cook_time: str | None = None
     servings: PositiveInt | None = None
+    notes: str | None = None
+    source_url: SourceUrl | None = None
     # Replaces the recipe's full tag set when present.
     tag_ids: Omittable[list[DbId]] = None
 

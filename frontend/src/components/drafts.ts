@@ -16,6 +16,8 @@ export interface RecipeScalars {
   active_cook_time: string | null
   inactive_cook_time: string | null
   servings: number | null
+  notes: string | null
+  source_url: string | null
 }
 
 export const emptyScalars: RecipeScalars = {
@@ -25,6 +27,8 @@ export const emptyScalars: RecipeScalars = {
   active_cook_time: null,
   inactive_cook_time: null,
   servings: null,
+  notes: null,
+  source_url: null,
 }
 
 /**

@@ -120,6 +120,8 @@ function toScalars(recipe: Recipe): RecipeScalars {
     active_cook_time: recipe.active_cook_time ?? null,
     inactive_cook_time: recipe.inactive_cook_time ?? null,
     servings: recipe.servings ?? null,
+    notes: recipe.notes ?? null,
+    source_url: recipe.source_url ?? null,
   }
 }
 

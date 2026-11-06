@@ -60,9 +60,13 @@ test('create, view, edit and delete a recipe', async ({ page }) => {
   await page.getByRole('button', { name: 'Edit' }).click()
   await expect(page.getByRole('heading', { name: 'Edit recipe' })).toBeVisible()
   await page.getByLabel('Name').fill(renamed)
+  await page.getByLabel('Source URL').fill('https://cooking.example.com/soup')
+  await page.getByLabel('Notes').fill('Halve the salt.\nServe with crusty bread.')
   await page.getByRole('button', { name: 'Save details' }).click()
   await page.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByRole('heading', { name: renamed })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'cooking.example.com' })).toHaveAttribute('href', 'https://cooking.example.com/soup')
+  await expect(page.locator('.recipe-notes')).toHaveText('Halve the salt.\nServe with crusty bread.')
 
   // Delete, through the native confirm dialog.
   page.once('dialog', (dialog) => void dialog.accept())

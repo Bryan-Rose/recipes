@@ -24,6 +24,11 @@ Denominator = Literal[1, 2, 3, 4, 8]
 IdPath = Annotated[int, Path(ge=1, le=_MAX_INT)]
 """A row id in the URL path."""
 
+# A pattern, not pydantic's HttpUrl, so the URL is stored exactly as typed.
+# http(s) only: the frontend renders it as a link, and javascript: would run.
+SourceUrl = Annotated[str, Field(max_length=2048, pattern=r"^https?://[^\s/]+\S*$")]
+"""A link to where a recipe came from."""
+
 MIN_PASSWORD_LENGTH = 8
 
 NewPassword = Annotated[SecretStr, Field(min_length=MIN_PASSWORD_LENGTH)]

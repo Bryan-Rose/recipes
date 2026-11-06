@@ -677,6 +677,10 @@ export interface components {
             inactive_cook_time?: string | null;
             /** Servings */
             servings?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Source Url */
+            source_url?: string | null;
             /**
              * Steps
              * @default []
@@ -760,6 +764,10 @@ export interface components {
             inactive_cook_time?: string | null;
             /** Servings */
             servings?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Source Url */
+            source_url?: string | null;
             /** Id */
             id: number;
             /** Created User Id */
@@ -810,6 +818,10 @@ export interface components {
             inactive_cook_time?: string | null;
             /** Servings */
             servings?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Source Url */
+            source_url?: string | null;
             /** Tag Ids */
             tag_ids?: number[];
         };
