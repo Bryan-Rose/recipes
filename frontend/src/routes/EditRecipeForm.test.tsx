@@ -28,6 +28,19 @@ describe('recipe editor when a save fails', () => {
     server.use(http.get('/api/cookbooks/', () => HttpResponse.json([])))
   })
 
+  it('shows a failed details save without leaving an unhandled rejection', async () => {
+    server.use(http.patch('/api/recipes/7', failure))
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.type(screen.getByLabelText('Name'), 'y')
+    await user.click(screen.getByRole('button', { name: 'Save details' }))
+
+    // Vitest fails the run on an unhandled rejection, so this also covers that.
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Soupy')
+  })
+
   it('keeps the text of a new step', async () => {
     server.use(http.post('/api/recipes/7/steps/', failure))
     const user = userEvent.setup()

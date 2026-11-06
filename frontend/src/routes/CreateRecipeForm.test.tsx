@@ -32,3 +32,41 @@ it('saves steps in the order they were moved to', async () => {
 
   await waitFor(() => expect(sent?.steps.map((step) => step.text)).toEqual(['Prep', 'Chop', 'Fry']))
 })
+
+it('shows a failed save without leaving an unhandled rejection', async () => {
+  server.use(
+    http.get('/api/cookbooks/', () => HttpResponse.json([])),
+    http.post('/api/recipes/', () => HttpResponse.json({ detail: 'Name already used' }, { status: 409 })),
+  )
+  const user = userEvent.setup()
+  renderWithProviders(<CreateRecipeForm />)
+
+  await user.type(screen.getByLabelText('Name'), 'Soup')
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+
+  // Vitest fails the run on an unhandled rejection, so this also covers that.
+  expect(await screen.findByText(/Name already used/)).toBeInTheDocument()
+  expect(screen.getByLabelText('Name')).toHaveValue('Soup')
+})
+
+it('drops the page when the cookbook is cleared', async () => {
+  let sent: { cookbook_id: number | null; cookbook_page: number | null } | undefined
+  server.use(
+    http.get('/api/cookbooks/', () => HttpResponse.json([{ id: 2, name: 'Joy', author: { id: 1, name: 'Irma' } }])),
+    http.post('/api/recipes/', async ({ request }) => {
+      sent = (await request.json()) as typeof sent
+      return HttpResponse.json({ id: 1 }, { status: 201 })
+    }),
+  )
+  const user = userEvent.setup()
+  renderWithProviders(<CreateRecipeForm />)
+
+  await user.type(screen.getByLabelText('Name'), 'Soup')
+  await user.selectOptions(screen.getByLabelText('Cookbook'), await screen.findByRole('option', { name: /Joy/ }))
+  await user.type(screen.getByLabelText('Page'), '42')
+  await user.selectOptions(screen.getByLabelText('Cookbook'), 'No cookbook')
+  expect(screen.getByLabelText('Page')).toHaveValue(null)
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+
+  await waitFor(() => expect(sent).toMatchObject({ cookbook_id: null, cookbook_page: null }))
+})

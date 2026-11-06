@@ -36,7 +36,12 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
           <select
             id="recipe-cookbook"
             value={value.cookbook_id ?? ''}
-            onChange={(event) => set('cookbook_id', event.target.value === '' ? null : Number(event.target.value))}
+            onChange={(event) =>
+              event.target.value === ''
+                ? // The page input is disabled without a cookbook, so a kept page would be saved invisibly.
+                  onChange({ ...value, cookbook_id: null, cookbook_page: null })
+                : set('cookbook_id', Number(event.target.value))
+            }
           >
             <option value="">No cookbook</option>
             {cookbooks?.map((cookbook) => (

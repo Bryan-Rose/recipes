@@ -47,9 +47,10 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
   const [scalars, setScalars] = useState<RecipeScalars>(() => toScalars(recipe))
   const isDirty = JSON.stringify(scalars) !== JSON.stringify(toScalars(recipe))
 
-  async function saveScalars(event: React.FormEvent) {
+  function saveScalars(event: React.FormEvent) {
     event.preventDefault()
-    await updateRecipe.mutateAsync({ ...scalars, name: scalars.name.trim() })
+    // mutate(), not mutateAsync(): a failure shows through updateRecipe.error.
+    updateRecipe.mutate({ ...scalars, name: scalars.name.trim() })
   }
 
   return (
@@ -70,7 +71,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
       </p>
 
       <div className="stack">
-        <form className="card editor-section" onSubmit={(event) => void saveScalars(event)}>
+        <form className="card editor-section" onSubmit={saveScalars}>
           <RecipeFields value={scalars} onChange={setScalars} />
           {updateRecipe.error && (
             <p className="error-box" style={{ marginTop: '1rem' }}>
