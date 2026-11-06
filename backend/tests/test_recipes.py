@@ -283,3 +283,11 @@ def test_notes_and_source_url_round_trip(client: TestClient, recipe: RecipeRead)
 def test_source_url_must_be_http(client: TestClient, recipe: RecipeRead, url: str):
     assert client.patch(f"/recipes/{recipe.id}", json={"source_url": url}).status_code == 422
     assert client.post("/recipes/", json={"name": "Stew", "source_url": url}).status_code == 422
+
+
+@pytest.mark.parametrize("char", ["\x85", "\xa0", "\u2028", "\u3000", "\x1c"])
+def test_source_url_allows_non_ascii_whitespace(client: TestClient, recipe: RecipeRead, char: str):
+    # The JSON Schema pattern only excludes ASCII whitespace, so enforcement must accept the rest (#70).
+    url = f"https://example.com/{char}x"
+    assert client.patch(f"/recipes/{recipe.id}", json={"source_url": url}).json()["source_url"] == url
+    assert client.post("/recipes/", json={"name": "Stew", "source_url": url}).json()["source_url"] == url
