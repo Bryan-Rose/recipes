@@ -462,6 +462,21 @@ describe('reordering steps', () => {
     expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
   })
 
+  it('explains a move refused because the steps changed elsewhere', async () => {
+    server.use(
+      http.put('/api/recipes/7/step-order', () =>
+        HttpResponse.json({ detail: 'step_ids must list every step of the recipe exactly once' }, { status: 409 }),
+      ),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={twoSteps} />)
+
+    await user.click(screen.getByRole('button', { name: 'Move Method entry 1 down' }))
+
+    expect(await screen.findByText(/The steps changed since this page loaded/)).toBeInTheDocument()
+    expect(screen.queryByText(/step_ids/)).not.toBeInTheDocument()
+  })
+
   it('gives equipment no move buttons', () => {
     renderWithProviders(<EditRecipeForm recipe={{ ...twoSteps, requirements: [{ id: 9, name: 'Pot' }] }} />)
 
