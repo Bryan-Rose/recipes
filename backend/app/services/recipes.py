@@ -132,7 +132,9 @@ def get_steps(db: Session, recipe_id: int) -> Sequence[Step]:
 
 def reorder_steps(db: Session, recipe: Recipe, order_in: StepOrder) -> list[Step]:
     by_id = {step.id: step for step in recipe.steps}
-    # A stale list (a step added or removed elsewhere since the client loaded) is refused, not merged.
+    # A list that no longer matches (a step added or removed since the client loaded) is refused, not merged.
+    # shortcut: no lock, so a step added between this check and the commit is not refused; it keeps its
+    # (last) position and is missing from the response. Lock or re-check in the transaction if that matters.
     if sorted(order_in.step_ids) != sorted(by_id):
         raise StepOrderMismatchError
     recipe.steps = [by_id[step_id] for step_id in order_in.step_ids]
