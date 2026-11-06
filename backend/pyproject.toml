@@ -1,8 +1,7 @@
 [project]
 name = "recipes"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
+description = "FastAPI backend for a shared recipe collection"
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.1",
