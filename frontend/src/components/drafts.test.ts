@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { emptyIngredient, isComplete } from './drafts'
+import { emptyIngredient, isComplete, moveItem } from './drafts'
 
 describe('isComplete', () => {
   const full = { ingredient_id: 1, measurement_id: 2, preparation_id: 3, amount_numerator: 7, amount_denominator: 2 as const }
@@ -23,5 +23,17 @@ describe('isComplete', () => {
 
   it('starts incomplete', () => {
     expect(isComplete(emptyIngredient)).toBe(false)
+  })
+})
+
+describe('moveItem', () => {
+  it('swaps an item with its neighbour', () => {
+    expect(moveItem(['a', 'b', 'c'], 1, -1)).toEqual(['b', 'a', 'c'])
+    expect(moveItem(['a', 'b', 'c'], 1, 1)).toEqual(['a', 'c', 'b'])
+  })
+
+  it('leaves the ends where they are', () => {
+    expect(moveItem(['a', 'b'], 0, -1)).toEqual(['a', 'b'])
+    expect(moveItem(['a', 'b'], 1, 1)).toEqual(['a', 'b'])
   })
 })

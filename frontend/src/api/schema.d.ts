@@ -419,6 +419,23 @@ export interface paths {
         patch: operations["update_recipe_recipes__recipe_id__patch"];
         trace?: never;
     };
+    "/recipes/{recipe_id}/step-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorder Steps */
+        put: operations["reorder_steps_recipes__recipe_id__step_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recipes/{recipe_id}/steps/": {
         parameters: {
             query?: never;
@@ -846,6 +863,11 @@ export interface components {
         StepCreate: {
             /** Text */
             text: string;
+        };
+        /** StepOrder */
+        StepOrder: {
+            /** Step Ids */
+            step_ids: number[];
         };
         /** StepRead */
         StepRead: {
@@ -2283,6 +2305,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecipeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_steps_recipes__recipe_id__step_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepOrder"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepRead"][];
                 };
             };
             /** @description Validation Error */

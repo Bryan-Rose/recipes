@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, Text
+from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -47,7 +48,14 @@ class Recipe(Base):
     recipe_ingredients: Mapped[list[RecipeIngredient]] = relationship(back_populates="recipe", cascade="all, delete-orphan")
     cookbook: Mapped[Cookbook | None] = relationship(back_populates="recipes")
     requirements: Mapped[list[Requirement]] = relationship(back_populates="recipe", cascade="all, delete-orphan")
-    steps: Mapped[list[Step]] = relationship(back_populates="recipe", cascade="all, delete-orphan")
+    # ordering_list sets Step.position on append; after reassigning the list, call reorder().
+    # id breaks ties between steps added concurrently (equal positions).
+    steps: Mapped[list[Step]] = relationship(
+        back_populates="recipe",
+        cascade="all, delete-orphan",
+        order_by="(Step.position, Step.id)",
+        collection_class=ordering_list("position"),
+    )
     tags: Mapped[list[Tag]] = relationship(secondary=recipe_tags, back_populates="recipes")
 
 
@@ -62,6 +70,8 @@ class Step(Base):
     __tablename__ = "steps"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     text: Mapped[str] = mapped_column(String, nullable=False)
+    # Sort key within the recipe; gaps (after a delete) are harmless.
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
     recipe_id: Mapped[int] = mapped_column(Integer, ForeignKey("recipes.id"), nullable=False)
     recipe: Mapped[Recipe] = relationship(back_populates="steps")
 

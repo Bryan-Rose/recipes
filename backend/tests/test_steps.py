@@ -146,3 +146,47 @@ def test_steps_appear_on_the_parent_recipe(client: TestClient, recipe: RecipeRea
     assert response.status_code == 200
     parent = RecipeRead.model_validate(response.json())
     assert [step.text for step in parent.steps] == ["Brown the beef."]
+
+
+def _texts(client: TestClient, recipe_id: int) -> list[str]:
+    return [StepRead.model_validate(row).text for row in client.get(f"/recipes/{recipe_id}/steps/").json()]
+
+
+def test_reorder_steps(client: TestClient, recipe: RecipeRead):
+    a, b, c = (_create_step(client, recipe.id, text) for text in ("A", "B", "C"))
+
+    response = client.put(f"/recipes/{recipe.id}/step-order", json={"step_ids": [c.id, a.id, b.id]})
+
+    assert response.status_code == 200
+    assert [StepRead.model_validate(row).text for row in response.json()] == ["C", "A", "B"]
+    assert _texts(client, recipe.id) == ["C", "A", "B"]
+    parent = RecipeRead.model_validate(client.get(f"/recipes/{recipe.id}").json())
+    assert [step.text for step in parent.steps] == ["C", "A", "B"]
+
+
+def test_step_added_after_deletes_goes_last(client: TestClient, recipe: RecipeRead):
+    a, b, _ = (_create_step(client, recipe.id, text) for text in ("A", "B", "C"))
+    client.delete(f"/recipes/{recipe.id}/steps/{a.id}")
+    client.delete(f"/recipes/{recipe.id}/steps/{b.id}")
+
+    _create_step(client, recipe.id, "D")
+
+    assert _texts(client, recipe.id) == ["C", "D"]
+
+
+def test_reorder_steps_rejects_an_incomplete_or_foreign_list(client: TestClient, recipe: RecipeRead):
+    other = RecipeRead.model_validate(client.post("/recipes/", json={"name": "Coq au Vin"}).json())
+    a, b = (_create_step(client, recipe.id, text) for text in ("A", "B"))
+    foreign = _create_step(client, other.id, "X")
+
+    for step_ids in ([a.id], [a.id, a.id], [a.id, b.id, foreign.id], [a.id, foreign.id]):
+        response = client.put(f"/recipes/{recipe.id}/step-order", json={"step_ids": step_ids})
+        assert response.status_code == 409, step_ids
+
+    assert _texts(client, recipe.id) == ["A", "B"]
+
+
+def test_reorder_steps_for_unknown_recipe(client: TestClient):
+    response = client.put("/recipes/999/step-order", json={"step_ids": []})
+
+    assert response.status_code == 404

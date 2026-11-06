@@ -176,3 +176,22 @@ def test_servings_become_integers(alembic_config: Config):
     with engine.connect() as connection:
         assert connection.execute(text("SELECT servings FROM recipes ORDER BY id")).scalars().all() == ["4", "12", "4", None, None, None]
     engine.dispose()
+
+
+def test_step_positions_follow_insert_order(alembic_config: Config):
+    command.upgrade(alembic_config, "425b7165b8d1")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
+        connection.execute(text("INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'r1', 1), (2, 'r2', 1)"))
+        # Interleaved across recipes, so each recipe's numbering must restart at 0.
+        connection.execute(
+            text("INSERT INTO steps (id, text, recipe_id) VALUES (10, 'a', 1), (11, 'x', 2), (12, 'b', 1), (13, 'y', 2), (14, 'c', 1)")
+        )
+
+    command.upgrade(alembic_config, "aa32c8fd9938")
+    with engine.connect() as connection:
+        rows = connection.execute(text("SELECT id, recipe_id, position FROM steps ORDER BY id")).all()
+        assert rows == [(10, 1, 0), (11, 2, 0), (12, 1, 1), (13, 2, 1), (14, 1, 2)]
+        assert next(c for c in inspect(connection).get_columns("steps") if c["name"] == "position")["nullable"] is False
+    engine.dispose()
