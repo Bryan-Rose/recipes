@@ -13,6 +13,7 @@ from app.schemas.recipes import (
     RequirementCreate,
     RequirementUpdate,
     StepCreate,
+    StepOrder,
     StepUpdate,
 )
 
@@ -30,6 +31,10 @@ _EXCLUDE_NESTED = ["steps", "requirements", "recipe_ingredients", "tag_ids"]
 
 
 class UnknownTagError(Exception):
+    pass
+
+
+class StepOrderMismatchError(Exception):
     pass
 
 
@@ -93,10 +98,11 @@ def delete_recipe(db: Session, recipe: Recipe) -> None:
 ## Step
 
 
-def create_step(db: Session, recipe_id: int, step_in: StepCreate) -> Step:
+def create_step(db: Session, recipe: Recipe, step_in: StepCreate) -> Step:
     db_model = Step(**step_in.model_dump())
-    db_model.recipe_id = recipe_id
-    db.add(db_model)
+    recipe.steps.append(db_model)
+    # append numbers it len(steps), which can sit below a later step after deletes left gaps.
+    recipe.steps.reorder()  # pyright: ignore[reportAttributeAccessIssue]  # an ordering_list at runtime
     db.commit()
     db.refresh(db_model)
     return db_model
@@ -121,7 +127,18 @@ def get_step(db: Session, recipe_id: int, step_id: int) -> Step | None:
 
 
 def get_steps(db: Session, recipe_id: int) -> Sequence[Step]:
-    return db.execute(select(Step).where(Step.recipe_id == recipe_id)).scalars().all()
+    return db.execute(select(Step).where(Step.recipe_id == recipe_id).order_by(Step.position, Step.id)).scalars().all()
+
+
+def reorder_steps(db: Session, recipe: Recipe, order_in: StepOrder) -> list[Step]:
+    by_id = {step.id: step for step in recipe.steps}
+    # A stale list (a step added or removed elsewhere since the client loaded) is refused, not merged.
+    if sorted(order_in.step_ids) != sorted(by_id):
+        raise StepOrderMismatchError
+    recipe.steps = [by_id[step_id] for step_id in order_in.step_ids]
+    recipe.steps.reorder()  # pyright: ignore[reportAttributeAccessIssue]  # an ordering_list at runtime
+    db.commit()
+    return list(recipe.steps)
 
 
 ## Step

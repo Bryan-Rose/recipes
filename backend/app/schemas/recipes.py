@@ -49,6 +49,11 @@ class StepCreate(BaseModel):
     text: str
 
 
+class StepOrder(BaseModel):
+    # Every step of the recipe, each once, in the new order.
+    step_ids: list[DbId]
+
+
 class StepRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

@@ -122,6 +122,22 @@ export const useCreateStep = steps.useCreate
 export const useUpdateStep = steps.useUpdate
 export const useDeleteStep = steps.useDelete
 
+/** Sends the full new order. The list moves at once; the refetch settles it either way. */
+export function useReorderSteps(recipeId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (stepIds: number[]) => api.put<Step[]>(`/recipes/${recipeId}/step-order`, { step_ids: stepIds }),
+    onMutate: async (stepIds) => {
+      // A refetch already in flight would land the old order on top of this one.
+      await queryClient.cancelQueries({ queryKey: recipeKeys.detail(recipeId) })
+      queryClient.setQueryData<Recipe>(recipeKeys.detail(recipeId), (recipe) =>
+        recipe && { ...recipe, steps: stepIds.flatMap((id) => recipe.steps.filter((step) => step.id === id)) },
+      )
+    },
+    onSettled: () => invalidate(queryClient, recipeId),
+  })
+}
+
 const requirements = childHooks<Requirement, RequirementCreate, { name: string }>('requirements')
 export const useCreateRequirement = requirements.useCreate
 export const useUpdateRequirement = requirements.useUpdate

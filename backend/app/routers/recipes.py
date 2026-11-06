@@ -16,6 +16,7 @@ from app.schemas.recipes import (
     RequirementRead,
     RequirementUpdate,
     StepCreate,
+    StepOrder,
     StepRead,
     StepUpdate,
 )
@@ -94,7 +95,18 @@ def create_step(recipe_id: IdPath, step_in: StepCreate, db: Session = Depends(ge
     existing_recipe = recipes_service.get_recipe(db, recipe_id)
     if existing_recipe is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return recipes_service.create_step(db, recipe_id, step_in)
+    return recipes_service.create_step(db, existing_recipe, step_in)
+
+
+@recipe_router.put("/{recipe_id}/step-order", response_model=list[StepRead], tags=["steps"])
+def reorder_steps(recipe_id: IdPath, order_in: StepOrder, db: Session = Depends(get_db)):
+    existing_recipe = recipes_service.get_recipe(db, recipe_id)
+    if existing_recipe is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    try:
+        return recipes_service.reorder_steps(db, existing_recipe, order_in)
+    except recipes_service.StepOrderMismatchError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="step_ids must list every step of the recipe exactly once")
 
 
 @step_router.patch("/{step_id}", response_model=StepRead)

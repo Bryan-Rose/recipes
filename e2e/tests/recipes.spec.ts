@@ -153,3 +153,29 @@ test('a step that fails to save keeps its text for a retry', async ({ page, base
   await expect(field).toHaveValue('Whisk the eggs well.')
   await expect(page.getByText('Unsaved', { exact: true })).toBeVisible()
 })
+
+test('steps can be put in order when creating and when editing', async ({ page }) => {
+  const name = `E2E Order ${unique()}`
+  const steps = page.locator('.step-list li')
+
+  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByLabel('Name').fill(name)
+  for (const text of ['Chop.', 'Fry.', 'Prep.']) {
+    await page.getByRole('button', { name: '+ Add step' }).click()
+    await page.getByPlaceholder('Describe this step…').last().fill(text)
+  }
+  await page.getByRole('button', { name: 'Move step 3 up' }).click()
+  await page.getByRole('button', { name: 'Move step 2 up' }).click()
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(steps).toHaveText(['Prep.', 'Chop.', 'Fry.'])
+
+  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('button', { name: 'Move Method entry 1 down' }).click()
+  await expect(page.getByPlaceholder('Describe this step…').first()).toHaveValue('Chop.')
+  await page.getByRole('button', { name: 'Done' }).click()
+
+  await page.reload() // the order came from the server, not the cache
+  await expect(steps).toHaveText(['Chop.', 'Prep.', 'Fry.'])
+})

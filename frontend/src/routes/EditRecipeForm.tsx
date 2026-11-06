@@ -8,6 +8,7 @@ import {
   useDeleteRecipeIngredient,
   useDeleteRequirement,
   useDeleteStep,
+  useReorderSteps,
   useUpdateRecipe,
   useUpdateRecipeIngredient,
   useUpdateRequirement,
@@ -15,9 +16,10 @@ import {
 } from '../api/recipes'
 import { describeError } from '../api/errors'
 import type { Recipe } from '../api/types'
-import { emptyIngredient, isComplete } from '../components/drafts'
+import { emptyIngredient, isComplete, moveItem } from '../components/drafts'
 import type { IngredientDraft, RecipeScalars } from '../components/drafts'
 import { IngredientFields } from '../components/IngredientFields'
+import { MoveButtons } from '../components/MoveButtons'
 import { RecipeFields } from '../components/RecipeFields'
 
 /**
@@ -40,6 +42,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
   const createStep = useCreateStep(recipe.id)
   const updateStep = useUpdateStep(recipe.id)
   const deleteStep = useDeleteStep(recipe.id)
+  const reorderSteps = useReorderSteps(recipe.id)
 
   const [scalars, setScalars] = useState<RecipeScalars>(() => toScalars(recipe))
   const isDirty = JSON.stringify(scalars) !== JSON.stringify(toScalars(recipe))
@@ -105,6 +108,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
           onCreate={createStep.mutateAsync}
           onUpdate={updateStep.mutateAsync}
           onDelete={deleteStep.mutateAsync}
+          onReorder={reorderSteps.mutateAsync}
           toBody={(text) => ({ text })}
         />
       </div>
@@ -263,6 +267,8 @@ interface TextChildSectionProps<TBody> {
   onCreate: (body: TBody) => Promise<unknown>
   onUpdate: (args: { id: number; patch: TBody }) => Promise<unknown>
   onDelete: (id: number) => Promise<unknown>
+  /** Given, rows get ↑/↓ buttons; called with every id in the new order. */
+  onReorder?: (ids: number[]) => Promise<unknown>
 }
 
 /**
@@ -280,6 +286,7 @@ function TextChildSection<TBody>({
   onCreate,
   onUpdate,
   onDelete,
+  onReorder,
 }: TextChildSectionProps<TBody>) {
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [newText, setNewText] = useState<string | null>(null)
@@ -372,6 +379,14 @@ function TextChildSection<TBody>({
               </span>
             )}
           </div>
+          {onReorder && (
+            <MoveButtons
+              label={`${title} entry ${index + 1}`}
+              index={index}
+              count={items.length}
+              onMove={(delta) => void run(() => onReorder(moveItem(items, index, delta).map((row) => row.id)))}
+            />
+          )}
           <button
             type="button"
             className="ghost"

@@ -60,3 +60,12 @@ export function isComplete(draft: IngredientDraft): draft is IngredientDraft & R
     draft.amount_numerator >= 1
   )
 }
+
+/** A copy of `items` with the one at `index` moved one place up (-1) or down (+1). */
+export function moveItem<T>(items: T[], index: number, delta: -1 | 1): T[] {
+  const target = index + delta
+  if (target < 0 || target >= items.length) return items
+  const moved = [...items]
+  ;[moved[index], moved[target]] = [moved[target], moved[index]]
+  return moved
+}

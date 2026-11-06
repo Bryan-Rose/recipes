@@ -417,3 +417,54 @@ describe('recipe details form', () => {
     await waitFor(() => expect(sent).toMatchObject({ notes: null, source_url: null }))
   })
 })
+
+describe('reordering steps', () => {
+  const twoSteps: Recipe = {
+    ...recipe,
+    steps: [
+      { id: 3, text: 'Boil water' },
+      { id: 4, text: 'Add pasta' },
+    ],
+  }
+
+  beforeEach(() => {
+    server.use(
+      http.get('/api/cookbooks/', () => HttpResponse.json([])),
+      http.get('/api/recipes/7', () => HttpResponse.json(twoSteps)),
+    )
+  })
+
+  it('sends every step id in the new order', async () => {
+    let sent: unknown
+    server.use(
+      http.put('/api/recipes/7/step-order', async ({ request }) => {
+        sent = await request.json()
+        return HttpResponse.json([twoSteps.steps[1], twoSteps.steps[0]])
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={twoSteps} />)
+
+    expect(screen.getByRole('button', { name: 'Move Method entry 1 up' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Move Method entry 2 down' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Move Method entry 2 up' }))
+
+    await waitFor(() => expect(sent).toEqual({ step_ids: [4, 3] }))
+  })
+
+  it('shows why a move failed', async () => {
+    server.use(http.put('/api/recipes/7/step-order', failure))
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={twoSteps} />)
+
+    await user.click(screen.getByRole('button', { name: 'Move Method entry 1 down' }))
+
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+  })
+
+  it('gives equipment no move buttons', () => {
+    renderWithProviders(<EditRecipeForm recipe={{ ...twoSteps, requirements: [{ id: 9, name: 'Pot' }] }} />)
+
+    expect(screen.queryByRole('button', { name: /Move You’ll need/ })).not.toBeInTheDocument()
+  })
+})

@@ -4,9 +4,10 @@ import { Link, useNavigate } from 'react-router'
 import { useCreateRecipe } from '../api/recipes'
 import { describeError } from '../api/errors'
 import type { RecipeCreate } from '../api/types'
-import { emptyIngredient, emptyScalars, isComplete } from '../components/drafts'
+import { emptyIngredient, emptyScalars, isComplete, moveItem } from '../components/drafts'
 import type { IngredientDraft, RecipeScalars } from '../components/drafts'
 import { IngredientFields } from '../components/IngredientFields'
+import { MoveButtons } from '../components/MoveButtons'
 import { RecipeFields } from '../components/RecipeFields'
 
 /** Local rows need a stable key before the server has given them an id. */
@@ -165,6 +166,12 @@ export function CreateRecipeForm() {
                   }
                 />
               </div>
+              <MoveButtons
+                label={`step ${index + 1}`}
+                index={index}
+                count={steps.length}
+                onMove={(delta) => setSteps((current) => moveItem(current, index, delta))}
+              />
               <button
                 type="button"
                 className="ghost"
