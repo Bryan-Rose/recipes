@@ -32,7 +32,7 @@ export function RecipeDetail() {
       label: 'Source',
       value: (
         <a href={recipe.source_url} target="_blank" rel="noreferrer">
-          {URL.parse(recipe.source_url)?.hostname ?? recipe.source_url}
+          {/^https?:\/\/([^/?#:]+)/.exec(recipe.source_url)?.[1] ?? recipe.source_url}
         </a>
       ),
     },

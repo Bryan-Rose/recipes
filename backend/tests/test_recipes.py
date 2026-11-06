@@ -269,7 +269,9 @@ def test_servings_must_be_a_positive_number(client: TestClient, recipe: RecipeRe
 
 def test_notes_and_source_url_round_trip(client: TestClient, recipe: RecipeRead):
     body = {"notes": "Halve the salt.\nUse brown butter.", "source_url": "https://example.com/soup?x=1"}
-    assert client.patch(f"/recipes/{recipe.id}", json=body).json() | body == client.get(f"/recipes/{recipe.id}").json()
+    patched = client.patch(f"/recipes/{recipe.id}", json=body).json()
+    assert {k: patched[k] for k in body} == body
+    assert client.get(f"/recipes/{recipe.id}").json() == patched
 
     cleared = client.patch(f"/recipes/{recipe.id}", json={"notes": None, "source_url": None}).json()
     assert cleared["notes"] is None and cleared["source_url"] is None
