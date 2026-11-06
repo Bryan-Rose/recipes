@@ -197,6 +197,11 @@
   color: var(--text-faint);
 }
 
+.recipe-notes {
+  white-space: pre-wrap;
+  margin: 0 0 1.75rem;
+}
+
 .detail-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);

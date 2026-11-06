@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { useDeleteRecipe, useRecipe } from '../api/recipes'
@@ -21,14 +21,22 @@ export function RecipeDetail() {
   if (error) return <ErrorState error={error} what="this recipe" />
 
   const meta = [
-    recipe.active_cook_time && { label: 'Active', value: recipe.active_cook_time },
+    recipe.active_cook_time && { label: 'Active', value: recipe.active_cook_time as ReactNode },
     recipe.inactive_cook_time && { label: 'Inactive', value: recipe.inactive_cook_time },
     recipe.cookbook && {
       label: 'From',
       value: `${recipe.cookbook.name}${recipe.cookbook_page ? `, p. ${recipe.cookbook_page}` : ''}`,
     },
     recipe.cookbook && { label: 'Author', value: recipe.cookbook.author.name },
-  ].filter((item): item is { label: string; value: string } => Boolean(item))
+    recipe.source_url && {
+      label: 'Source',
+      value: (
+        <a href={recipe.source_url} target="_blank" rel="noreferrer">
+          {/^https?:\/\/([^/?#:]+)/.exec(recipe.source_url)?.[1] ?? recipe.source_url}
+        </a>
+      ),
+    },
+  ].filter((item): item is { label: string; value: ReactNode } => Boolean(item))
 
   const typed = Number(servingsDraft)
   // Scale against the recipe's own servings; a cleared or invalid box means unscaled.
@@ -72,6 +80,13 @@ export function RecipeDetail() {
             </div>
           ))}
         </div>
+      )}
+
+      {recipe.notes && (
+        <section>
+          <h2 className="section-heading">Notes</h2>
+          <p className="recipe-notes">{recipe.notes}</p>
+        </section>
       )}
 
       <div className="detail-columns">

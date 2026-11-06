@@ -95,6 +95,28 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
           />
         </div>
       </div>
+
+      <div className="field">
+        <label htmlFor="recipe-source">Source URL</label>
+        <input
+          id="recipe-source"
+          type="url"
+          pattern="https?://.+"
+          value={value.source_url ?? ''}
+          onChange={(event) => set('source_url', orNull(event.target.value))}
+          placeholder="https://example.com/recipe"
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="recipe-notes">Notes</label>
+        <textarea
+          id="recipe-notes"
+          value={value.notes ?? ''}
+          onChange={(event) => set('notes', orNull(event.target.value))}
+          placeholder="Halve the salt"
+        />
+      </div>
     </div>
   )
 }

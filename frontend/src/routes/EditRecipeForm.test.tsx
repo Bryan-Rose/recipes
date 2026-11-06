@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -386,5 +386,34 @@ describe('ingredient amounts and preparation', () => {
       amount_numerator: 1,
       amount_denominator: 2,
     })
+  })
+})
+
+describe('recipe details form', () => {
+  beforeEach(() => {
+    server.use(http.get('/api/cookbooks/', () => HttpResponse.json([])))
+  })
+
+  it('loads notes and source, and sends them as null once cleared', async () => {
+    let sent: unknown
+    server.use(
+      http.patch('/api/recipes/7', async ({ request }) => {
+        sent = await request.json()
+        return HttpResponse.json(recipe)
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={{ ...recipe, notes: 'Halve the salt', source_url: 'https://example.com/soup' }} />)
+
+    const source = screen.getByLabelText('Source URL')
+    const notes = screen.getByLabelText('Notes')
+    expect(source).toHaveValue('https://example.com/soup')
+    expect(notes).toHaveValue('Halve the salt')
+
+    await user.clear(source)
+    await user.clear(notes)
+    await user.click(screen.getByRole('button', { name: 'Save details' }))
+
+    await waitFor(() => expect(sent).toMatchObject({ notes: null, source_url: null }))
   })
 })

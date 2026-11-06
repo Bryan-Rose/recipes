@@ -265,3 +265,21 @@ def test_servings_must_be_a_positive_number(client: TestClient, recipe: RecipeRe
     for servings in (0, "a crowd"):
         assert client.patch(f"/recipes/{recipe.id}", json={"servings": servings}).status_code == 422
         assert client.post("/recipes/", json={"name": "Stew", "servings": servings}).status_code == 422
+
+
+def test_notes_and_source_url_round_trip(client: TestClient, recipe: RecipeRead):
+    body = {"notes": "Halve the salt.\nUse brown butter.", "source_url": "https://example.com/soup?x=1"}
+    patched = client.patch(f"/recipes/{recipe.id}", json=body).json()
+    assert {k: patched[k] for k in body} == body
+    assert client.get(f"/recipes/{recipe.id}").json() == patched
+
+    cleared = client.patch(f"/recipes/{recipe.id}", json={"notes": None, "source_url": None}).json()
+    assert cleared["notes"] is None and cleared["source_url"] is None
+
+
+@pytest.mark.parametrize(
+    "url", ["javascript:alert(1)", "example.com", "ftp://example.com", "https://", "https://a b", "https://x/" + "a" * 2048]
+)
+def test_source_url_must_be_http(client: TestClient, recipe: RecipeRead, url: str):
+    assert client.patch(f"/recipes/{recipe.id}", json={"source_url": url}).status_code == 422
+    assert client.post("/recipes/", json={"name": "Stew", "source_url": url}).status_code == 422
