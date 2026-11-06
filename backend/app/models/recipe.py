@@ -32,7 +32,7 @@ class Recipe(Base):
     cookbook_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
     active_cook_time: Mapped[str] = mapped_column(String, nullable=True)
     inactive_cook_time: Mapped[str] = mapped_column(String, nullable=True)
-    servings: Mapped[str] = mapped_column(String, nullable=True)
+    servings: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     created_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)

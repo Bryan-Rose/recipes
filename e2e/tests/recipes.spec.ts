@@ -49,6 +49,12 @@ test('create, view, edit and delete a recipe', async ({ page }) => {
   await page.reload()
   await expect(page.getByRole('heading', { name })).toBeVisible()
 
+  // Scale to double the servings: 3 bunches become 6.
+  const leek = page.getByRole('listitem').filter({ hasText: ingredient })
+  await expect(leek.locator('.ingredient-amount')).toHaveText('3')
+  await page.getByLabel('Servings', { exact: true }).fill('8')
+  await expect(leek.locator('.ingredient-amount')).toHaveText('6')
+
   // Edit the name.
   const renamed = `${name} (revised)`
   await page.getByRole('button', { name: 'Edit' }).click()

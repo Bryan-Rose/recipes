@@ -15,7 +15,7 @@ export interface RecipeScalars {
   cookbook_page: number | null
   active_cook_time: string | null
   inactive_cook_time: string | null
-  servings: string | null
+  servings: number | null
 }
 
 export const emptyScalars: RecipeScalars = {

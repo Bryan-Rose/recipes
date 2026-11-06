@@ -146,3 +146,33 @@ def test_fractions_and_optional_preparation_migrate_existing_rows(alembic_config
         rows = "SELECT id, amount, preparation_id FROM recipe_ingredients ORDER BY id"
         assert connection.execute(text(rows)).all() == [(1, 3, whole), (2, 1, 2)]
     engine.dispose()
+
+
+def test_servings_become_integers(alembic_config: Config):
+    command.upgrade(alembic_config, "f78e129999c4")
+    engine = create_engine(alembic_config.attributes["url"])
+    servings = [("4",), ("Makes about 12",), ("4-6",), ("a crowd",), ("0",), (None,)]
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
+        for id_, (value,) in enumerate(servings, start=1):
+            connection.execute(
+                text("INSERT INTO recipes (id, name, servings, created_user_id) VALUES (:id, :name, :servings, 1)"),
+                {"id": id_, "name": f"r{id_}", "servings": value},
+            )
+
+    command.upgrade(alembic_config, "9c0d5e609c63")
+    rows = "SELECT servings, typeof(servings) FROM recipes ORDER BY id"
+    with engine.connect() as connection:
+        assert connection.execute(text(rows)).all() == [
+            (4, "integer"),
+            (12, "integer"),
+            (4, "integer"),
+            (None, "null"),
+            (None, "null"),
+            (None, "null"),
+        ]
+
+    command.downgrade(alembic_config, "f78e129999c4")
+    with engine.connect() as connection:
+        assert connection.execute(text("SELECT servings FROM recipes ORDER BY id")).scalars().all() == ["4", "12", "4", None, None, None]
+    engine.dispose()
