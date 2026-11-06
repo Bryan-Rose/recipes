@@ -26,7 +26,9 @@ IdPath = Annotated[int, Path(ge=1, le=_MAX_INT)]
 
 # A pattern, not pydantic's HttpUrl, so the URL is stored exactly as typed.
 # http(s) only: the frontend renders it as a link, and javascript: would run.
-SourceUrl = Annotated[str, Field(max_length=2048, pattern=r"^https?://[^\s/]+\S*$")]
+# ASCII whitespace spelled out: \s is Unicode-aware in pydantic but not in the JSON Schema
+# fuzzers generate from, so the two disagreed on characters like U+0085 (#70).
+SourceUrl = Annotated[str, Field(max_length=2048, pattern=r"^https?://[^ \t\n\r\f\v/]+[^ \t\n\r\f\v]*$")]
 """A link to where a recipe came from."""
 
 MIN_PASSWORD_LENGTH = 8

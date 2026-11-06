@@ -283,3 +283,9 @@ def test_notes_and_source_url_round_trip(client: TestClient, recipe: RecipeRead)
 def test_source_url_must_be_http(client: TestClient, recipe: RecipeRead, url: str):
     assert client.patch(f"/recipes/{recipe.id}", json={"source_url": url}).status_code == 422
     assert client.post("/recipes/", json={"name": "Stew", "source_url": url}).status_code == 422
+
+
+def test_source_url_allows_non_ascii_whitespace(client: TestClient, recipe: RecipeRead):
+    # The advertised JSON Schema \s doesn't match U+0085, so enforcement mustn't either (#70).
+    url = "https://example.com/\x85x"
+    assert client.patch(f"/recipes/{recipe.id}", json={"source_url": url}).json()["source_url"] == url
