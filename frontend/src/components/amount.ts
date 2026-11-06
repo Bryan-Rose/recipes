@@ -39,9 +39,9 @@ export function scaleAmount(numerator: number, denominator: number, factor: numb
   const scaledNumerator = numerator * factor
   const scaledDenominator = denominator * base
   const value = scaledNumerator / scaledDenominator
-  const [best] = [8, 3]
-    .map((d) => ({ numerator: Math.max(1, Math.round(value * d)), denominator: d }))
-    .sort((a, b) => Math.abs(a.numerator / a.denominator - value) - Math.abs(b.numerator / b.denominator - value))
+  const eighths = { numerator: Math.max(1, Math.round(value * 8)), denominator: 8 }
+  const thirds = { numerator: Math.max(1, Math.round(value * 3)), denominator: 3 }
+  const best = Math.abs(thirds.numerator / 3 - value) < Math.abs(eighths.numerator / 8 - value) ? thirds : eighths
   const exact = best.numerator * scaledDenominator === scaledNumerator * best.denominator
   return { ...best, exact }
 }

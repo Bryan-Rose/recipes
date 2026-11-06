@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 
 import { useDeleteRecipe, useRecipe } from '../api/recipes'
 import { describeError } from '../api/errors'
-import type { Recipe, RecipeIngredient } from '../api/types'
+import type { RecipeIngredient } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
 import { formatAmount, scaleAmount } from '../components/amount'
 
@@ -83,7 +83,7 @@ export function RecipeDetail() {
             ) : (
               <ul className="ingredient-list">
                 {recipe.recipe_ingredients.map((item) => (
-                  <li key={item.id}>{formatIngredient(item, recipe, servings)}</li>
+                  <li key={item.id}>{formatIngredient(item, recipe.servings ?? null, servings)}</li>
                 ))}
               </ul>
             )}
@@ -126,10 +126,10 @@ export function RecipeDetail() {
  * The "whole" measurement is really an absence and reads badly if printed:
  * it means the ingredient is simply counted.
  */
-function formatIngredient(item: RecipeIngredient, recipe: Recipe, servings: number | null) {
+function formatIngredient(item: RecipeIngredient, base: number | null, servings: number | null) {
   const amount =
-    recipe.servings != null && servings != null && servings !== recipe.servings
-      ? scaleAmount(item.amount_numerator, item.amount_denominator, servings, recipe.servings)
+    base != null && servings != null && servings !== base
+      ? scaleAmount(item.amount_numerator, item.amount_denominator, servings, base)
       : { numerator: item.amount_numerator, denominator: item.amount_denominator, exact: true }
   const counted = item.measurement.name.toLowerCase() === 'whole'
   const plural = amount.numerator > amount.denominator

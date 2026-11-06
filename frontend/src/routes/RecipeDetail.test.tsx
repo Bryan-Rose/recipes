@@ -57,6 +57,16 @@ describe('serving scaler', () => {
     expect(amounts()).toEqual(['⅝ cup milk', '≈⅜ cup sugar'])
   })
 
+  it('stops at one serving', async () => {
+    const user = userEvent.setup()
+    show({ ...recipe, servings: 2 })
+
+    const fewer = await screen.findByRole('button', { name: 'Fewer servings' })
+    await user.click(fewer)
+    expect(screen.getByLabelText('Servings')).toHaveValue(1)
+    expect(fewer).toBeDisabled()
+  })
+
   it('shows unscaled amounts while the box is empty', async () => {
     const user = userEvent.setup()
     show(recipe)

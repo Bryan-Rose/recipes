@@ -264,3 +264,4 @@ def test_update_recipe_rejects_null(client: TestClient, recipe: RecipeRead, fiel
 def test_servings_must_be_a_positive_number(client: TestClient, recipe: RecipeRead):
     for servings in (0, "a crowd"):
         assert client.patch(f"/recipes/{recipe.id}", json={"servings": servings}).status_code == 422
+        assert client.post("/recipes/", json={"name": "Stew", "servings": servings}).status_code == 422
