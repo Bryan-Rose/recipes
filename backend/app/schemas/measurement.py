@@ -1,19 +1,13 @@
-from pydantic import BaseModel, ConfigDict
+from app.schemas.lookup import LookupRead, LookupWrite
 
 
-class MeasurementBase(BaseModel):
-    name: str
-
-
-class MeasurementCreate(MeasurementBase):
+class MeasurementCreate(LookupWrite):
     pass
 
 
-class MeasurementUpdate(BaseModel):
-    name: str
+class MeasurementUpdate(LookupWrite):
+    pass
 
 
-class MeasurementRead(MeasurementBase):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
+class MeasurementRead(LookupRead):
+    pass

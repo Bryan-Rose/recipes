@@ -1,19 +1,13 @@
-from pydantic import BaseModel, ConfigDict
+from app.schemas.lookup import LookupRead, LookupWrite
 
 
-class AuthorBase(BaseModel):
-    name: str
-
-
-class AuthorCreate(AuthorBase):
+class AuthorCreate(LookupWrite):
     pass
 
 
-class AuthorUpdate(BaseModel):
-    name: str
+class AuthorUpdate(LookupWrite):
+    pass
 
 
-class AuthorRead(AuthorBase):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
+class AuthorRead(LookupRead):
+    pass
