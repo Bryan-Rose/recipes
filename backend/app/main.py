@@ -5,7 +5,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth import get_current_user
 from app.config import get_settings
-from app.routers import auth, authors, cookbooks, ingredients, measurements, preparations, recipes, tags, users
+from app.routers import auth, cookbooks, lookups, recipes, users
 
 settings = get_settings()
 
@@ -44,13 +44,9 @@ def integrity_error_handler(_request: Request, exc: IntegrityError):
 signed_in = [Depends(get_current_user)]
 
 app.include_router(auth.router)
-app.include_router(authors.router, dependencies=signed_in)
 app.include_router(cookbooks.router, dependencies=signed_in)
-
-app.include_router(ingredients.router, dependencies=signed_in)
-app.include_router(measurements.router, dependencies=signed_in)
-app.include_router(preparations.router, dependencies=signed_in)
-app.include_router(tags.router, dependencies=signed_in)
+for lookup_router in lookups.routers:
+    app.include_router(lookup_router, dependencies=signed_in)
 app.include_router(users.router, dependencies=signed_in)
 
 app.include_router(recipes.recipe_router, dependencies=signed_in)

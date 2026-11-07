@@ -1,19 +1,13 @@
-from pydantic import BaseModel, ConfigDict
+from app.schemas.lookup import LookupRead, LookupWrite
 
 
-class TagBase(BaseModel):
-    name: str
-
-
-class TagCreate(TagBase):
+class TagCreate(LookupWrite):
     pass
 
 
-class TagUpdate(BaseModel):
-    name: str
+class TagUpdate(LookupWrite):
+    pass
 
 
-class TagRead(TagBase):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
+class TagRead(LookupRead):
+    pass

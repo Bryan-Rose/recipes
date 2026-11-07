@@ -1,19 +1,13 @@
-from pydantic import BaseModel, ConfigDict
+from app.schemas.lookup import LookupRead, LookupWrite
 
 
-class PreparationBase(BaseModel):
-    name: str
-
-
-class PreparationCreate(PreparationBase):
+class PreparationCreate(LookupWrite):
     pass
 
 
-class PreparationUpdate(BaseModel):
-    name: str
+class PreparationUpdate(LookupWrite):
+    pass
 
 
-class PreparationRead(PreparationBase):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
+class PreparationRead(LookupRead):
+    pass

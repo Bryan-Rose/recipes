@@ -1,19 +1,13 @@
-from pydantic import BaseModel, ConfigDict
+from app.schemas.lookup import LookupRead, LookupWrite
 
 
-class IngredientBase(BaseModel):
-    name: str
-
-
-class IngredientCreate(IngredientBase):
+class IngredientCreate(LookupWrite):
     pass
 
 
-class IngredientUpdate(BaseModel):
-    name: str
+class IngredientUpdate(LookupWrite):
+    pass
 
 
-class IngredientRead(IngredientBase):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
+class IngredientRead(LookupRead):
+    pass
