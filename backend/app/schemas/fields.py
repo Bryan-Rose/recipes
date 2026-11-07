@@ -31,7 +31,9 @@ IdPath = Annotated[int, Path(ge=1, le=_MAX_INT)]
 SourceUrl = Annotated[str, Field(max_length=2048, pattern=r"^https?://[^ \t\n\r\f\v/]+[^ \t\n\r\f\v]*$")]
 """A link to where a recipe came from."""
 
-Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+# The pattern documents "not blank" in OpenAPI so the fuzzer stops sending "\n". It lists the
+# characters Python strips but a JSON Schema \s misses; after the strip it never rejects anything.
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"[^\s\x1c-\x1f\x85]")]
 """A required name or text in a write schema: trimmed, and blank is a 422.
 Read schemas keep plain `str` so rows saved blank before this rule still load."""
 
