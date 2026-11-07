@@ -49,6 +49,20 @@ it('shows a failed save without leaving an unhandled rejection', async () => {
   expect(screen.getByLabelText('Name')).toHaveValue('Soup')
 })
 
+it('explains a save refused because a picked tag was deleted', async () => {
+  server.use(
+    http.get('/api/cookbooks/', () => HttpResponse.json([])),
+    http.post('/api/recipes/', () => HttpResponse.json({ detail: 'Unknown tag ids: [3]' }, { status: 409 })),
+  )
+  const user = userEvent.setup()
+  renderWithProviders(<CreateRecipeForm />)
+
+  await user.type(screen.getByLabelText('Name'), 'Soup')
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+
+  expect(await screen.findByText('A tag you picked no longer exists. Refresh and pick again.')).toBeInTheDocument()
+})
+
 it('drops the page when the cookbook is cleared', async () => {
   let sent: { cookbook_id: number | null; cookbook_page: number | null } | undefined
   server.use(
