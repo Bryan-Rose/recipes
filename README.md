@@ -79,6 +79,12 @@ migrating, the backend copies the database to `data/app.db.pre-<revision>.bak`
 undone by stopping the stack and copying the backup over `data/app.db`. Backups
 are never pruned; delete old ones once you're happy with the update.
 
+**Rolling back** to an older image works the same way. An older image can't run
+against a newer schema (writes fail), and deploys never run downgrade
+migrations. Stop the stack, copy the `data/app.db.pre-<revision>.bak` taken
+before the update over `data/app.db`, then start the older image. Changes made
+since the update are lost.
+
 ```bash
 git pull
 docker compose up -d --build
