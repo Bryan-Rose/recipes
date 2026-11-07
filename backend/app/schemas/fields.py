@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal, TypeVar
 
 from fastapi import Path
-from pydantic import AfterValidator, BeforeValidator, Field, SecretStr
+from pydantic import AfterValidator, BeforeValidator, Field, SecretStr, StringConstraints
 from pydantic.json_schema import SkipJsonSchema
 
 # Integers beyond SQLite's signed 64-bit range make the driver raise
@@ -30,6 +30,10 @@ IdPath = Annotated[int, Path(ge=1, le=_MAX_INT)]
 # fuzzers generate from, so the two disagreed on characters like U+0085 (#70).
 SourceUrl = Annotated[str, Field(max_length=2048, pattern=r"^https?://[^ \t\n\r\f\v/]+[^ \t\n\r\f\v]*$")]
 """A link to where a recipe came from."""
+
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+"""A required name or text in a write schema: trimmed, and blank is a 422.
+Read schemas keep plain `str` so rows saved blank before this rule still load."""
 
 MIN_PASSWORD_LENGTH = 8
 

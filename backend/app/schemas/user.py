@@ -1,11 +1,11 @@
 from pydantic import BaseModel, ConfigDict, StrictBool
 
-from app.schemas.fields import NewPassword, Omittable, UtcDatetime
+from app.schemas.fields import Name, NewPassword, Omittable, UtcDatetime
 
 
 class UserBase(BaseModel):
-    username: str
-    full_name: str
+    username: Name
+    full_name: Name
 
 
 class UserCreate(UserBase):
@@ -14,7 +14,7 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
-    full_name: Omittable[str] = None
+    full_name: Omittable[Name] = None
     password: Omittable[NewPassword] = None
     is_active: Omittable[StrictBool] = None
     is_superuser: Omittable[StrictBool] = None
@@ -24,6 +24,8 @@ class UserRead(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    username: str
+    full_name: str
     is_active: bool
     is_superuser: bool
     created_at: UtcDatetime
