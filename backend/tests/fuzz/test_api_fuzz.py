@@ -35,7 +35,7 @@ schema = (
     .exclude(path_regex="^/auth/oidc/")
 )
 
-RECIPE_BODY_PATHS = {"/recipes/", "/recipes/{recipe_id}"}
+RECIPE_BODY_OPERATIONS = {("POST", "/recipes/"), ("PATCH", "/recipes/{recipe_id}")}
 
 
 @schema.parametrize()
@@ -52,7 +52,7 @@ def test_api(case, client: TestClient, db_session: Session, current_user: User):
 
     # OpenAPI can't express "cookbook_page needs a cookbook_id", so a schema-valid
     # recipe body can rightly get a 422 there. All other checks still apply.
-    cross_field = [positive_data_acceptance] if case.operation.path in RECIPE_BODY_PATHS else []
+    cross_field = [positive_data_acceptance] if (case.method.upper(), case.operation.path) in RECIPE_BODY_OPERATIONS else []
 
     case.call_and_validate(
         cookies={SESSION_COOKIE: client.cookies[SESSION_COOKIE]},

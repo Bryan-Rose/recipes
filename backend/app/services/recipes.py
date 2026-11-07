@@ -87,7 +87,8 @@ def update_recipe(db: Session, recipe: Recipe, recipe_in: RecipeUpdate) -> Recip
     if changes.get("cookbook_id", recipe.cookbook_id) is None:
         if changes.get("cookbook_page") is not None:
             raise PageWithoutCookbookError
-        changes["cookbook_page"] = None  # removing the cookbook drops its page, as the UI does
+        if "cookbook_id" in changes:
+            changes["cookbook_page"] = None  # removing the cookbook drops its page, as the UI does
     for field, value in changes.items():
         setattr(recipe, field, value)
     if recipe_in.tag_ids is not None:

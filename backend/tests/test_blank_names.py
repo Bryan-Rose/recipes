@@ -9,7 +9,8 @@ from app.schemas.cookbook import CookbookRead
 from app.schemas.recipes import RecipeRead
 from app.schemas.user import UserRead
 
-BLANKS = ["", "   ", "\t\n"]
+# \x1c and \x85 are whitespace to Python but not to JSON Schema's \s, which the Name pattern accounts for.
+BLANKS = ["", "   ", "\t\n", "\x1c", "\x85"]
 
 
 @pytest.fixture()
