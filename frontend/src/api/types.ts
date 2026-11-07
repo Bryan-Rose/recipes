@@ -16,10 +16,12 @@ export type UserUpdate = Schemas['UserUpdate']
 export type AuthConfig = Schemas['AuthConfig']
 
 export type Author = Schemas['AuthorRead']
-export type Cookbook = Schemas['CookbookRead']
+export type Cookbook = Schemas['CookbookWithCount']
+export type CookbookUpdate = Schemas['CookbookUpdate']
 export type Ingredient = Schemas['IngredientRead']
 export type Measurement = Schemas['MeasurementRead']
 export type Preparation = Schemas['PreparationRead']
+export type Tag = Schemas['TagRead']
 
 export type Recipe = Schemas['RecipeRead']
 export type RecipeCreate = Schemas['RecipeCreate']

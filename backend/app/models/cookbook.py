@@ -21,3 +21,5 @@ class Cookbook(Base):
     author_id: Mapped[int] = mapped_column(ForeignKey("authors.id"), nullable=False)
     author: Mapped[Author] = relationship(back_populates="cookbooks")
     recipes: Mapped[list[Recipe]] = relationship(back_populates="cookbook")
+    if TYPE_CHECKING:
+        recipe_count: int  # a column_property set in models/__init__.py, once Recipe exists

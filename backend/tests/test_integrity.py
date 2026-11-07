@@ -53,10 +53,22 @@ def test_delete_author_with_cookbooks_is_a_conflict(client: TestClient, author: 
 
 
 def test_delete_cookbook_unlinks_its_recipes(client: TestClient, cookbook: CookbookRead):
-    recipe = client.post("/recipes/", json={"name": "R", "cookbook_id": cookbook.id}).json()
+    recipe = client.post("/recipes/", json={"name": "R", "cookbook_id": cookbook.id, "cookbook_page": 12}).json()
 
     assert client.delete(f"/cookbooks/{cookbook.id}").status_code == 204
-    assert client.get(f"/recipes/{recipe['id']}").json()["cookbook_id"] is None
+    recipe = client.get(f"/recipes/{recipe['id']}").json()
+    assert recipe["cookbook_id"] is None
+    assert recipe["cookbook_page"] is None
+
+
+def test_cookbook_counts_its_recipes(client: TestClient, cookbook: CookbookRead):
+    assert client.get(f"/cookbooks/{cookbook.id}").json()["recipe_count"] == 0
+    for name in ("A", "B"):
+        client.post("/recipes/", json={"name": name, "cookbook_id": cookbook.id})
+    client.post("/recipes/", json={"name": "Elsewhere"})
+
+    assert client.get(f"/cookbooks/{cookbook.id}").json()["recipe_count"] == 2
+    assert [c["recipe_count"] for c in client.get("/cookbooks/").json()] == [2]
 
 
 ## References to rows that don't exist
