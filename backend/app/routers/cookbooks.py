@@ -2,19 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas.cookbook import CookbookCreate, CookbookRead, CookbookUpdate
+from app.schemas.cookbook import CookbookCreate, CookbookUpdate, CookbookWithCount
 from app.schemas.fields import IdPath
 from app.services import cookbooks as cookbooks_service
 
 router = APIRouter(prefix="/cookbooks", tags=["cookbooks"])
 
 
-@router.get("/", response_model=list[CookbookRead])
+@router.get("/", response_model=list[CookbookWithCount])
 def list_cookbooks(db: Session = Depends(get_db)):
     return cookbooks_service.get_cookbooks(db)
 
 
-@router.get("/{cookbook_id}", response_model=CookbookRead)
+@router.get("/{cookbook_id}", response_model=CookbookWithCount)
 def get_cookbook(cookbook_id: IdPath, db: Session = Depends(get_db)):
     response = cookbooks_service.get_cookbook(db, cookbook_id)
     if response is None:
@@ -22,12 +22,12 @@ def get_cookbook(cookbook_id: IdPath, db: Session = Depends(get_db)):
     return response
 
 
-@router.post("/", response_model=CookbookRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=CookbookWithCount, status_code=status.HTTP_201_CREATED)
 def create_cookbook(cookbook_in: CookbookCreate, db: Session = Depends(get_db)):
     return cookbooks_service.create_cookbook(db, cookbook_in)
 
 
-@router.patch("/{cookbook_id}", response_model=CookbookRead)
+@router.patch("/{cookbook_id}", response_model=CookbookWithCount)
 def update_cookbook(cookbook_id: IdPath, cookbook_in: CookbookUpdate, db: Session = Depends(get_db)):
     existing = cookbooks_service.get_cookbook(db, cookbook_id)
     if existing is None:

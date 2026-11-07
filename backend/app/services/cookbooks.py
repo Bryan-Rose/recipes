@@ -32,5 +32,8 @@ def update_cookbook(db: Session, cookbook: Cookbook, cookbook_in: CookbookUpdate
 
 
 def delete_cookbook(db: Session, cookbook: Cookbook) -> None:
+    # The recipes are unlinked, and a page means nothing without its cookbook.
+    for recipe in cookbook.recipes:
+        recipe.cookbook_page = None
     db.delete(cookbook)
     db.commit()

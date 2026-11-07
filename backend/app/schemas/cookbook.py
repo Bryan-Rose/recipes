@@ -24,3 +24,9 @@ class CookbookRead(CookbookBase):
     name: str
     created_at: UtcDatetime
     author: AuthorRead
+
+
+class CookbookWithCount(CookbookRead):
+    """What the cookbook routes return; recipes nest the plain CookbookRead."""
+
+    recipe_count: int

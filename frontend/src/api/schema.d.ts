@@ -604,6 +604,24 @@ export interface components {
             /** Author Id */
             author_id?: number;
         };
+        /**
+         * CookbookWithCount
+         * @description What the cookbook routes return; recipes nest the plain CookbookRead.
+         */
+        CookbookWithCount: {
+            /** Name */
+            name: string;
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            author: components["schemas"]["AuthorRead"];
+            /** Recipe Count */
+            recipe_count: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1149,7 +1167,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CookbookRead"][];
+                    "application/json": components["schemas"]["CookbookWithCount"][];
                 };
             };
         };
@@ -1173,7 +1191,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CookbookRead"];
+                    "application/json": components["schemas"]["CookbookWithCount"];
                 };
             };
             /** @description Validation Error */
@@ -1204,7 +1222,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CookbookRead"];
+                    "application/json": components["schemas"]["CookbookWithCount"];
                 };
             };
             /** @description Validation Error */
@@ -1268,7 +1286,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CookbookRead"];
+                    "application/json": components["schemas"]["CookbookWithCount"];
                 };
             };
             /** @description Validation Error */
