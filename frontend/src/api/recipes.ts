@@ -52,6 +52,9 @@ function explainUnknownTags(error: unknown): never {
   throw error
 }
 
+/** Recipes change the cookbooks' recipe_count, which the Lookups delete warning relies on. */
+const cookbooksKey = ['cookbooks'] as const
+
 export function useCreateRecipe() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -59,6 +62,7 @@ export function useCreateRecipe() {
     onSuccess: (created) => {
       queryClient.setQueryData(recipeKeys.detail(created.id), created)
       void queryClient.invalidateQueries({ queryKey: recipeKeys.all })
+      void queryClient.invalidateQueries({ queryKey: cookbooksKey })
     },
   })
 }
@@ -70,6 +74,7 @@ export function useUpdateRecipe(id: number) {
     onSuccess: (updated) => {
       queryClient.setQueryData(recipeKeys.detail(id), updated)
       void queryClient.invalidateQueries({ queryKey: recipeKeys.all })
+      void queryClient.invalidateQueries({ queryKey: cookbooksKey })
     },
   })
 }
@@ -81,6 +86,7 @@ export function useDeleteRecipe() {
     onSuccess: (_result, id) => {
       queryClient.removeQueries({ queryKey: recipeKeys.detail(id) })
       void queryClient.invalidateQueries({ queryKey: recipeKeys.all })
+      void queryClient.invalidateQueries({ queryKey: cookbooksKey })
     },
   })
 }

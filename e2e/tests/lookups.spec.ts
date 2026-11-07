@@ -5,6 +5,7 @@ import { COOK, apiAs, signIn, unique } from './helpers'
 test('a cook renames an author, deletes the cookbook in use, then the author', async ({ page, baseURL }) => {
   const suffix = unique()
   const api = await apiAs(baseURL!, COOK)
+  // Misspelt on purpose: the test renames it to fix the typo.
   const author = await (await api.post('/api/authors/', { data: { name: `E2E Auhtor ${suffix}` } })).json()
   const book = await (
     await api.post('/api/cookbooks/', { data: { name: `E2E Book ${suffix}`, author_id: author.id } })

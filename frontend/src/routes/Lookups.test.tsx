@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import App from '../App'
-import type { Cookbook } from '../api/types'
+import type { Cookbook, Recipe } from '../api/types'
 import { renderWithProviders } from '../test/render'
 import { server, signedIn } from '../test/server'
 
@@ -158,5 +158,44 @@ describe('lookups', () => {
     await user.click(row.getByRole('button', { name: 'Save' }))
 
     await expect.poll(() => patched).toEqual({ name: 'Mastering Vol. 1', author_id: jacques.id })
+  })
+
+  it('refreshes a cached recipe count after a recipe is deleted', async () => {
+    mockConfirm(true)
+    const recipe: Recipe = {
+      id: 7,
+      name: 'Boeuf',
+      created_user_id: 1,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      steps: [],
+      requirements: [],
+      tags: [],
+      recipe_ingredients: [],
+      cookbook_id: mastering.id,
+      cookbook: mastering,
+    }
+    let count = 1
+    server.use(
+      http.get('/api/cookbooks/', () => HttpResponse.json([{ ...mastering, recipe_count: count }])),
+      http.get('/api/recipes/', () => HttpResponse.json(count ? [recipe] : [])),
+      http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
+      http.get('/api/ingredients/', () => HttpResponse.json([])),
+      http.delete('/api/recipes/7', () => {
+        count = 0
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = userEvent.setup()
+    show('/lookups/cookbooks')
+    expect(await screen.findByText(/1 recipe$/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'Recipes' }))
+    await user.click(await screen.findByRole('link', { name: /Boeuf/ }))
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+    await user.click(await screen.findByRole('link', { name: 'Lookups' }))
+    await user.click(await screen.findByRole('link', { name: 'Cookbooks' }))
+
+    expect(await screen.findByText(/0 recipes$/)).toBeInTheDocument()
   })
 })
