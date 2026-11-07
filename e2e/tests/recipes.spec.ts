@@ -179,3 +179,19 @@ test('steps can be put in order when creating and when editing', async ({ page }
   await page.reload() // the order came from the server, not the cache
   await expect(steps).toHaveText(['Chop.', 'Prep.', 'Fry.'])
 })
+
+test('a blank recipe name is refused and the old name kept', async ({ page, baseURL }) => {
+  const api = await apiAs(baseURL!, COOK)
+  const name = `E2E Blank ${unique()}`
+  const created = await api.post('/api/recipes/', { data: { name } })
+  expect(created.status()).toBe(201)
+  const { id } = (await created.json()) as { id: number }
+
+  await page.goto(`/recipes/${id}/edit`)
+  await page.getByLabel('Name').fill('   ') // passes the input's `required`
+  await page.getByRole('button', { name: 'Save details' }).click()
+  await expect(page.getByText(/at least 1 character/)).toBeVisible()
+
+  await page.goto(`/recipes/${id}`)
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+})

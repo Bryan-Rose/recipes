@@ -4,12 +4,15 @@ names (TagRead, AuthorCreate, ...) stay as the frontend knows them."""
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.fields import Name
+
 
 class LookupWrite(BaseModel):
-    name: str
+    name: Name
 
 
 class LookupRead(LookupWrite):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    name: str

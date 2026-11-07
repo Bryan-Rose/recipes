@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
 from app.schemas.cookbook import CookbookRead
-from app.schemas.fields import DbId, Denominator, Omittable, PositiveInt, SourceUrl, UtcDatetime
+from app.schemas.fields import DbId, Denominator, Name, Omittable, PositiveInt, SourceUrl, UtcDatetime
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
@@ -42,11 +42,11 @@ class RecipeIngredientUpdate(BaseModel):
 
 
 class StepUpdate(BaseModel):
-    text: str
+    text: Name
 
 
 class StepCreate(BaseModel):
-    text: str
+    text: Name
 
 
 class StepOrder(BaseModel):
@@ -67,11 +67,11 @@ class StepRead(BaseModel):
 
 
 class RequirementCreate(BaseModel):
-    name: str
+    name: Name
 
 
 class RequirementUpdate(BaseModel):
-    name: str
+    name: Name
 
 
 class RequirementRead(BaseModel):
@@ -86,7 +86,7 @@ class RequirementRead(BaseModel):
 
 
 class RecipeBase(BaseModel):
-    name: str
+    name: Name
     cookbook_id: DbId | None = None
     cookbook_page: PositiveInt | None = None
     active_cook_time: str | None = None
@@ -104,7 +104,7 @@ class RecipeCreate(RecipeBase):
 
 
 class RecipeUpdate(BaseModel):
-    name: Omittable[str] = None
+    name: Omittable[Name] = None
     cookbook_id: DbId | None = None
     cookbook_page: PositiveInt | None = None
     active_cook_time: str | None = None
@@ -120,6 +120,7 @@ class RecipeRead(RecipeBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    name: str
     created_user_id: int
     created_at: UtcDatetime
     updated_at: UtcDatetime

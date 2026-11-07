@@ -3,6 +3,7 @@ import sys
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.recipe import Recipe
@@ -62,6 +63,23 @@ def test_create_user_script_rejects_short_password(monkeypatch: pytest.MonkeyPat
 
     with pytest.raises(SystemExit, match="at least 8"):
         create_user.main()
+
+
+def test_create_user_script_rejects_blank_username(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(sys, "argv", ["create_user", "   ", "--sso-only"])
+
+    with pytest.raises(SystemExit, match="must not be blank"):
+        create_user.main()
+
+
+def test_create_user_script_trims_names(monkeypatch: pytest.MonkeyPatch, db_session: Session):
+    monkeypatch.setattr(create_user, "SessionLocal", lambda: db_session)
+    monkeypatch.setattr(sys, "argv", ["create_user", " julia ", "--full-name", "  ", "--sso-only"])
+
+    create_user.main()
+
+    user = db_session.execute(select(User).where(User.username == "julia")).scalar_one()
+    assert user.full_name == "julia"
 
 
 def test_list_users_has_only_current_user(client: TestClient, current_user: User):

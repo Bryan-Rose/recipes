@@ -290,6 +290,12 @@ def test_oidc_creates_user(db_session: Session):
     assert (user.username, user.full_name, user.oidc_subject, user.hashed_password) == ("julia", "Julia Child", "s1", None)
 
 
+def test_oidc_skips_blank_claims(db_session: Session):
+    claims = {"sub": "s1", "preferred_username": "  ", "email": " julia@example.com ", "name": "\t"}
+    user = auth_service.resolve_oidc_user(db_session, claims, True)
+    assert (user.username, user.full_name) == ("julia@example.com", "julia@example.com")
+
+
 def test_oidc_matches_by_subject_even_if_username_changed(db_session: Session):
     first = auth_service.resolve_oidc_user(db_session, {"sub": "s1", "preferred_username": "julia"}, True)
 
