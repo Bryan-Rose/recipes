@@ -38,6 +38,10 @@ class StepOrderMismatchError(Exception):
     pass
 
 
+class PageWithoutCookbookError(Exception):
+    pass
+
+
 def _get_tags(db: Session, tag_ids: list[int]) -> list[Tag]:
     tags = list(db.execute(select(Tag).where(Tag.id.in_(tag_ids))).scalars())
     missing = set(tag_ids) - {tag.id for tag in tags}
@@ -78,7 +82,13 @@ def create_recipe(db: Session, recipe_in: RecipeCreate, created_user_id: int) ->
 
 
 def update_recipe(db: Session, recipe: Recipe, recipe_in: RecipeUpdate) -> Recipe:
-    for field, value in recipe_in.model_dump(exclude_unset=True, exclude={*_EXCLUDE_NESTED}).items():
+    changes = recipe_in.model_dump(exclude_unset=True, exclude={*_EXCLUDE_NESTED})
+    # Checked against the stored recipe, since a PATCH may send only one of the two fields.
+    if changes.get("cookbook_id", recipe.cookbook_id) is None:
+        if changes.get("cookbook_page") is not None:
+            raise PageWithoutCookbookError
+        changes["cookbook_page"] = None  # removing the cookbook drops its page, as the UI does
+    for field, value in changes.items():
         setattr(recipe, field, value)
     if recipe_in.tag_ids is not None:
         recipe.tags = _get_tags(db, recipe_in.tag_ids)

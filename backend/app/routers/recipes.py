@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -61,6 +62,10 @@ def update_recipe(recipe_id: IdPath, recipe_in: RecipeUpdate, db: Session = Depe
         return recipes_service.update_recipe(db, existing, recipe_in)
     except recipes_service.UnknownTagError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Unknown tag ids: {e.args[0]}")
+    except recipes_service.PageWithoutCookbookError:
+        # Same body shape as a schema validation 422, which is what OpenAPI documents.
+        msg = "cookbook_page requires a cookbook_id"
+        raise RequestValidationError([{"type": "value_error", "loc": ("body", "cookbook_page"), "msg": msg, "input": recipe_in.cookbook_page}])
 
 
 @recipe_router.delete("/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)
