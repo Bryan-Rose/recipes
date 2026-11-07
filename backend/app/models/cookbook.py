@@ -21,8 +21,5 @@ class Cookbook(Base):
     author_id: Mapped[int] = mapped_column(ForeignKey("authors.id"), nullable=False)
     author: Mapped[Author] = relationship(back_populates="cookbooks")
     recipes: Mapped[list[Recipe]] = relationship(back_populates="cookbook")
-
-    @property
-    def recipe_count(self) -> int:
-        # shortcut: loads each cookbook's recipe rows; switch to a count subquery if cookbooks grow large
-        return len(self.recipes)
+    if TYPE_CHECKING:
+        recipe_count: int  # a column_property set in models/__init__.py, once Recipe exists
