@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.schemas.cookbook import CookbookRead
 from app.schemas.fields import DbId, Denominator, Name, Omittable, PositiveInt, SourceUrl, UtcDatetime
@@ -101,6 +103,12 @@ class RecipeCreate(RecipeBase):
     requirements: list[RequirementCreate] = []
     recipe_ingredients: list[RecipeIngredientCreate] = []
     tag_ids: list[DbId] = []
+
+    @model_validator(mode="after")
+    def _page_needs_cookbook(self) -> Self:
+        if self.cookbook_page is not None and self.cookbook_id is None:
+            raise ValueError("cookbook_page requires a cookbook_id")
+        return self
 
 
 class RecipeUpdate(BaseModel):

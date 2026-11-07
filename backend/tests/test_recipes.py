@@ -152,6 +152,36 @@ def test_update_recipe_can_clear_cookbook(client: TestClient, cookbook: Cookbook
     assert updated.cookbook is None
 
 
+def test_create_recipe_rejects_page_without_cookbook(client: TestClient):
+    response = client.post("/recipes/", json={"name": "Daube", "cookbook_page": 12})
+
+    assert response.status_code == 422
+
+
+def test_update_recipe_rejects_page_without_cookbook(client: TestClient, recipe: RecipeRead, cookbook: CookbookRead):
+    assert recipe.cookbook_id is None
+    # Page alone, against a stored recipe with no cookbook.
+    assert client.patch(f"/recipes/{recipe.id}", json={"cookbook_page": 12}).status_code == 422
+
+    with_cookbook = client.patch(f"/recipes/{recipe.id}", json={"cookbook_id": cookbook.id, "cookbook_page": 12})
+    assert with_cookbook.status_code == 200
+    # Both sent, cookbook removed but a page kept.
+    assert client.patch(f"/recipes/{recipe.id}", json={"cookbook_id": None, "cookbook_page": 12}).status_code == 422
+
+    stored = RecipeRead.model_validate(client.get(f"/recipes/{recipe.id}").json())
+    assert (stored.cookbook_id, stored.cookbook_page) == (cookbook.id, 12)
+
+
+def test_update_recipe_clearing_cookbook_clears_page(client: TestClient, cookbook: CookbookRead):
+    created = client.post("/recipes/", json={"name": "Navarin", "cookbook_id": cookbook.id, "cookbook_page": 40}).json()
+
+    response = client.patch(f"/recipes/{created['id']}", json={"cookbook_id": None})
+
+    assert response.status_code == 200
+    updated = RecipeRead.model_validate(response.json())
+    assert (updated.cookbook_id, updated.cookbook_page) == (None, None)
+
+
 def test_update_recipe_preserves_children(client: TestClient, recipe: RecipeRead):
     client.post(f"/recipes/{recipe.id}/steps/", json={"text": "Simmer for three hours."})
 
