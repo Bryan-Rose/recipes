@@ -45,10 +45,17 @@ export function useRecipe(id: number | undefined) {
   })
 }
 
+/** 409 "Unknown tag ids": a picked tag was deleted elsewhere. The API's detail stays on `cause`. */
+function explainUnknownTags(error: unknown): never {
+  if (error instanceof ApiError && error.status === 409 && error.message.startsWith('Unknown tag ids'))
+    throw new Error('A tag you picked no longer exists. Refresh and pick again.', { cause: error })
+  throw error
+}
+
 export function useCreateRecipe() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (recipe: RecipeCreate) => api.post<Recipe>('/recipes/', recipe),
+    mutationFn: (recipe: RecipeCreate) => api.post<Recipe>('/recipes/', recipe).catch(explainUnknownTags),
     onSuccess: (created) => {
       queryClient.setQueryData(recipeKeys.detail(created.id), created)
       void queryClient.invalidateQueries({ queryKey: recipeKeys.all })
@@ -59,7 +66,7 @@ export function useCreateRecipe() {
 export function useUpdateRecipe(id: number) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (patch: RecipeUpdate) => api.patch<Recipe>(`/recipes/${id}`, patch),
+    mutationFn: (patch: RecipeUpdate) => api.patch<Recipe>(`/recipes/${id}`, patch).catch(explainUnknownTags),
     onSuccess: (updated) => {
       queryClient.setQueryData(recipeKeys.detail(id), updated)
       void queryClient.invalidateQueries({ queryKey: recipeKeys.all })

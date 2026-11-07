@@ -41,6 +41,17 @@ describe('recipe editor when a save fails', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Soupy')
   })
 
+  it('explains a details save refused because a tag was deleted', async () => {
+    server.use(http.patch('/api/recipes/7', () => HttpResponse.json({ detail: 'Unknown tag ids: [3]' }, { status: 409 })))
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.type(screen.getByLabelText('Name'), 'y')
+    await user.click(screen.getByRole('button', { name: 'Save details' }))
+
+    expect(await screen.findByText(/A tag you picked no longer exists/)).toBeInTheDocument()
+  })
+
   it('keeps the text of a new step', async () => {
     server.use(http.post('/api/recipes/7/steps/', failure))
     const user = userEvent.setup()
