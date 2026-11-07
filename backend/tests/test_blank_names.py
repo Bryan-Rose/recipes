@@ -25,7 +25,6 @@ def writes(client: TestClient, recipe: RecipeRead, cookbook: CookbookRead, user:
         ("patch", f"/recipes/{recipe.id}/steps/{step['id']}", {}, "text"),
         ("post", f"/recipes/{recipe.id}/requirements/", {}, "name"),
         ("patch", f"/recipes/{recipe.id}/requirements/{requirement['id']}", {}, "name"),
-        ("post", "/recipes/", {"steps": [{"text": "Stir."}], "requirements": [{"name": "Pot"}]}, None),
         ("post", "/cookbooks/", {"author_id": cookbook.author.id}, "name"),
         ("patch", f"/cookbooks/{cookbook.id}", {}, "name"),
         ("post", "/users/", {"full_name": "Julia Child", "password": "s3cret-pw"}, "username"),
@@ -39,14 +38,14 @@ def writes(client: TestClient, recipe: RecipeRead, cookbook: CookbookRead, user:
 @pytest.mark.parametrize("blank", BLANKS)
 def test_blank_is_rejected(client: TestClient, writes, blank: str):
     for method, path, body, field in writes:
-        if field is None:  # nested step and requirement in a recipe create
-            payload = {"name": "Stew", "steps": [{"text": blank}], "requirements": [{"name": "Pot"}]}
-            assert client.post(path, json=payload).status_code == 422, "nested step text"
-            payload = {"name": "Stew", "requirements": [{"name": blank}]}
-            assert client.post(path, json=payload).status_code == 422, "nested requirement name"
-            continue
         response = client.request(method, path, json={**body, field: blank})
         assert response.status_code == 422, (method, path, field)
+
+
+@pytest.mark.parametrize("blank", BLANKS)
+def test_blank_nested_in_recipe_create_is_rejected(client: TestClient, blank: str):
+    assert client.post("/recipes/", json={"name": "Stew", "steps": [{"text": blank}]}).status_code == 422
+    assert client.post("/recipes/", json={"name": "Stew", "requirements": [{"name": blank}]}).status_code == 422
 
 
 def test_names_are_trimmed(client: TestClient):

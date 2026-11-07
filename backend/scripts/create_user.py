@@ -31,6 +31,10 @@ def main() -> None:
     parser.add_argument("--sso-only", action="store_true", help="no password; sign in through OIDC only")
     parser.add_argument("--password-stdin", action="store_true", help="read the password from stdin (for scripts and tests)")
     args = parser.parse_args()
+    args.username = args.username.strip()
+    if not args.username:
+        raise SystemExit("username must not be blank")
+    args.full_name = (args.full_name or "").strip() or args.username
 
     hashed_password = None
     if args.password_stdin:
@@ -54,7 +58,7 @@ def main() -> None:
         db.add(
             User(
                 username=args.username,
-                full_name=args.full_name or args.username,
+                full_name=args.full_name,
                 hashed_password=hashed_password,
                 is_superuser=args.admin,
             )
