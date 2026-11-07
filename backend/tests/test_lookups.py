@@ -17,6 +17,7 @@ def prefix(request: pytest.FixtureRequest) -> str:
 @pytest.fixture()
 def item(client: TestClient, prefix: str) -> LookupRead:
     response = client.post(f"{prefix}/", json={"name": "first"})
+    assert response.status_code == 201
     return LookupRead.model_validate(response.json())
 
 
@@ -33,6 +34,11 @@ def test_create_requires_name(client: TestClient, prefix: str):
 
 def test_create_duplicate_name(client: TestClient, prefix: str, item: LookupRead):
     assert client.post(f"{prefix}/", json={"name": "first"}).status_code == 409
+
+
+def test_update_to_duplicate_name(client: TestClient, prefix: str, item: LookupRead):
+    other = client.post(f"{prefix}/", json={"name": "second"}).json()
+    assert client.patch(f"{prefix}/{other['id']}", json={"name": "first"}).status_code == 409
 
 
 def test_list_empty(client: TestClient, prefix: str):

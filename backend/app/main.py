@@ -45,8 +45,8 @@ signed_in = [Depends(get_current_user)]
 
 app.include_router(auth.router)
 app.include_router(cookbooks.router, dependencies=signed_in)
-for router in lookups.routers:
-    app.include_router(router, dependencies=signed_in)
+for lookup_router in lookups.routers:
+    app.include_router(lookup_router, dependencies=signed_in)
 app.include_router(users.router, dependencies=signed_in)
 
 app.include_router(recipes.recipe_router, dependencies=signed_in)

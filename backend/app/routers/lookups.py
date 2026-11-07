@@ -21,13 +21,13 @@ from app.schemas.tag import TagCreate, TagRead, TagUpdate
 from app.services import lookups as service
 
 
-def _router(model: type, noun: str, read: type[BaseModel], create: type[BaseModel], update: type[BaseModel]) -> APIRouter:
+def _router[M](model: type[M], noun: str, read: type[BaseModel], create: type[BaseModel], update: type[BaseModel]) -> APIRouter:
     plural = f"{noun}s"
     router = APIRouter(prefix=f"/{plural}", tags=[plural])
     ItemId = Annotated[IdPath, Path(alias=f"{noun}_id")]
     item_path = f"/{{{noun}_id}}"
 
-    def get_or_404(db: Session, item_id: int) -> object:
+    def get_or_404(db: Session, item_id: int) -> M:
         item = service.get_item(db, model, item_id)
         if item is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
