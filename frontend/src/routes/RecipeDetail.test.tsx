@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import App from '../App'
 import type { Recipe } from '../api/types'
@@ -108,7 +108,8 @@ describe('deleting', () => {
   beforeEach(() => signedIn())
 
   it('shows a failed delete without leaving an unhandled rejection', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    onTestFinished(() => confirm.mockRestore())
     server.use(http.delete('/api/recipes/7', () => HttpResponse.json({ detail: 'Server unavailable' }, { status: 503 })))
     const user = userEvent.setup()
     show(recipe)
