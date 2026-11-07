@@ -38,7 +38,7 @@ export function CreateRecipeForm() {
   const incompleteIngredients = ingredients.filter((row) => !isComplete(row.value)).length
   const canSave = scalars.name.trim() !== '' && incompleteIngredients === 0 && !createRecipe.isPending
 
-  async function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (!canSave) return
     const recipeIngredients = ingredients.map((row) => row.value).filter(isComplete)
@@ -60,12 +60,12 @@ export function CreateRecipeForm() {
       tag_ids: [],
     }
 
-    const created = await createRecipe.mutateAsync(body)
-    void navigate(`/recipes/${created.id}`)
+    // mutate(), not mutateAsync(): a failure shows through createRecipe.error.
+    createRecipe.mutate(body, { onSuccess: (created) => void navigate(`/recipes/${created.id}`) })
   }
 
   return (
-    <form onSubmit={(event) => void handleSubmit(event)}>
+    <form onSubmit={handleSubmit}>
       <p style={{ marginTop: 0 }}>
         <Link to="/">← All recipes</Link>
       </p>
