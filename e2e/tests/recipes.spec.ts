@@ -195,3 +195,20 @@ test('a blank recipe name is refused and the old name kept', async ({ page, base
   await page.goto(`/recipes/${id}`)
   await expect(page.getByRole('heading', { name })).toBeVisible()
 })
+
+test('deleting a recipe someone else already deleted says so and stays put', async ({ page, baseURL }) => {
+  const api = await apiAs(baseURL!, COOK)
+  const name = `E2E Gone ${unique()}`
+  const created = await api.post('/api/recipes/', { data: { name } })
+  expect(created.status()).toBe(201)
+  const { id } = (await created.json()) as { id: number }
+
+  await page.goto(`/recipes/${id}`)
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  expect((await api.delete(`/api/recipes/${id}`)).status()).toBe(204)
+
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await expect(page.getByText('not found')).toBeVisible()
+  await expect(page).toHaveURL(`/recipes/${id}`)
+})

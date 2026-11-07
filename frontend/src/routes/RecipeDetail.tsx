@@ -42,10 +42,10 @@ export function RecipeDetail() {
   // Scale against the recipe's own servings; a cleared or invalid box means unscaled.
   const servings = Number.isInteger(typed) && typed >= 1 ? typed : (recipe.servings ?? null)
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!confirm(`Delete “${recipe.name}”? This cannot be undone.`)) return
-    await deleteRecipe.mutateAsync(recipe.id)
-    void navigate('/')
+    // mutate(), not mutateAsync(): a failure shows through deleteRecipe.error.
+    deleteRecipe.mutate(recipe.id, { onSuccess: () => void navigate('/') })
   }
 
   return (
@@ -60,7 +60,7 @@ export function RecipeDetail() {
           <Link to={`/recipes/${recipe.id}/edit`}>
             <button type="button">Edit</button>
           </Link>
-          <button type="button" className="danger" onClick={() => void handleDelete()} disabled={deleteRecipe.isPending}>
+          <button type="button" className="danger" onClick={handleDelete} disabled={deleteRecipe.isPending}>
             {deleteRecipe.isPending ? 'Deleting…' : 'Delete'}
           </button>
         </div>

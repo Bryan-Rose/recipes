@@ -195,3 +195,24 @@ def test_step_positions_follow_insert_order(alembic_config: Config):
         assert rows == [(10, 1, 0), (11, 2, 0), (12, 1, 1), (13, 2, 1), (14, 1, 2)]
         assert next(c for c in inspect(connection).get_columns("steps") if c["name"] == "position")["nullable"] is False
     engine.dispose()
+
+
+def test_cookbook_page_cleared_without_cookbook(alembic_config: Config):
+    command.upgrade(alembic_config, "aa32c8fd9938")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
+        connection.execute(text("INSERT INTO authors (id, name) VALUES (1, 'a')"))
+        connection.execute(text("INSERT INTO cookbooks (id, name, author_id) VALUES (1, 'c', 1)"))
+        connection.execute(
+            text(
+                "INSERT INTO recipes (id, name, created_user_id, cookbook_id, cookbook_page)"
+                " VALUES (1, 'r1', 1, 1, 12), (2, 'r2', 1, NULL, 34), (3, 'r3', 1, NULL, NULL)"
+            )
+        )
+
+    command.upgrade(alembic_config, "ef8c8e87e99a")
+    with engine.connect() as connection:
+        rows = connection.execute(text("SELECT id, cookbook_id, cookbook_page FROM recipes ORDER BY id")).all()
+        assert rows == [(1, 1, 12), (2, None, None), (3, None, None)]
+    engine.dispose()

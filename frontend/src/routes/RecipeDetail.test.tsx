@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '../App'
 import type { Recipe } from '../api/types'
@@ -101,5 +101,22 @@ describe('notes and source', () => {
     expect(await screen.findByText('milk', { exact: false })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Notes' })).not.toBeInTheDocument()
     expect(screen.queryByText('Source')).not.toBeInTheDocument()
+  })
+})
+
+describe('deleting', () => {
+  beforeEach(() => signedIn())
+
+  it('shows a failed delete without leaving an unhandled rejection', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    server.use(http.delete('/api/recipes/7', () => HttpResponse.json({ detail: 'Server unavailable' }, { status: 503 })))
+    const user = userEvent.setup()
+    show(recipe)
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+
+    // Vitest fails the run on an unhandled rejection, so this also covers that.
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Pancakes' })).toBeInTheDocument()
   })
 })
