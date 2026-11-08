@@ -132,12 +132,13 @@ async def oidc_callback(
         claims = dict(token["userinfo"])
         # Some IdPs (e.g. Authelia) only put profile claims on the userinfo endpoint.
         # The spec forbids using userinfo whose sub differs from the ID token's.
+        # httpx2, not httpx: Authlib uses httpx2 whenever it is installed.
         try:
             extra = await client.userinfo(token=token)
-        # httpx2, not httpx: Authlib uses httpx2 whenever it is installed.
         except httpx2.HTTPError:
-            # Without the username claim, a first login would create or link the wrong user.
-            if not claims.get("preferred_username"):
+            # Without preferred_username, a first login would create or link the user under
+            # the email or subject. Email doesn't count: on these IdPs userinfo has the real name.
+            if not auth_service.claim(claims, "preferred_username"):
                 raise
             extra = {}
         if extra.get("sub") == claims["sub"]:

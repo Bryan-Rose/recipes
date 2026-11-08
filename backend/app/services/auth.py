@@ -69,7 +69,7 @@ class OidcLoginRefused(Exception):
     pass
 
 
-def _claim(claims: dict, key: str) -> str:
+def claim(claims: dict, key: str) -> str:
     """A string claim, trimmed; blank or missing is "" so `or` falls through to the next."""
     value = claims.get(key)
     return value.strip() if isinstance(value, str) else ""
@@ -84,14 +84,14 @@ def resolve_oidc_user(db: Session, claims: dict, create_users: bool) -> User:
     subject = claims["sub"]
     user = db.execute(select(User).where(User.oidc_subject == subject)).scalar_one_or_none()
     if user is None:
-        username = _claim(claims, "preferred_username") or _claim(claims, "email") or subject
+        username = claim(claims, "preferred_username") or claim(claims, "email") or subject
         user = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
         if user is not None:
             if user.oidc_subject is not None:
                 raise OidcLoginRefused(f"username {username!r} is linked to a different SSO account")
             user.oidc_subject = subject
         elif create_users:
-            user = User(username=username, full_name=_claim(claims, "name") or username, oidc_subject=subject)
+            user = User(username=username, full_name=claim(claims, "name") or username, oidc_subject=subject)
             db.add(user)
         else:
             raise OidcLoginRefused(f"no local user {username!r}")

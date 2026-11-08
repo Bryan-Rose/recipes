@@ -412,8 +412,9 @@ def test_oidc_callback_signs_in_when_userinfo_fails(client: TestClient):
     assert client.get("/auth/me").json()["username"] == "julia"
 
 
-def test_oidc_callback_without_a_username_fails_when_userinfo_fails(client: TestClient, db_session: Session):
-    _use_oidc(FakeOidcClient({"sub": "s1", "email": "julia@example.com"}, userinfo_error=True))
+@pytest.mark.parametrize("id_token", [{"sub": "s1", "email": "julia@example.com"}, {"sub": "s1", "preferred_username": "  "}])
+def test_oidc_callback_without_preferred_username_fails_when_userinfo_fails(client: TestClient, db_session: Session, id_token: dict):
+    _use_oidc(FakeOidcClient(id_token, userinfo_error=True))
     _use_settings(
         oidc_issuer="https://idp.example",
         oidc_client_id="recipes",
