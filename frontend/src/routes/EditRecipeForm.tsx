@@ -45,7 +45,8 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
   const reorderSteps = useReorderSteps(recipe.id)
 
   const [scalars, setScalars] = useState<RecipeScalars>(() => toScalars(recipe))
-  const isDirty = JSON.stringify(scalars) !== JSON.stringify(toScalars(recipe))
+  // Trimmed as on save, so a saved padded name doesn't stay "unsaved".
+  const isDirty = JSON.stringify({ ...scalars, name: scalars.name.trim() }) !== JSON.stringify(toScalars(recipe))
   // The children save as they change; only the details form can hold unsaved edits.
   const mayLeave = () => !isDirty || confirm('Discard unsaved details?')
 

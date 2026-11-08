@@ -1,3 +1,4 @@
+import logging
 import time
 
 import httpx2
@@ -14,6 +15,8 @@ from app.schemas.auth import AuthConfig, LoginRequest, PasswordChange
 from app.schemas.user import UserRead
 from app.services import auth as auth_service
 from app.services.users import verify_password
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -135,7 +138,8 @@ async def oidc_callback(
         # httpx2, not httpx: Authlib uses httpx2 whenever it is installed.
         try:
             extra = await client.userinfo(token=token)
-        except httpx2.HTTPError:
+        except httpx2.HTTPError as error:
+            logger.warning("OIDC userinfo request failed: %s", error)
             # Without preferred_username, a first login would create or link the user under
             # the email or subject. Email doesn't count: on these IdPs userinfo has the real name.
             if not auth_service.claim(claims, "preferred_username"):

@@ -9,6 +9,7 @@ import type { Recipe } from '../api/types'
 import { renderWithProviders } from '../test/render'
 import { server, signedIn } from '../test/server'
 import { EditRecipeForm } from './EditRecipeForm'
+import { RecipeEdit } from './RecipeEdit'
 
 const recipe: Recipe = {
   id: 7,
@@ -554,6 +555,36 @@ describe('leaving the recipe editor', () => {
 
     expect(confirm).toHaveBeenCalledWith('Discard unsaved details?')
     expect(screen.getByLabelText('Name')).toHaveValue('Soupy')
+  })
+
+  it('leaves without asking after saving a name with surrounding spaces', async () => {
+    const confirm = mockConfirm(false)
+    let saved = recipe
+    server.use(
+      http.patch('/api/recipes/7', async ({ request }) => {
+        const body = (await request.json()) as { name: string }
+        saved = { ...recipe, name: body.name.trim() }
+        return HttpResponse.json(saved)
+      }),
+      http.get('/api/recipes/7', () => HttpResponse.json(saved)),
+    )
+    const user = userEvent.setup()
+    // Through RecipeEdit, so the form gets the refetched recipe after the save.
+    renderWithProviders(
+      <Routes>
+        <Route path="/recipes/:recipeId/edit" element={<RecipeEdit />} />
+        <Route path="/recipes/7" element={<p>Recipe page</p>} />
+      </Routes>,
+      { route: '/recipes/7/edit' },
+    )
+
+    await user.type(await screen.findByLabelText('Name'), 'y ')
+    await user.click(screen.getByRole('button', { name: 'Save details' }))
+    await waitFor(() => expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+
+    expect(screen.getByText('Recipe page')).toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
   })
 
   it('does not ask on a ctrl-click of the back link, which opens a new tab', async () => {
