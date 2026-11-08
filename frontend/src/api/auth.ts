@@ -44,7 +44,8 @@ export function useLogin() {
 export function useLogout() {
   return useMutation({
     mutationFn: () => api.post<void>('/auth/logout', undefined),
-    // A full reload drops every cached query from the old session.
+    // A full reload drops every cached query from the old session. The refresh after every
+    // mutation (queryClient.ts) still fires first and gets 401s, which is harmless here.
     onSuccess: () => window.location.assign('/'),
   })
 }
