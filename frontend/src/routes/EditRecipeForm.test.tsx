@@ -556,6 +556,19 @@ describe('leaving the recipe editor', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Soupy')
   })
 
+  it('does not ask on a ctrl-click of the back link, which opens a new tab', async () => {
+    const confirm = mockConfirm(false)
+    const user = userEvent.setup()
+    show()
+
+    await user.type(screen.getByLabelText('Name'), 'y')
+    await user.keyboard('{Control>}')
+    await user.click(screen.getByRole('link', { name: '← Back to Soup' }))
+    await user.keyboard('{/Control}')
+
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
   it.each([
     ['Done', 'button'],
     ['← Back to Soup', 'link'],

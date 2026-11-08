@@ -412,6 +412,22 @@ def test_oidc_callback_signs_in_when_userinfo_fails(client: TestClient):
     assert client.get("/auth/me").json()["username"] == "julia"
 
 
+def test_oidc_callback_without_a_username_fails_when_userinfo_fails(client: TestClient, db_session: Session):
+    _use_oidc(FakeOidcClient({"sub": "s1", "email": "julia@example.com"}, userinfo_error=True))
+    _use_settings(
+        oidc_issuer="https://idp.example",
+        oidc_client_id="recipes",
+        oidc_redirect_uri="http://app/api/auth/oidc/callback",
+        oidc_create_users=True,
+    )
+    client.cookies.clear()
+
+    response = client.get("/auth/oidc/callback", follow_redirects=False)
+
+    assert response.headers["location"] == "/login?error=sso_failed"
+    assert db_session.execute(select(User).where(User.oidc_subject == "s1")).scalar_one_or_none() is None
+
+
 def test_oidc_callback_idp_error_redirects_to_login(client: TestClient):
     _use_oidc(FakeOidcClient({}, error=True))
     client.cookies.clear()

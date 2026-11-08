@@ -61,7 +61,9 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
         <Link
           to={`/recipes/${recipe.id}`}
           onClick={(event) => {
-            if (!mayLeave()) event.preventDefault()
+            // A modified click opens a new tab and leaves this page and its edits in place.
+            const newTab = event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
+            if (!newTab && !mayLeave()) event.preventDefault()
           }}
         >
           ← Back to {recipe.name}

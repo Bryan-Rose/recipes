@@ -134,12 +134,16 @@ async def oidc_callback(
         # The spec forbids using userinfo whose sub differs from the ID token's.
         try:
             extra = await client.userinfo(token=token)
+        # httpx2, not httpx: Authlib uses httpx2 whenever it is installed.
         except httpx2.HTTPError:
-            extra = {}  # optional: the ID token's claims are enough to sign in
+            # Without the username claim, a first login would create or link the wrong user.
+            if not claims.get("preferred_username"):
+                raise
+            extra = {}
         if extra.get("sub") == claims["sub"]:
             claims = {**extra, **claims}
         user = auth_service.resolve_oidc_user(db, claims, settings.oidc_create_users)
-    except OAuthError:
+    except OAuthError, httpx2.HTTPError:
         return RedirectResponse("/login?error=sso_failed", status_code=status.HTTP_303_SEE_OTHER)
     except auth_service.OidcLoginRefused:
         return RedirectResponse("/login?error=sso_not_allowed", status_code=status.HTTP_303_SEE_OTHER)
