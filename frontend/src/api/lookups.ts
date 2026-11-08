@@ -7,7 +7,7 @@
  * factory. Cookbooks are separate: they are created with an `author_id` but
  * read back with the whole author nested.
  */
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { ApiError, api } from './client'
 import type { Author, Cookbook, CookbookUpdate, Ingredient, Lookup, Measurement, Preparation, Tag } from './types'
@@ -36,9 +36,16 @@ function lookupHooks<T extends Lookup>(resource: string, usedBy: string) {
   return {
     useList: () => useQuery({ queryKey: key, queryFn: () => api.get<T[]>(path) }),
 
-    // The new row is in the refetched list by the time this resolves (see queryClient.ts),
-    // so a picker can select it straight away.
-    useCreate: () => useMutation({ mutationFn: (name: string) => api.post<T>(path, { name }) }),
+    useCreate: () => {
+      const queryClient = useQueryClient()
+      return useMutation({
+        mutationFn: (name: string) => api.post<T>(path, { name }),
+        // The refresh after every mutation (queryClient.ts) can fail without throwing, so seed
+        // the list for the picker to show the row it selects. Only a loaded list: seeding an
+        // unloaded one would pass off a one-row list as complete.
+        onSuccess: (created) => queryClient.setQueryData<T[]>(key, (current) => current && [...current, created]),
+      })
+    },
 
     useUpdate: () =>
       useMutation({
