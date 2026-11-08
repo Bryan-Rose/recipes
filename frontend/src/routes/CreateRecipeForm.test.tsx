@@ -84,3 +84,27 @@ it('drops the page when the cookbook is cleared', async () => {
 
   await waitFor(() => expect(sent).toMatchObject({ cookbook_id: null, cookbook_page: null }))
 })
+
+it('shows a newly added ingredient as picked even when the list fails to refresh', async () => {
+  let listed = false
+  server.use(
+    http.get('/api/cookbooks/', () => HttpResponse.json([])),
+    http.get('/api/measurements/', () => HttpResponse.json([])),
+    http.get('/api/preparations/', () => HttpResponse.json([])),
+    http.get('/api/ingredients/', () => {
+      if (listed) return HttpResponse.json({ detail: 'Server unavailable' }, { status: 503 })
+      listed = true
+      return HttpResponse.json([])
+    }),
+    http.post('/api/ingredients/', () => HttpResponse.json({ id: 3, name: 'sugar' }, { status: 201 })),
+  )
+  const user = userEvent.setup()
+  renderWithProviders(<CreateRecipeForm />)
+
+  await user.click(screen.getByRole('button', { name: '+ Add ingredient' }))
+  await user.click(await screen.findByRole('button', { name: '+ New ingredient' }))
+  await user.type(screen.getByLabelText('New ingredient name'), 'sugar')
+  await user.click(screen.getByRole('button', { name: 'Add' }))
+
+  await waitFor(() => expect(screen.getByLabelText('Ingredient', { exact: true })).toHaveDisplayValue('sugar'))
+})
