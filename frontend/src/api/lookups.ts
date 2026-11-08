@@ -40,9 +40,10 @@ function lookupHooks<T extends Lookup>(resource: string, usedBy: string) {
       const queryClient = useQueryClient()
       return useMutation({
         mutationFn: (name: string) => api.post<T>(path, { name }),
-        // Seed the list so a picker shows the row it selects even if the refresh after
-        // every mutation (queryClient.ts) fails.
-        onSuccess: (created) => queryClient.setQueryData<T[]>(key, (current) => [...(current ?? []), created]),
+        // The refresh after every mutation (queryClient.ts) can fail without throwing, so seed
+        // the list for the picker to show the row it selects. Only a loaded list: seeding an
+        // unloaded one would pass off a one-row list as complete.
+        onSuccess: (created) => queryClient.setQueryData<T[]>(key, (current) => current && [...current, created]),
       })
     },
 
