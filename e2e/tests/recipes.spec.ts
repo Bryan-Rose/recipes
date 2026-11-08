@@ -63,6 +63,7 @@ test('create, view, edit and delete a recipe', async ({ page }) => {
   await page.getByLabel('Source URL').fill('https://cooking.example.com/soup')
   await page.getByLabel('Notes').fill('Halve the salt.\nServe with crusty bread.')
   await page.getByRole('button', { name: 'Save details' }).click()
+  await expect(page.getByText('Unsaved changes')).toBeHidden() // or Done would ask to discard them
   await page.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByRole('heading', { name: renamed })).toBeVisible()
   await expect(page.getByRole('link', { name: 'cooking.example.com' })).toHaveAttribute('href', 'https://cooking.example.com/soup')
@@ -178,6 +179,32 @@ test('steps can be put in order when creating and when editing', async ({ page }
 
   await page.reload() // the order came from the server, not the cache
   await expect(steps).toHaveText(['Chop.', 'Prep.', 'Fry.'])
+})
+
+test('leaving with unsaved details asks first', async ({ page, baseURL }) => {
+  const api = await apiAs(baseURL!, COOK)
+  const name = `E2E Unsaved ${unique()}`
+  const created = await api.post('/api/recipes/', { data: { name, servings: 4 } })
+  expect(created.status()).toBe(201)
+  const { id } = (await created.json()) as { id: number }
+
+  await page.goto(`/recipes/${id}/edit`)
+  await page.getByLabel('Servings').fill('6')
+
+  let message = ''
+  page.once('dialog', (dialog) => {
+    message = dialog.message()
+    void dialog.dismiss()
+  })
+  await page.getByRole('button', { name: 'Done' }).click()
+  expect(message).toBe('Discard unsaved details?')
+  await expect(page).toHaveURL(`/recipes/${id}/edit`)
+  await expect(page.getByLabel('Servings')).toHaveValue('6')
+
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('link', { name: `← Back to ${name}` }).click()
+  await expect(page).toHaveURL(`/recipes/${id}`)
+  await expect(page.getByLabel('Servings', { exact: true })).toHaveValue('4')
 })
 
 test('a blank recipe name is refused and the old name kept', async ({ page, baseURL }) => {

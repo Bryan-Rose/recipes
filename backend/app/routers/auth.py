@@ -1,5 +1,6 @@
 import time
 
+import httpx2
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -131,7 +132,10 @@ async def oidc_callback(
         claims = dict(token["userinfo"])
         # Some IdPs (e.g. Authelia) only put profile claims on the userinfo endpoint.
         # The spec forbids using userinfo whose sub differs from the ID token's.
-        extra = await client.userinfo(token=token)
+        try:
+            extra = await client.userinfo(token=token)
+        except httpx2.HTTPError:
+            extra = {}  # optional: the ID token's claims are enough to sign in
         if extra.get("sub") == claims["sub"]:
             claims = {**extra, **claims}
         user = auth_service.resolve_oidc_user(db, claims, settings.oidc_create_users)

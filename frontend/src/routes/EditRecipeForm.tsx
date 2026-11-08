@@ -46,6 +46,8 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
 
   const [scalars, setScalars] = useState<RecipeScalars>(() => toScalars(recipe))
   const isDirty = JSON.stringify(scalars) !== JSON.stringify(toScalars(recipe))
+  // The children save as they change; only the details form can hold unsaved edits.
+  const mayLeave = () => !isDirty || confirm('Discard unsaved details?')
 
   function saveScalars(event: React.FormEvent) {
     event.preventDefault()
@@ -56,12 +58,25 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
   return (
     <>
       <p style={{ marginTop: 0 }}>
-        <Link to={`/recipes/${recipe.id}`}>← Back to {recipe.name}</Link>
+        <Link
+          to={`/recipes/${recipe.id}`}
+          onClick={(event) => {
+            if (!mayLeave()) event.preventDefault()
+          }}
+        >
+          ← Back to {recipe.name}
+        </Link>
       </p>
 
       <div className="page-header">
         <h1>Edit recipe</h1>
-        <button type="button" className="primary" onClick={() => void navigate(`/recipes/${recipe.id}`)}>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => {
+            if (mayLeave()) void navigate(`/recipes/${recipe.id}`)
+          }}
+        >
           Done
         </button>
       </div>

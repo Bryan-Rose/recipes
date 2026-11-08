@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import httpx2
 import pytest
 from authlib.integrations.starlette_client import OAuthError
 from fastapi.responses import RedirectResponse
@@ -338,8 +339,9 @@ def test_oidc_refuses_inactive_user(db_session: Session, cook: User):
 
 
 class FakeOidcClient:
-    def __init__(self, userinfo: dict, extra: dict | None = None, error: bool = False):
+    def __init__(self, userinfo: dict, extra: dict | None = None, error: bool = False, userinfo_error: bool = False):
         self._userinfo, self._extra, self._error = userinfo, extra or {}, error
+        self._userinfo_error = userinfo_error
 
     async def authorize_redirect(self, request, redirect_uri):
         return RedirectResponse(f"https://idp.example/authorize?redirect_uri={redirect_uri}")
@@ -350,6 +352,9 @@ class FakeOidcClient:
         return {"userinfo": self._userinfo}
 
     async def userinfo(self, token):
+        if self._userinfo_error:
+            request = httpx2.Request("GET", "https://idp.example/userinfo")
+            raise httpx2.HTTPStatusError("Bad Gateway", request=request, response=httpx2.Response(502, request=request))
         return self._extra
 
 
@@ -394,6 +399,16 @@ def test_oidc_callback_ignores_userinfo_for_a_different_subject(client: TestClie
 
     client.get("/auth/oidc/callback", follow_redirects=False)
 
+    assert client.get("/auth/me").json()["username"] == "julia"
+
+
+def test_oidc_callback_signs_in_when_userinfo_fails(client: TestClient):
+    _use_oidc(FakeOidcClient({"sub": "s1", "preferred_username": "julia"}, userinfo_error=True))
+    client.cookies.clear()
+
+    response = client.get("/auth/oidc/callback", follow_redirects=False)
+
+    assert response.headers["location"] == "/"
     assert client.get("/auth/me").json()["username"] == "julia"
 
 
