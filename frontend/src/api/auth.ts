@@ -2,7 +2,7 @@
  * Session auth. The API sets an HttpOnly cookie on login, so the browser sends
  * it automatically and nothing here ever touches the token.
  */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { api, ApiError } from './client'
 import type { AuthConfig, User } from './types'
@@ -36,10 +36,8 @@ export function useAuthConfig() {
 }
 
 export function useLogin() {
-  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (credentials: { username: string; password: string }) => api.post<void>('/auth/login', credentials),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.me }),
   })
 }
 

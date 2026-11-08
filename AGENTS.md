@@ -134,4 +134,6 @@ Note `npm run build` is also the typecheck: `tsconfig.app.json` sets `noEmit`, s
 
 The React Compiler is enabled via a Babel preset in `vite.config.ts`, so components are auto-memoized — don't add manual `useMemo`/`useCallback`/`memo` for performance without a measured reason. Linting is oxlint (not ESLint), configured in `.oxlintrc.json`.
 
+**Caching: every mutation refetches everything.** `src/queryClient.ts` invalidates all queries when any mutation settles, and the mutation resolves only after the active ones refetch. With a few users and a small dataset that's cheap, so hooks don't invalidate their own keys and queries keep the default `staleTime` of 0. Don't add per-hook invalidation; add a hook-level `onSuccess` only for something the global refresh can't do (such as removing a deleted recipe's query, or an optimistic update).
+
 [uv]: https://docs.astral.sh/uv/
