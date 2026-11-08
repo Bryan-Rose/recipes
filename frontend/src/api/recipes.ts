@@ -52,82 +52,42 @@ function explainUnknownTags(error: unknown): never {
   throw error
 }
 
-/** Recipes change the cookbooks' recipe_count, which the Lookups delete warning relies on. */
-const cookbooksKey = ['cookbooks'] as const
+export const useCreateRecipe = () =>
+  useMutation({ mutationFn: (recipe: RecipeCreate) => api.post<Recipe>('/recipes/', recipe).catch(explainUnknownTags) })
 
-export function useCreateRecipe() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (recipe: RecipeCreate) => api.post<Recipe>('/recipes/', recipe).catch(explainUnknownTags),
-    onSuccess: (created) => {
-      queryClient.setQueryData(recipeKeys.detail(created.id), created)
-      void queryClient.invalidateQueries({ queryKey: recipeKeys.all })
-      void queryClient.invalidateQueries({ queryKey: cookbooksKey })
-    },
-  })
-}
-
-export function useUpdateRecipe(id: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
+export const useUpdateRecipe = (id: number) =>
+  useMutation({
     mutationFn: (patch: RecipeUpdate) => api.patch<Recipe>(`/recipes/${id}`, patch).catch(explainUnknownTags),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(recipeKeys.detail(id), updated)
-      void queryClient.invalidateQueries({ queryKey: recipeKeys.all })
-      void queryClient.invalidateQueries({ queryKey: cookbooksKey })
-    },
   })
-}
 
 export function useDeleteRecipe() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => api.delete(`/recipes/${id}`),
-    onSuccess: (_result, id) => {
-      queryClient.removeQueries({ queryKey: recipeKeys.detail(id) })
-      void queryClient.invalidateQueries({ queryKey: recipeKeys.all })
-      void queryClient.invalidateQueries({ queryKey: cookbooksKey })
-    },
+    // Drop it rather than let the refresh after every mutation refetch it into a 404.
+    onSuccess: (_result, id) => queryClient.removeQueries({ queryKey: recipeKeys.detail(id) }),
   })
 }
 
 /**
- * Children are owned by a recipe, so every mutation on one invalidates that
- * recipe's detail query and lets the server hand back the new nested state.
- * This is the whole reason the edit page can skip a client-side diff engine.
+ * Children are owned by a recipe. After each change the refetched recipe
+ * (see queryClient.ts) carries the new nested state, which is the whole reason
+ * the edit page can skip a client-side diff engine.
  */
 function childHooks<TRead, TCreate, TUpdate>(segment: string) {
   return {
-    useCreate: (recipeId: number) => {
-      const queryClient = useQueryClient()
-      return useMutation({
-        mutationFn: (body: TCreate) => api.post<TRead>(`/recipes/${recipeId}/${segment}/`, body),
-        onSuccess: () => invalidate(queryClient, recipeId),
-      })
-    },
+    useCreate: (recipeId: number) =>
+      useMutation({ mutationFn: (body: TCreate) => api.post<TRead>(`/recipes/${recipeId}/${segment}/`, body) }),
 
-    useUpdate: (recipeId: number) => {
-      const queryClient = useQueryClient()
-      return useMutation({
+    useUpdate: (recipeId: number) =>
+      useMutation({
         mutationFn: ({ id, patch }: { id: number; patch: TUpdate }) =>
           api.patch<TRead>(`/recipes/${recipeId}/${segment}/${id}`, patch),
-        onSuccess: () => invalidate(queryClient, recipeId),
-      })
-    },
+      }),
 
-    useDelete: (recipeId: number) => {
-      const queryClient = useQueryClient()
-      return useMutation({
-        mutationFn: (id: number) => api.delete(`/recipes/${recipeId}/${segment}/${id}`),
-        onSuccess: () => invalidate(queryClient, recipeId),
-      })
-    },
+    useDelete: (recipeId: number) =>
+      useMutation({ mutationFn: (id: number) => api.delete(`/recipes/${recipeId}/${segment}/${id}`) }),
   }
-}
-
-function invalidate(queryClient: ReturnType<typeof useQueryClient>, recipeId: number) {
-  void queryClient.invalidateQueries({ queryKey: recipeKeys.detail(recipeId) })
-  void queryClient.invalidateQueries({ queryKey: recipeKeys.all })
 }
 
 const steps = childHooks<Step, StepCreate, { text: string }>('steps')
@@ -155,7 +115,6 @@ export function useReorderSteps(recipeId: number) {
         recipe && { ...recipe, steps: stepIds.flatMap((id) => recipe.steps.filter((step) => step.id === id)) },
       )
     },
-    onSettled: () => invalidate(queryClient, recipeId),
   })
 }
 

@@ -7,10 +7,9 @@
  * factory. Cookbooks are separate: they are created with an `author_id` but
  * read back with the whole author nested.
  */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { ApiError, api } from './client'
-import { recipeKeys } from './recipes'
 import type { Author, Cookbook, CookbookUpdate, Ingredient, Lookup, Measurement, Preparation, Tag } from './types'
 
 /**
@@ -29,59 +28,29 @@ const explainConflict = (message: string) => (error: unknown) => {
   throw error
 }
 
-/** Renames and deletes change names nested in recipes and cookbooks, so refetch those too. */
-function useInvalidateAfterEdit(key: readonly string[]) {
-  const queryClient = useQueryClient()
-  return () =>
-    Promise.all(
-      [key, ['cookbooks'], recipeKeys.all].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
-    )
-}
-
 /** `usedBy` names what holds a reference, for the 409 a delete of a row in use returns. */
 function lookupHooks<T extends Lookup>(resource: string, usedBy: string) {
   const key = [resource] as const
   const path = `/${resource}/`
 
   return {
-    useList: () =>
-      useQuery({
-        queryKey: key,
-        queryFn: () => api.get<T[]>(path),
-        // Lookup tables change rarely and are read by every picker on the page.
-        staleTime: 5 * 60 * 1000,
-      }),
+    useList: () => useQuery({ queryKey: key, queryFn: () => api.get<T[]>(path) }),
 
-    useCreate: () => {
-      const queryClient = useQueryClient()
-      return useMutation({
-        mutationFn: (name: string) => api.post<T>(path, { name }),
-        onSuccess: (created) => {
-          // Seed the cache directly so a picker can select the new row
-          // immediately, then refetch to stay honest about server ordering.
-          queryClient.setQueryData<T[]>(key, (current) => (current ? [...current, created] : [created]))
-          void queryClient.invalidateQueries({ queryKey: key })
-        },
-      })
-    },
+    // The new row is in the refetched list by the time this resolves (see queryClient.ts),
+    // so a picker can select it straight away.
+    useCreate: () => useMutation({ mutationFn: (name: string) => api.post<T>(path, { name }) }),
 
-    useUpdate: () => {
-      const onSuccess = useInvalidateAfterEdit(key)
-      return useMutation({
+    useUpdate: () =>
+      useMutation({
         mutationFn: ({ id, name }: { id: number; name: string }) =>
           api.patch<T>(`${path}${id}`, { name }).catch(explainConflict(`Another one is already called “${name}”.`)),
-        onSuccess,
-      })
-    },
+      }),
 
-    useDelete: () => {
-      const onSuccess = useInvalidateAfterEdit(key)
-      return useMutation({
+    useDelete: () =>
+      useMutation({
         mutationFn: (id: number) =>
           api.delete(`${path}${id}`).catch(explainConflict(`It’s still used by ${usedBy}, so it can’t be deleted.`)),
-        onSuccess,
-      })
-    },
+      }),
   }
 }
 
@@ -102,23 +71,16 @@ export const useAuthors = authors.useList
 export const useCreateAuthor = authors.useCreate
 
 export function useCookbooks() {
-  return useQuery({
-    queryKey: ['cookbooks'],
-    queryFn: () => api.get<Cookbook[]>('/cookbooks/'),
-    staleTime: 5 * 60 * 1000,
-  })
+  return useQuery({ queryKey: ['cookbooks'], queryFn: () => api.get<Cookbook[]>('/cookbooks/') })
 }
 
 export function useUpdateCookbook() {
-  const onSuccess = useInvalidateAfterEdit(['cookbooks'])
   return useMutation({
     mutationFn: ({ id, ...changes }: CookbookUpdate & { id: number }) => api.patch<Cookbook>(`/cookbooks/${id}`, changes),
-    onSuccess,
   })
 }
 
 /** The API unlinks the cookbook's recipes and clears their page numbers. */
 export function useDeleteCookbook() {
-  const onSuccess = useInvalidateAfterEdit(['cookbooks'])
-  return useMutation({ mutationFn: (id: number) => api.delete(`/cookbooks/${id}`), onSuccess })
+  return useMutation({ mutationFn: (id: number) => api.delete(`/cookbooks/${id}`) })
 }

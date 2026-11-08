@@ -13,7 +13,13 @@ export function createQueryClient(): QueryClient {
 
   const queryClient = new QueryClient({
     queryCache: new QueryCache({ onError: handleUnauthorized }),
-    mutationCache: new MutationCache({ onError: handleUnauthorized }),
+    mutationCache: new MutationCache({
+      onError: handleUnauthorized,
+      // A handful of users and a small dataset: refetching whatever is on screen after any change,
+      // even a failed one, is cheap and spares tracking what each mutation touches. Awaited, so a
+      // mutation resolves only once the screen's data is fresh.
+      onSettled: (): Promise<void> => queryClient.invalidateQueries(),
+    }),
     defaultOptions: {
       queries: {
         // A 404 or a validation error will never succeed on retry; only retry
