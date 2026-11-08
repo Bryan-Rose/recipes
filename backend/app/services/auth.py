@@ -69,29 +69,40 @@ class OidcLoginRefused(Exception):
     pass
 
 
-def claim(claims: dict, key: str) -> str:
+class OidcProfileMissing(Exception):
+    """A first login without the profile claims needed to name or match the user."""
+
+
+def _claim(claims: dict, key: str) -> str:
     """A string claim, trimmed; blank or missing is "" so `or` falls through to the next."""
     value = claims.get(key)
     return value.strip() if isinstance(value, str) else ""
 
 
-def resolve_oidc_user(db: Session, claims: dict, create_users: bool) -> User:
+def resolve_oidc_user(db: Session, claims: dict, create_users: bool, profile_complete: bool = True) -> User:
     """Finds the user for an IdP identity: by subject, then by unlinked username, else creates one.
 
     Linking by username trusts the IdP to control usernames, which holds for a
     self-hosted IdP that you administer.
+
+    `profile_complete=False` means the userinfo claims couldn't be fetched. A linked
+    user still signs in by subject, but a first login then needs `preferred_username`
+    in the ID token: some IdPs put the real username only on userinfo, so falling
+    back to the email or subject would create or link the wrong user.
     """
     subject = claims["sub"]
     user = db.execute(select(User).where(User.oidc_subject == subject)).scalar_one_or_none()
     if user is None:
-        username = claim(claims, "preferred_username") or claim(claims, "email") or subject
+        if not profile_complete and not _claim(claims, "preferred_username"):
+            raise OidcProfileMissing
+        username = _claim(claims, "preferred_username") or _claim(claims, "email") or subject
         user = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
         if user is not None:
             if user.oidc_subject is not None:
                 raise OidcLoginRefused(f"username {username!r} is linked to a different SSO account")
             user.oidc_subject = subject
         elif create_users:
-            user = User(username=username, full_name=claim(claims, "name") or username, oidc_subject=subject)
+            user = User(username=username, full_name=_claim(claims, "name") or username, oidc_subject=subject)
             db.add(user)
         else:
             raise OidcLoginRefused(f"no local user {username!r}")

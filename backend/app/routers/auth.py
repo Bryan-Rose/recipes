@@ -140,15 +140,11 @@ async def oidc_callback(
             extra = await client.userinfo(token=token)
         except httpx2.HTTPError as error:
             logger.warning("OIDC userinfo request failed: %s", error)
-            # Without preferred_username, a first login would create or link the user under
-            # the email or subject. Email doesn't count: on these IdPs userinfo has the real name.
-            if not auth_service.claim(claims, "preferred_username"):
-                raise
-            extra = {}
-        if extra.get("sub") == claims["sub"]:
+            extra = None
+        if extra is not None and extra.get("sub") == claims["sub"]:
             claims = {**extra, **claims}
-        user = auth_service.resolve_oidc_user(db, claims, settings.oidc_create_users)
-    except OAuthError, httpx2.HTTPError:
+        user = auth_service.resolve_oidc_user(db, claims, settings.oidc_create_users, profile_complete=extra is not None)
+    except OAuthError, httpx2.HTTPError, auth_service.OidcProfileMissing:
         return RedirectResponse("/login?error=sso_failed", status_code=status.HTTP_303_SEE_OTHER)
     except auth_service.OidcLoginRefused:
         return RedirectResponse("/login?error=sso_not_allowed", status_code=status.HTTP_303_SEE_OTHER)

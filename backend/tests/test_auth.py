@@ -339,7 +339,7 @@ def test_oidc_refuses_inactive_user(db_session: Session, cook: User):
 
 
 class FakeOidcClient:
-    def __init__(self, userinfo: dict, extra: dict | None = None, error: bool = False, userinfo_error: bool = False):
+    def __init__(self, userinfo: dict, extra: dict | None = None, error: Exception | None = None, userinfo_error: bool = False):
         self._userinfo, self._extra, self._error = userinfo, extra or {}, error
         self._userinfo_error = userinfo_error
 
@@ -348,7 +348,7 @@ class FakeOidcClient:
 
     async def authorize_access_token(self, request):
         if self._error:
-            raise OAuthError(error="access_denied")
+            raise self._error
         return {"userinfo": self._userinfo}
 
     async def userinfo(self, token):
@@ -429,8 +429,30 @@ def test_oidc_callback_without_preferred_username_fails_when_userinfo_fails(clie
     assert db_session.execute(select(User).where(User.oidc_subject == "s1")).scalar_one_or_none() is None
 
 
+def test_oidc_callback_signs_in_a_linked_user_without_preferred_username_when_userinfo_fails(client: TestClient, db_session: Session):
+    db_session.add(User(username="julia", full_name="Julia Child", oidc_subject="s1"))
+    db_session.commit()
+    _use_oidc(FakeOidcClient({"sub": "s1"}, userinfo_error=True))
+    client.cookies.clear()
+
+    response = client.get("/auth/oidc/callback", follow_redirects=False)
+
+    assert response.headers["location"] == "/"
+    assert client.get("/auth/me").json()["username"] == "julia"
+
+
+def test_oidc_callback_token_exchange_network_error_redirects_to_login(client: TestClient):
+    _use_oidc(FakeOidcClient({}, error=httpx2.ConnectError("connection refused")))
+    client.cookies.clear()
+
+    response = client.get("/auth/oidc/callback", follow_redirects=False)
+
+    assert response.headers["location"] == "/login?error=sso_failed"
+    assert SESSION_COOKIE not in client.cookies
+
+
 def test_oidc_callback_idp_error_redirects_to_login(client: TestClient):
-    _use_oidc(FakeOidcClient({}, error=True))
+    _use_oidc(FakeOidcClient({}, error=OAuthError(error="access_denied")))
     client.cookies.clear()
 
     response = client.get("/auth/oidc/callback", follow_redirects=False)

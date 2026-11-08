@@ -47,7 +47,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
   const [scalars, setScalars] = useState<RecipeScalars>(() => toScalars(recipe))
   // Trimmed as on save, so a saved padded name doesn't stay "unsaved".
   const isDirty = JSON.stringify({ ...scalars, name: scalars.name.trim() }) !== JSON.stringify(toScalars(recipe))
-  // The children save as they change; only the details form can hold unsaved edits.
+  // shortcut: checks only the details form; unsaved ingredient rows and new rows are still lost (#94).
   const mayLeave = () => !isDirty || confirm('Discard unsaved details?')
 
   function saveScalars(event: React.FormEvent) {
@@ -63,7 +63,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
           to={`/recipes/${recipe.id}`}
           onClick={(event) => {
             // A modified click opens a new tab and leaves this page and its edits in place.
-            const newTab = event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
+            const newTab = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
             if (!newTab && !mayLeave()) event.preventDefault()
           }}
         >
@@ -85,7 +85,8 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
       </div>
 
       <p className="muted" style={{ marginTop: '-0.75rem', marginBottom: '1.5rem' }}>
-        Ingredients, equipment, and steps save as you change them. The details below need the Save button.
+        Edited equipment and steps save as you change them. The details and ingredients need their Save
+        buttons, and new rows need Add.
       </p>
 
       <div className="stack">
