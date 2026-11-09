@@ -339,7 +339,7 @@ def test_oidc_refuses_inactive_user(db_session: Session, cook: User):
 
 
 class FakeOidcClient:
-    def __init__(self, userinfo: dict, extra: dict | None = None, error: Exception | None = None, userinfo_error: bool = False):
+    def __init__(self, userinfo: dict, extra: dict | None = None, error: Exception | None = None, userinfo_error: Exception | None = None):
         self._userinfo, self._extra, self._error = userinfo, extra or {}, error
         self._userinfo_error = userinfo_error
 
@@ -353,9 +353,12 @@ class FakeOidcClient:
 
     async def userinfo(self, token):
         if self._userinfo_error:
-            request = httpx2.Request("GET", "https://idp.example/userinfo")
-            raise httpx2.HTTPStatusError("Bad Gateway", request=request, response=httpx2.Response(502, request=request))
+            raise self._userinfo_error
         return self._extra
+
+
+_USERINFO_REQUEST = httpx2.Request("GET", "https://idp.example/userinfo")
+BAD_GATEWAY = httpx2.HTTPStatusError("Bad Gateway", request=_USERINFO_REQUEST, response=httpx2.Response(502, request=_USERINFO_REQUEST))
 
 
 def _use_oidc(client: FakeOidcClient) -> None:
@@ -403,7 +406,7 @@ def test_oidc_callback_ignores_userinfo_for_a_different_subject(client: TestClie
 
 
 def test_oidc_callback_signs_in_when_userinfo_fails(client: TestClient):
-    _use_oidc(FakeOidcClient({"sub": "s1", "preferred_username": "julia"}, userinfo_error=True))
+    _use_oidc(FakeOidcClient({"sub": "s1", "preferred_username": "julia"}, userinfo_error=BAD_GATEWAY))
     client.cookies.clear()
 
     response = client.get("/auth/oidc/callback", follow_redirects=False)
@@ -412,9 +415,20 @@ def test_oidc_callback_signs_in_when_userinfo_fails(client: TestClient):
     assert client.get("/auth/me").json()["username"] == "julia"
 
 
-@pytest.mark.parametrize("id_token", [{"sub": "s1", "email": "julia@example.com"}, {"sub": "s1", "preferred_username": "  "}])
-def test_oidc_callback_without_preferred_username_fails_when_userinfo_fails(client: TestClient, db_session: Session, id_token: dict):
-    _use_oidc(FakeOidcClient(id_token, userinfo_error=True))
+@pytest.mark.parametrize(
+    "oidc_client",
+    [
+        FakeOidcClient({"sub": "s1", "email": "julia@example.com"}, userinfo_error=BAD_GATEWAY),
+        FakeOidcClient({"sub": "s1", "preferred_username": "  "}, userinfo_error=BAD_GATEWAY),
+        # Userinfo for another subject is discarded, so it counts as unavailable.
+        FakeOidcClient({"sub": "s1", "email": "julia@example.com"}, extra={"sub": "evil", "preferred_username": "julia"}),
+    ],
+    ids=["email only", "blank username", "userinfo for another subject"],
+)
+def test_oidc_callback_without_preferred_username_fails_without_userinfo(
+    client: TestClient, db_session: Session, oidc_client: FakeOidcClient
+):
+    _use_oidc(oidc_client)
     _use_settings(
         oidc_issuer="https://idp.example",
         oidc_client_id="recipes",
@@ -432,7 +446,7 @@ def test_oidc_callback_without_preferred_username_fails_when_userinfo_fails(clie
 def test_oidc_callback_signs_in_a_linked_user_without_preferred_username_when_userinfo_fails(client: TestClient, db_session: Session):
     db_session.add(User(username="julia", full_name="Julia Child", oidc_subject="s1"))
     db_session.commit()
-    _use_oidc(FakeOidcClient({"sub": "s1"}, userinfo_error=True))
+    _use_oidc(FakeOidcClient({"sub": "s1"}, userinfo_error=BAD_GATEWAY))
     client.cookies.clear()
 
     response = client.get("/auth/oidc/callback", follow_redirects=False)

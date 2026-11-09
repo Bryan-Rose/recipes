@@ -141,9 +141,11 @@ async def oidc_callback(
         except httpx2.HTTPError as error:
             logger.warning("OIDC userinfo request failed: %s", error)
             extra = None
-        if extra is not None and extra.get("sub") == claims["sub"]:
+        # Userinfo for another subject is discarded, so the profile counts as missing.
+        profile_complete = extra is not None and extra.get("sub") == claims["sub"]
+        if extra is not None and profile_complete:
             claims = {**extra, **claims}
-        user = auth_service.resolve_oidc_user(db, claims, settings.oidc_create_users, profile_complete=extra is not None)
+        user = auth_service.resolve_oidc_user(db, claims, settings.oidc_create_users, profile_complete=profile_complete)
     except OAuthError, httpx2.HTTPError, auth_service.OidcProfileMissing:
         return RedirectResponse("/login?error=sso_failed", status_code=status.HTTP_303_SEE_OTHER)
     except auth_service.OidcLoginRefused:
