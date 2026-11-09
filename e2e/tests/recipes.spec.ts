@@ -203,6 +203,7 @@ test('leaving with unsaved changes asks first, however you leave', async ({ page
     () => page.getByRole('button', { name: 'Done' }).click(),
     () => page.getByRole('link', { name: 'Lookups' }).click(),
     () => page.evaluate(() => history.back()),
+    () => page.getByRole('button', { name: 'Sign out' }).click(),
   ]
   for (const [i, leave] of leaves.entries()) {
     await leave()
@@ -211,11 +212,15 @@ test('leaving with unsaved changes asks first, however you leave', async ({ page
   await expect(page).toHaveURL(`/recipes/${id}/edit`)
   await expect(page.getByLabel('Servings')).toHaveValue('6')
   page.removeAllListeners('dialog')
+  // Still signed in after cancelling Sign out: the edit saves.
+  await page.getByRole('button', { name: 'Save details' }).click()
+  await expect(page.getByText('Unsaved changes')).toBeHidden()
+  await page.getByLabel('Servings').fill('8')
 
   page.once('dialog', (dialog) => void dialog.accept())
   await page.getByRole('link', { name: `← Back to ${name}` }).click()
   await expect(page).toHaveURL(`/recipes/${id}`)
-  await expect(page.getByLabel('Servings', { exact: true })).toHaveValue('4')
+  await expect(page.getByLabel('Servings', { exact: true })).toHaveValue('6')
 })
 
 test('a blank recipe name is refused and the old name kept', async ({ page, baseURL }) => {

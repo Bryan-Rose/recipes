@@ -1,9 +1,10 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import App from './App'
+import type { Recipe } from './api/types'
 import { renderWithProviders } from './test/render'
 import { server, signedIn, testUser } from './test/server'
 
@@ -112,5 +113,77 @@ describe('login page', () => {
     renderWithProviders(<App />, { route: `/login?error=${code}` })
 
     expect(await screen.findByText(message)).toBeInTheDocument()
+  })
+})
+
+describe('signing out', () => {
+  const recipe: Recipe = {
+    id: 7,
+    name: 'Soup',
+    created_user_id: 1,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    steps: [],
+    requirements: [],
+    recipe_ingredients: [],
+    tags: [],
+  }
+
+  function setup(answer: boolean) {
+    signedIn()
+    let loggedOut = 0
+    server.use(
+      http.post('/api/auth/logout', () => {
+        loggedOut++
+        return new HttpResponse(null, { status: 204 })
+      }),
+      http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
+      http.get('/api/cookbooks/', () => HttpResponse.json([])),
+    )
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(answer)
+    // jsdom can't navigate, so the post-logout reload is stubbed.
+    const replace = vi.fn()
+    vi.stubGlobal('location', { ...window.location, replace })
+    onTestFinished(() => {
+      confirm.mockRestore()
+      vi.unstubAllGlobals()
+    })
+    return { loggedOut: () => loggedOut, confirm, replace }
+  }
+
+  it('signs out and reloads', async () => {
+    const { loggedOut, replace } = setup(true)
+    const user = userEvent.setup()
+    renderWithProviders(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Sign out' }))
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/'))
+    expect(loggedOut()).toBe(1)
+  })
+
+  it('asks first with unsaved recipe edits, and stays signed in if cancelled', async () => {
+    const { loggedOut, confirm } = setup(false)
+    const user = userEvent.setup()
+    renderWithProviders(<App />, { route: '/recipes/7/edit' })
+
+    await user.type(await screen.findByLabelText('Name'), 'y')
+    await user.click(screen.getByRole('button', { name: 'Sign out' }))
+
+    expect(confirm).toHaveBeenCalledWith('Discard unsaved changes?')
+    expect(screen.getByLabelText('Name')).toHaveValue('Soupy')
+    expect(loggedOut()).toBe(0)
+  })
+
+  it('signs out once discarding unsaved recipe edits is confirmed', async () => {
+    const { loggedOut, replace } = setup(true)
+    const user = userEvent.setup()
+    renderWithProviders(<App />, { route: '/recipes/7/edit' })
+
+    await user.type(await screen.findByLabelText('Name'), 'y')
+    await user.click(screen.getByRole('button', { name: 'Sign out' }))
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/'))
+    expect(loggedOut()).toBe(1)
   })
 })
