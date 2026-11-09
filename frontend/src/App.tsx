@@ -5,6 +5,7 @@ import { useLogout, useMe } from './api/auth'
 import { describeError } from './api/errors'
 import { ErrorState, Loading } from './components/Feedback'
 import { Account } from './routes/Account'
+import { AuthorPage, CookbookIndex, CookbookPage } from './routes/Cookbooks'
 import { LoginPage } from './routes/LoginPage'
 import { Lookups } from './routes/Lookups'
 import { RecipeDetail } from './routes/RecipeDetail'
@@ -26,6 +27,7 @@ function App() {
           </Link>
           {user && (
             <div className="row">
+              <Link to="/cookbooks">Cookbooks</Link>
               <Link to="/lookups">Lookups</Link>
               {user.is_superuser && <Link to="/users">Users</Link>}
               <Link to="/account" className="muted">
@@ -62,6 +64,9 @@ function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
       <Route path="/recipes/new" element={<RecipeEdit />} />
       <Route path="/recipes/:recipeId" element={<RecipeDetail />} />
       <Route path="/recipes/:recipeId/edit" element={<RecipeEdit />} />
+      <Route path="/cookbooks" element={<CookbookIndex />} />
+      <Route path="/cookbooks/:cookbookId" element={<CookbookPage />} />
+      <Route path="/authors/:authorId" element={<AuthorPage />} />
       <Route path="/lookups/:kind?" element={<Lookups />} />
       <Route path="/account" element={<Account />} />
       <Route path="/logout" element={<SignOutRoute />} />

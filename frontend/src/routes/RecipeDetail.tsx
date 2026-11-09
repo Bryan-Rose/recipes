@@ -25,9 +25,17 @@ export function RecipeDetail() {
     recipe.inactive_cook_time && { label: 'Inactive', value: recipe.inactive_cook_time },
     recipe.cookbook && {
       label: 'From',
-      value: `${recipe.cookbook.name}${recipe.cookbook_page ? `, p. ${recipe.cookbook_page}` : ''}`,
+      value: (
+        <>
+          <Link to={`/cookbooks/${recipe.cookbook.id}`}>{recipe.cookbook.name}</Link>
+          {recipe.cookbook_page ? `, p. ${recipe.cookbook_page}` : ''}
+        </>
+      ),
     },
-    recipe.cookbook && { label: 'Author', value: recipe.cookbook.author.name },
+    recipe.cookbook && {
+      label: 'Author',
+      value: <Link to={`/authors/${recipe.cookbook.author.id}`}>{recipe.cookbook.author.name}</Link>,
+    },
     recipe.source_url && {
       label: 'Source',
       value: (
