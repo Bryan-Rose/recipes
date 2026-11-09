@@ -19,11 +19,13 @@ export const testUser: User = {
 
 export const passwordOnly: AuthConfig = { password_login: true, oidc: false, oidc_display_name: 'SSO' }
 
-/** Default: signed out, password login only, no recipes. */
+/** Default: signed out, password login only, no recipes or tags. */
 export const server = setupServer(
   http.get('/api/auth/config', () => HttpResponse.json(passwordOnly)),
   http.get('/api/auth/me', () => HttpResponse.json({ detail: 'Not signed in' }, { status: 401 })),
   http.get('/api/recipes/', () => HttpResponse.json([])),
+  // RecipeFields loads tags for its picker.
+  http.get('/api/tags/', () => HttpResponse.json([])),
 )
 
 export function signedIn(user: User = testUser) {

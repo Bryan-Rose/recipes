@@ -163,6 +163,7 @@ function toScalars(recipe: Recipe): RecipeScalars {
     servings: recipe.servings ?? null,
     notes: recipe.notes ?? null,
     source_url: recipe.source_url ?? null,
+    tag_ids: recipe.tags.map((tag) => tag.id).sort((a, b) => a - b),
   }
 }
 

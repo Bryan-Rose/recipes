@@ -18,6 +18,8 @@ export interface RecipeScalars {
   servings: number | null
   notes: string | null
   source_url: string | null
+  /** Sorted, so the edit form's dirty check ignores the order tags were picked in. */
+  tag_ids: number[]
 }
 
 export const emptyScalars: RecipeScalars = {
@@ -29,6 +31,7 @@ export const emptyScalars: RecipeScalars = {
   servings: null,
   notes: null,
   source_url: null,
+  tag_ids: [],
 }
 
 /**

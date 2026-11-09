@@ -76,6 +76,8 @@ export const usePreparations = preparations.useList
 export const useCreatePreparation = preparations.useCreate
 export const useAuthors = authors.useList
 export const useCreateAuthor = authors.useCreate
+export const useTags = tags.useList
+export const useCreateTag = tags.useCreate
 
 export function useCookbooks() {
   return useQuery({ queryKey: ['cookbooks'], queryFn: () => api.get<Cookbook[]>('/cookbooks/') })

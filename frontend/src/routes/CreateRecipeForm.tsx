@@ -57,7 +57,6 @@ export function CreateRecipeForm() {
         .map((row) => row.value.trim())
         .filter((text) => text !== '')
         .map((text) => ({ text })),
-      tag_ids: [],
     }
 
     // mutate(), not mutateAsync(): a failure shows through createRecipe.error.

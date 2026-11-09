@@ -47,6 +47,10 @@ export function RecipeList() {
   // A stale link to a cookbook with no recipes left shows everything rather than an unexplained empty list.
   const cookbookParam = params.get('cookbook') ?? ''
   const cookbookId = cookbooks.some((c) => String(c.id) === cookbookParam) ? cookbookParam : ''
+  const tags = [...new Map(recipes.flatMap((r) => r.tags.map((t) => [t.id, t] as const))).values()]
+  tags.sort((a, b) => a.name.localeCompare(b.name))
+  const tagParam = params.get('tag') ?? ''
+  const tagId = tags.some((t) => String(t.id) === tagParam) ? tagParam : ''
   const sort = params.get('sort') ?? ''
   const { compare } = SORTS[sort] ?? SORTS.name
 
@@ -55,6 +59,7 @@ export function RecipeList() {
   const needle = search.trim().toLowerCase()
   const visible = recipes
     .filter((recipe) => !cookbookId || String(recipe.cookbook?.id) === cookbookId)
+    .filter((recipe) => !tagId || recipe.tags.some((tag) => String(tag.id) === tagId))
     .filter(
       (recipe) =>
         !needle ||
@@ -85,6 +90,14 @@ export function RecipeList() {
               </option>
             ))}
           </select>
+          <select aria-label="Tag" value={tagId} onChange={(event) => setParam('tag', event.target.value)}>
+            <option value="">All tags</option>
+            {tags.map((tag) => (
+              <option key={tag.id} value={tag.id}>
+                {tag.name}
+              </option>
+            ))}
+          </select>
           <select
             aria-label="Sort by"
             value={SORTS[sort] ? sort : 'name'}
@@ -109,7 +122,7 @@ export function RecipeList() {
           No recipes yet. <Link to="/recipes/new">Add the first one.</Link>
         </p>
       ) : visible.length === 0 ? (
-        <p className="status">{search ? `Nothing matches “${search}”.` : 'No recipes in this cookbook.'}</p>
+        <p className="status">{search ? `Nothing matches “${search}”.` : 'No recipes match these filters.'}</p>
       ) : (
         <ul className="recipe-grid" aria-label="Recipes">
           {visible.map((recipe) => {
@@ -129,6 +142,15 @@ export function RecipeList() {
                       {recipe.cookbook.author.name}
                     </Link>
                   </span>
+                )}
+                {recipe.tags.length > 0 && (
+                  <ul className="tag-list" aria-label={`${recipe.name} tags`}>
+                    {recipe.tags.map((tag) => (
+                      <li key={tag.id} className="tag">
+                        <Link to={`/?tag=${tag.id}`}>{tag.name}</Link>
+                      </li>
+                    ))}
+                  </ul>
                 )}
                 <span className="recipe-card__stats">
                   <span>{recipe.recipe_ingredients.length} ingredients</span>

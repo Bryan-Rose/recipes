@@ -1,5 +1,6 @@
-import { useCookbooks } from '../api/lookups'
+import { useCookbooks, useCreateTag, useTags } from '../api/lookups'
 import type { RecipeScalars } from './drafts'
+import { LookupPicker } from './LookupPicker'
 
 interface RecipeFieldsProps {
   value: RecipeScalars
@@ -8,6 +9,8 @@ interface RecipeFieldsProps {
 
 export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
   const { data: cookbooks } = useCookbooks()
+  const { data: tags } = useTags()
+  const createTag = useCreateTag()
 
   function set<K extends keyof RecipeScalars>(key: K, next: RecipeScalars[K]) {
     onChange({ ...value, [key]: next })
@@ -117,6 +120,40 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
           onChange={(event) => set('source_url', orNull(event.target.value))}
           placeholder="https://example.com/recipe"
         />
+      </div>
+
+      <div>
+        {/* Picking a tag adds it, so the picker always shows "Select tag…". It lists the picked tags
+            too, so that typing an existing name as a new tag finds it instead of getting a 409. */}
+        <LookupPicker
+          label="Tag"
+          options={tags}
+          value={null}
+          onChange={(id) =>
+            id !== null && !value.tag_ids.includes(id) && set('tag_ids', [...value.tag_ids, id].sort((a, b) => a - b))
+          }
+          onCreate={(name) => createTag.mutateAsync(name)}
+        />
+        {value.tag_ids.length > 0 && (
+          <ul className="tag-list" aria-label="Tags">
+            {value.tag_ids.map((id) => {
+              const name = tags?.find((tag) => tag.id === id)?.name ?? '…'
+              return (
+                <li key={id} className="tag">
+                  {name}
+                  <button
+                    type="button"
+                    className="ghost tag__remove"
+                    aria-label={`Remove tag ${name}`}
+                    onClick={() => set('tag_ids', value.tag_ids.filter((other) => other !== id))}
+                  >
+                    ×
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </div>
 
       <div className="field">
