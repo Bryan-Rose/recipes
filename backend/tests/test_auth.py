@@ -158,13 +158,19 @@ def test_successful_login_resets_failures(client: TestClient, cook: User):
 ## Sessions
 
 
+def _use_session(client: TestClient, token: str) -> None:
+    # Clear first: set() adds a second cookie beside the server-set one (other domain), and both get sent.
+    client.cookies.clear()
+    client.cookies.set(SESSION_COOKIE, token)
+
+
 def test_logout_revokes_the_session(client: TestClient, cook: User):
     _login(client)
     token = client.cookies[SESSION_COOKIE]
 
     assert client.post("/auth/logout").status_code == 204
 
-    client.cookies.set(SESSION_COOKIE, token)
+    _use_session(client, token)
     assert client.get("/auth/me").status_code == 401
 
 
@@ -236,7 +242,7 @@ def test_change_password_signs_out_other_sessions(client: TestClient, cook: User
 
     assert response.status_code == 204
     assert client.get("/auth/me").status_code == 200
-    client.cookies.set(SESSION_COOKIE, other_token)
+    _use_session(client, other_token)
     assert client.get("/auth/me").status_code == 401
     assert _login(client, password="battery staple").status_code == 204
 
@@ -245,13 +251,13 @@ def test_admin_password_reset_signs_the_user_out(client: TestClient, cook: User)
     admin_token = client.cookies[SESSION_COOKIE]
     _login(client)
     cook_token = client.cookies[SESSION_COOKIE]
-    client.cookies.set(SESSION_COOKIE, admin_token)
+    _use_session(client, admin_token)
 
     response = client.patch(f"/users/{cook.id}", json={"password": "battery staple"})
 
     assert response.status_code == 200
     assert client.get("/auth/me").status_code == 200
-    client.cookies.set(SESSION_COOKIE, cook_token)
+    _use_session(client, cook_token)
     assert client.get("/auth/me").status_code == 401
     assert _login(client, password="battery staple").status_code == 204
 
@@ -267,11 +273,11 @@ def test_admin_update_without_password_keeps_sessions(client: TestClient, cook: 
     admin_token = client.cookies[SESSION_COOKIE]
     _login(client)
     cook_token = client.cookies[SESSION_COOKIE]
-    client.cookies.set(SESSION_COOKIE, admin_token)
+    _use_session(client, admin_token)
 
     assert client.patch(f"/users/{cook.id}", json={"full_name": "Chef"}).status_code == 200
 
-    client.cookies.set(SESSION_COOKIE, cook_token)
+    _use_session(client, cook_token)
     assert client.get("/auth/me").status_code == 200
 
 
