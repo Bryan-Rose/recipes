@@ -31,13 +31,17 @@ _FILLER = re.compile(r"[\s,.]*(and)?[\s,.]*", re.IGNORECASE)
 
 def parse_minutes(text: str) -> tuple[int | None, bool]:
     """Minutes in the text, and whether the text said nothing else."""
-    if text.strip().isdigit():
-        minutes = int(text)
-        return (minutes, True) if minutes <= MAX_INT else (None, False)
-    terms = list(_TERM.finditer(text))
-    if not terms:
+    # A crash here would stop the backend starting, so odd input ("²", a 400-digit number) is just unreadable.
+    try:
+        if text.strip().isdigit():
+            minutes = int(text)
+            return (minutes, True) if minutes <= MAX_INT else (None, False)
+        terms = list(_TERM.finditer(text))
+        if not terms:
+            return None, False
+        minutes = round(sum(float(t[1]) * _PER_UNIT[t[2][0].lower()] for t in terms))
+    except ValueError, OverflowError:
         return None, False
-    minutes = round(sum(float(t[1]) * _PER_UNIT[t[2][0].lower()] for t in terms))
     clean = all(_FILLER.fullmatch(part) for part in _TERM.split(text)[::3])
     return (minutes, clean) if minutes <= MAX_INT else (None, False)
 

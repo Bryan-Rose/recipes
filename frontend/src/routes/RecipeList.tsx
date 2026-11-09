@@ -45,7 +45,8 @@ export function RecipeList() {
   const cookbooks = [...new Map(recipes.flatMap((r) => (r.cookbook ? [[r.cookbook.id, r.cookbook]] : []))).values()]
   cookbooks.sort((a, b) => a.name.localeCompare(b.name))
   // A stale link to a cookbook with no recipes left shows everything rather than an unexplained empty list.
-  const cookbookId = cookbooks.some((c) => String(c.id) === params.get('cookbook')) ? params.get('cookbook')! : ''
+  const cookbookParam = params.get('cookbook') ?? ''
+  const cookbookId = cookbooks.some((c) => String(c.id) === cookbookParam) ? cookbookParam : ''
   const sort = params.get('sort') ?? ''
   const { compare } = SORTS[sort] ?? SORTS.name
 

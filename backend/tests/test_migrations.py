@@ -249,6 +249,7 @@ def test_cook_times_become_minutes(alembic_config: Config):
         ("2-3 hours", "overnight", "Chill well"),
         (None, None, None),
         ("45", "", None),
+        ("²", "9" * 400 + " minutes", None),
     ]
     with engine.begin() as connection:
         connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
@@ -270,10 +271,12 @@ def test_cook_times_become_minutes(alembic_config: Config):
             (180, "integer", None, "Chill well\nActive time: 2-3 hours\nInactive time: overnight"),
             (None, "null", None, None),
             (45, "integer", None, None),  # blank was never a time
+            (None, "null", None, f"Active time: ²\nInactive time: {'9' * 400} minutes"),
         ]
 
     command.downgrade(alembic_config, "b4941c86400e")
     with engine.connect() as connection:
         rows = connection.execute(text("SELECT active_cook_time, inactive_cook_time FROM recipes ORDER BY id")).all()
         assert rows[:2] == [("20 minutes", "0 minutes"), ("75 minutes", "150 minutes")]
+        assert rows[4] == ("45 minutes", None)
     engine.dispose()
