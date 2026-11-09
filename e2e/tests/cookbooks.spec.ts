@@ -19,8 +19,14 @@ test('browse from a recipe card to its cookbook and author', async ({ page, base
   await page.goto('/')
   await signIn(page, COOK)
 
-  // Anywhere on the card but its links opens the recipe: here, its page number and its stats.
   const card = page.getByRole('listitem').filter({ hasText: `E2E Late ${suffix}` })
+  // Keyboard focus on the title rings the whole card. Shift+Tab back from the cookbook link is a keyboard move.
+  await card.getByRole('link', { name: book.name }).focus()
+  await page.keyboard.press('Shift+Tab')
+  await expect(card.getByRole('link', { name: `E2E Late ${suffix}` })).toBeFocused()
+  await expect(card).toHaveCSS('outline-style', 'solid')
+
+  // Anywhere on the card but its links opens the recipe: here, its page number and its stats.
   // The page number is a bare text node beside the cookbook link, so click its own box.
   const pageNoBox = await card.locator('.recipe-card__meta').evaluate((meta) => {
     const range = document.createRange()
