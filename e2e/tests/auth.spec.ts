@@ -38,11 +38,14 @@ test('a failed sign out says so and can be retried', async ({ page }) => {
   await page.goto('/')
   await signIn(page, COOK)
 
-  await page.route('**/api/auth/logout', (route) => route.fulfill({ status: 503, json: { detail: 'Server unavailable' } }), {
-    times: 1,
-  })
+  // A flag rather than { times: 1 }: with that, the /auth/me refetch after the 503 once hung in CI.
+  let fail = true
+  await page.route('**/api/auth/logout', (route) =>
+    fail ? route.fulfill({ status: 503, json: { detail: 'Server unavailable' } }) : route.continue(),
+  )
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page.getByText(/Couldn’t sign out/)).toBeVisible()
+  fail = false
 
   await page.getByRole('button', { name: 'Try again' }).click()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
