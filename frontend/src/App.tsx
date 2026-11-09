@@ -1,6 +1,8 @@
-import { Link, Navigate, Route, Routes } from 'react-router'
+import { useEffect } from 'react'
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 
 import { useLogout, useMe } from './api/auth'
+import { describeError } from './api/errors'
 import { ErrorState, Loading } from './components/Feedback'
 import { Account } from './routes/Account'
 import { LoginPage } from './routes/LoginPage'
@@ -13,7 +15,7 @@ import './App.css'
 
 function App() {
   const { data: user, isPending, error } = useMe()
-  const logout = useLogout()
+  const navigate = useNavigate()
 
   return (
     <>
@@ -29,7 +31,7 @@ function App() {
               <Link to="/account" className="muted">
                 {user.full_name}
               </Link>
-              <button type="button" className="ghost" onClick={() => logout.mutate()} disabled={logout.isPending}>
+              <button type="button" className="ghost" onClick={() => void navigate('/logout', { state: SIGN_OUT })}>
                 Sign out
               </button>
             </div>
@@ -62,9 +64,38 @@ function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
       <Route path="/recipes/:recipeId/edit" element={<RecipeEdit />} />
       <Route path="/lookups/:kind?" element={<Lookups />} />
       <Route path="/account" element={<Account />} />
+      <Route path="/logout" element={<SignOutRoute />} />
       <Route path="/users" element={isAdmin ? <UserAdmin /> : <NotFound />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
+  )
+}
+
+/** History state that only the header's Sign out sets, so a link to /logout signs nobody out. */
+const SIGN_OUT = 'sign-out'
+
+/**
+ * A route, not a click handler, so leaving the page (and its unsaved-edit guard) comes first.
+ * Without the header's state (a typed or linked /logout, or signing in there) it goes home.
+ */
+function SignOutRoute() {
+  return useLocation().state === SIGN_OUT ? <SignOut /> : <Navigate to="/" replace />
+}
+
+function SignOut() {
+  const { mutate, error } = useLogout()
+  useEffect(() => {
+    mutate()
+  }, [mutate])
+
+  if (!error) return <p className="status">Signing out…</p>
+  return (
+    <div className="status">
+      <p className="error-box">Couldn’t sign out: {describeError(error)}</p>
+      <button type="button" style={{ marginTop: '1rem' }} onClick={() => mutate()}>
+        Try again
+      </button>
+    </div>
   )
 }
 

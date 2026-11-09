@@ -46,7 +46,8 @@ export function useLogout() {
     mutationFn: () => api.post<void>('/auth/logout', undefined),
     // A full reload drops every cached query from the old session. The refresh after every
     // mutation (queryClient.ts) still fires first and gets 401s, which is harmless here.
-    onSuccess: () => window.location.assign('/'),
+    // replace(), so Back doesn't return to /logout.
+    onSuccess: () => window.location.replace('/'),
   })
 }
 

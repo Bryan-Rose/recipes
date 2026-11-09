@@ -34,6 +34,34 @@ test('sign in, see the recipes, sign out', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 })
 
+test('a failed sign out says so and can be retried', async ({ page }) => {
+  await page.goto('/')
+  await signIn(page, COOK)
+
+  // A flag rather than { times: 1 }: with that, the /auth/me refetch after the 503 once hung in CI.
+  let fail = true
+  await page.route('**/api/auth/logout', (route) =>
+    fail ? route.fulfill({ status: 503, json: { detail: 'Server unavailable' } }) : route.continue(),
+  )
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await expect(page.getByText(/Couldn’t sign out/)).toBeVisible()
+  fail = false
+
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+})
+
+test('opening /logout directly signs nobody out, before or after signing in', async ({ page }) => {
+  await page.goto('/logout')
+  await signIn(page, COOK)
+  await expect(page).toHaveURL('/')
+
+  await page.goto('/logout')
+  await expect(page).toHaveURL('/')
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+})
+
 test('a deep link opens straight to its page after signing in', async ({ page }) => {
   await page.goto('/recipes/new')
   await signIn(page, COOK)
