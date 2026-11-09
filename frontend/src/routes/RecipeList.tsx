@@ -52,23 +52,26 @@ export function RecipeList() {
       ) : (
         <ul className="recipe-grid">
           {visible.map((recipe) => (
-            <li key={recipe.id}>
-              <Link to={`/recipes/${recipe.id}`} className="card recipe-card">
-                <span className="recipe-card__title">{recipe.name}</span>
-                {recipe.cookbook && (
-                  <span className="recipe-card__meta">
-                    {recipe.cookbook.name}
-                    {recipe.cookbook_page ? `, p. ${recipe.cookbook_page}` : ''}
-                    <br />
-                    <span className="muted">{recipe.cookbook.author.name}</span>
-                  </span>
-                )}
-                <span className="recipe-card__stats">
-                  <span>{recipe.recipe_ingredients.length} ingredients</span>
-                  <span>{recipe.steps.length} steps</span>
-                  {recipe.active_cook_time && <span>{recipe.active_cook_time} active</span>}
-                </span>
+            <li key={recipe.id} className="card recipe-card">
+              {/* The title link stretches over the card; the cookbook and author links sit above it. */}
+              <Link to={`/recipes/${recipe.id}`} className="recipe-card__title">
+                {recipe.name}
               </Link>
+              {recipe.cookbook && (
+                <span className="recipe-card__meta">
+                  <Link to={`/cookbooks/${recipe.cookbook.id}`}>{recipe.cookbook.name}</Link>
+                  {recipe.cookbook_page ? `, p. ${recipe.cookbook_page}` : ''}
+                  <br />
+                  <Link to={`/authors/${recipe.cookbook.author.id}`} className="muted">
+                    {recipe.cookbook.author.name}
+                  </Link>
+                </span>
+              )}
+              <span className="recipe-card__stats">
+                <span>{recipe.recipe_ingredients.length} ingredients</span>
+                <span>{recipe.steps.length} steps</span>
+                {recipe.active_cook_time && <span>{recipe.active_cook_time} active</span>}
+              </span>
             </li>
           ))}
         </ul>

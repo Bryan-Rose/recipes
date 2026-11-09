@@ -194,7 +194,7 @@ describe('lookups', () => {
     await user.click(await screen.findByRole('link', { name: /Boeuf/ }))
     await user.click(await screen.findByRole('button', { name: 'Delete' }))
     await user.click(await screen.findByRole('link', { name: 'Lookups' }))
-    await user.click(await screen.findByRole('link', { name: 'Cookbooks' }))
+    await user.click(within(await screen.findByRole('navigation', { name: 'Lookup types' })).getByRole('link', { name: 'Cookbooks' }))
 
     expect(await screen.findByText(/0 recipes$/)).toBeInTheDocument()
   })

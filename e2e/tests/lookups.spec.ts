@@ -33,7 +33,7 @@ test('a cook renames an author, deletes the cookbook in use, then the author', a
   await expect(renamed.getByText('It’s still used by a cookbook, so it can’t be deleted.')).toBeVisible()
 
   // The cookbook delete names the recipe it unlinks.
-  await page.getByRole('link', { name: 'Cookbooks' }).click()
+  await page.getByRole('navigation', { name: 'Lookup types' }).getByRole('link', { name: 'Cookbooks' }).click()
   const bookRow = page.getByRole('listitem', { name: book.name, exact: true })
   await expect(bookRow.getByText(`E2E Author ${suffix} · 1 recipe`)).toBeVisible()
   let message = ''

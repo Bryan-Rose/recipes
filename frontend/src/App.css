@@ -141,6 +141,7 @@
 }
 
 .recipe-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -151,19 +152,28 @@
   transition: border-color 0.12s ease, transform 0.12s ease;
 }
 
-.recipe-card:hover {
+.recipe-card:has(.recipe-card__title:hover) {
   border-color: var(--accent);
   transform: translateY(-1px);
   color: inherit;
 }
 
 .recipe-card__title {
+  color: inherit;
+  text-decoration: none;
   font-family: var(--font-display);
   font-size: 1.15rem;
   font-weight: 600;
 }
 
+.recipe-card__title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
 .recipe-card__meta {
+  position: relative; /* above the title's overlay, so its links stay clickable */
   font-size: 0.85rem;
   color: var(--text-muted);
 }
@@ -176,6 +186,25 @@
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.browse-list {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+}
+
+.browse-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+}
+
+.browse-item__page {
+  min-width: 3.5rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .search-input {
