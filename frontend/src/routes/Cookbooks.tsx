@@ -101,6 +101,7 @@ function CookbookRecipes({ cookbook, recipes }: { cookbook: Cookbook; recipes: R
   const inBook = recipes
     .filter((recipe) => recipe.cookbook?.id === cookbook.id)
     .sort(
+      // Two unpaged recipes give Infinity - Infinity = NaN, which is falsy, so they fall through to the name.
       (a, b) =>
         (a.cookbook_page ?? Infinity) - (b.cookbook_page ?? Infinity) || a.name.localeCompare(b.name),
     )

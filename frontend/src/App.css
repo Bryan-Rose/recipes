@@ -173,9 +173,13 @@
 }
 
 .recipe-card__meta {
-  position: relative; /* above the title's overlay, so its links stay clickable */
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+/* Only the links sit above the title's overlay; the rest of the card opens the recipe. */
+.recipe-card__meta a {
+  position: relative;
 }
 
 .recipe-card__stats {

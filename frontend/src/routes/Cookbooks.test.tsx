@@ -106,6 +106,11 @@ describe('browsing by cookbook', () => {
     expect(await screen.findByRole('heading', { name: 'No such cookbook' })).toBeInTheDocument()
   })
 
+  it('says so for an unknown author', async () => {
+    renderWithProviders(<App />, { route: '/authors/99' })
+    expect(await screen.findByRole('heading', { name: 'No such author' })).toBeInTheDocument()
+  })
+
   it('says so for an author without cookbooks', async () => {
     server.use(http.get('/api/authors/', () => HttpResponse.json([{ id: 3, name: 'Nobody' }])))
     renderWithProviders(<App />, { route: '/authors/3' })
