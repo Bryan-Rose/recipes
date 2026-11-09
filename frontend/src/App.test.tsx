@@ -185,6 +185,30 @@ describe('signing out', () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/'))
   })
 
+  it('does not sign out from a /logout reached any other way, even by signing in there', async () => {
+    const { loggedOut } = setup(true)
+    let signedInNow = false
+    server.use(
+      http.post('/api/auth/login', () => {
+        signedInNow = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+      http.get('/api/auth/me', () =>
+        signedInNow ? HttpResponse.json(testUser) : HttpResponse.json({ detail: 'Not signed in' }, { status: 401 }),
+      ),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<App />, { route: '/logout' })
+
+    await user.type(await screen.findByLabelText('Username'), 'cook')
+    await user.type(screen.getByLabelText('Password'), 'secret')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByRole('heading', { name: 'Recipes' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
+    expect(loggedOut()).toBe(0)
+  })
+
   it('asks first with unsaved recipe edits, and stays signed in if cancelled', async () => {
     const { loggedOut, confirm } = setup(false)
     const user = userEvent.setup()

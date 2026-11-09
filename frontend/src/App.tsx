@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Link, Navigate, Route, Routes, useNavigate } from 'react-router'
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 
 import { useLogout, useMe } from './api/auth'
 import { describeError } from './api/errors'
@@ -31,7 +31,7 @@ function App() {
               <Link to="/account" className="muted">
                 {user.full_name}
               </Link>
-              <button type="button" className="ghost" onClick={() => void navigate('/logout')}>
+              <button type="button" className="ghost" onClick={() => void navigate('/logout', { state: SIGN_OUT })}>
                 Sign out
               </button>
             </div>
@@ -64,14 +64,24 @@ function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
       <Route path="/recipes/:recipeId/edit" element={<RecipeEdit />} />
       <Route path="/lookups/:kind?" element={<Lookups />} />
       <Route path="/account" element={<Account />} />
-      <Route path="/logout" element={<SignOut />} />
+      <Route path="/logout" element={<SignOutRoute />} />
       <Route path="/users" element={isAdmin ? <UserAdmin /> : <NotFound />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }
 
-/** A route, not a click handler, so leaving the page (and its unsaved-edit guard) comes first. */
+/** History state that only the header's Sign out sets, so a link to /logout signs nobody out. */
+const SIGN_OUT = 'sign-out'
+
+/**
+ * A route, not a click handler, so leaving the page (and its unsaved-edit guard) comes first.
+ * Without the header's state (a typed or linked /logout, or signing in there) it goes home.
+ */
+function SignOutRoute() {
+  return useLocation().state === SIGN_OUT ? <SignOut /> : <Navigate to="/" replace />
+}
+
 function SignOut() {
   const { mutate, error } = useLogout()
   useEffect(() => {

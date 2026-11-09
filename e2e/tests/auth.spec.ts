@@ -48,6 +48,17 @@ test('a failed sign out says so and can be retried', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 })
 
+test('opening /logout directly signs nobody out, before or after signing in', async ({ page }) => {
+  await page.goto('/logout')
+  await signIn(page, COOK)
+  await expect(page).toHaveURL('/')
+
+  await page.goto('/logout')
+  await expect(page).toHaveURL('/')
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+})
+
 test('a deep link opens straight to its page after signing in', async ({ page }) => {
   await page.goto('/recipes/new')
   await signIn(page, COOK)
