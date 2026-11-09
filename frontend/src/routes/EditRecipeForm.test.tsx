@@ -1,13 +1,15 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { Route, Routes } from 'react-router'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import App from '../App'
 import type { Recipe } from '../api/types'
 import { renderWithProviders } from '../test/render'
 import { server, signedIn } from '../test/server'
 import { EditRecipeForm } from './EditRecipeForm'
+import { RecipeEdit } from './RecipeEdit'
 
 const recipe: Recipe = {
   id: 7,
@@ -505,5 +507,110 @@ describe('reordering steps', () => {
     renderWithProviders(<EditRecipeForm recipe={{ ...twoSteps, requirements: [{ id: 9, name: 'Pot' }] }} />)
 
     expect(screen.queryByRole('button', { name: /Move You’ll need/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('leaving the recipe editor', () => {
+  beforeEach(() => {
+    server.use(http.get('/api/cookbooks/', () => HttpResponse.json([])))
+  })
+
+  function show() {
+    renderWithProviders(
+      <Routes>
+        <Route path="/recipes/7/edit" element={<EditRecipeForm recipe={recipe} />} />
+        <Route path="/recipes/7" element={<p>Recipe page</p>} />
+      </Routes>,
+      { route: '/recipes/7/edit' },
+    )
+  }
+
+  function mockConfirm(answer: boolean) {
+    const spy = vi.spyOn(window, 'confirm').mockReturnValue(answer)
+    onTestFinished(() => spy.mockRestore())
+    return spy
+  }
+
+  it('leaves without asking when the details are saved', async () => {
+    const confirm = mockConfirm(false)
+    const user = userEvent.setup()
+    show()
+
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+
+    expect(screen.getByText('Recipe page')).toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['Done', 'button'],
+    ['← Back to Soup', 'link'],
+  ] as const)('stays on %s when discarding unsaved details is cancelled', async (name, role) => {
+    const confirm = mockConfirm(false)
+    const user = userEvent.setup()
+    show()
+
+    await user.type(screen.getByLabelText('Name'), 'y')
+    await user.click(screen.getByRole(role, { name }))
+
+    expect(confirm).toHaveBeenCalledWith('Discard unsaved details?')
+    expect(screen.getByLabelText('Name')).toHaveValue('Soupy')
+  })
+
+  it('leaves without asking after saving a name with surrounding spaces', async () => {
+    const confirm = mockConfirm(false)
+    let saved = recipe
+    server.use(
+      http.patch('/api/recipes/7', async ({ request }) => {
+        const body = (await request.json()) as { name: string }
+        saved = { ...recipe, name: body.name.trim() }
+        return HttpResponse.json(saved)
+      }),
+      http.get('/api/recipes/7', () => HttpResponse.json(saved)),
+    )
+    const user = userEvent.setup()
+    // Through RecipeEdit, so the form gets the refetched recipe after the save.
+    renderWithProviders(
+      <Routes>
+        <Route path="/recipes/:recipeId/edit" element={<RecipeEdit />} />
+        <Route path="/recipes/7" element={<p>Recipe page</p>} />
+      </Routes>,
+      { route: '/recipes/7/edit' },
+    )
+
+    await user.type(await screen.findByLabelText('Name'), 'y ')
+    await user.click(screen.getByRole('button', { name: 'Save details' }))
+    await waitFor(() => expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+
+    expect(screen.getByText('Recipe page')).toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('does not ask on a ctrl-click of the back link, which opens a new tab', async () => {
+    const confirm = mockConfirm(false)
+    const user = userEvent.setup()
+    show()
+
+    await user.type(screen.getByLabelText('Name'), 'y')
+    await user.keyboard('{Control>}')
+    await user.click(screen.getByRole('link', { name: '← Back to Soup' }))
+    await user.keyboard('{/Control}')
+
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['Done', 'button'],
+    ['← Back to Soup', 'link'],
+  ] as const)('leaves on %s once discarding unsaved details is confirmed', async (name, role) => {
+    mockConfirm(true)
+    const user = userEvent.setup()
+    show()
+
+    await user.type(screen.getByLabelText('Name'), 'y')
+    await user.click(screen.getByRole(role, { name }))
+
+    expect(screen.getByText('Recipe page')).toBeInTheDocument()
   })
 })

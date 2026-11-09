@@ -1,5 +1,7 @@
+import logging
 import time
 
+import httpx2
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -13,6 +15,8 @@ from app.schemas.auth import AuthConfig, LoginRequest, PasswordChange
 from app.schemas.user import UserRead
 from app.services import auth as auth_service
 from app.services.users import verify_password
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -131,11 +135,18 @@ async def oidc_callback(
         claims = dict(token["userinfo"])
         # Some IdPs (e.g. Authelia) only put profile claims on the userinfo endpoint.
         # The spec forbids using userinfo whose sub differs from the ID token's.
-        extra = await client.userinfo(token=token)
-        if extra.get("sub") == claims["sub"]:
+        # httpx2, not httpx: Authlib uses httpx2 whenever it is installed.
+        try:
+            extra = await client.userinfo(token=token)
+        except httpx2.HTTPError as error:
+            logger.warning("OIDC userinfo request failed: %s", error)
+            extra = None
+        # Userinfo for another subject is discarded, so the profile counts as missing.
+        profile_complete = extra is not None and extra.get("sub") == claims["sub"]
+        if extra is not None and profile_complete:
             claims = {**extra, **claims}
-        user = auth_service.resolve_oidc_user(db, claims, settings.oidc_create_users)
-    except OAuthError:
+        user = auth_service.resolve_oidc_user(db, claims, settings.oidc_create_users, profile_complete=profile_complete)
+    except OAuthError, httpx2.HTTPError, auth_service.OidcProfileMissing:
         return RedirectResponse("/login?error=sso_failed", status_code=status.HTTP_303_SEE_OTHER)
     except auth_service.OidcLoginRefused:
         return RedirectResponse("/login?error=sso_not_allowed", status_code=status.HTTP_303_SEE_OTHER)

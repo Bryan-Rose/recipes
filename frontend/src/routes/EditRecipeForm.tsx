@@ -45,7 +45,10 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
   const reorderSteps = useReorderSteps(recipe.id)
 
   const [scalars, setScalars] = useState<RecipeScalars>(() => toScalars(recipe))
-  const isDirty = JSON.stringify(scalars) !== JSON.stringify(toScalars(recipe))
+  // Trimmed as on save, so a saved padded name doesn't stay "unsaved".
+  const isDirty = JSON.stringify({ ...scalars, name: scalars.name.trim() }) !== JSON.stringify(toScalars(recipe))
+  // shortcut: checks only the details form; unsaved ingredient rows and new rows are still lost (#94).
+  const mayLeave = () => !isDirty || confirm('Discard unsaved details?')
 
   function saveScalars(event: React.FormEvent) {
     event.preventDefault()
@@ -56,18 +59,34 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
   return (
     <>
       <p style={{ marginTop: 0 }}>
-        <Link to={`/recipes/${recipe.id}`}>← Back to {recipe.name}</Link>
+        <Link
+          to={`/recipes/${recipe.id}`}
+          onClick={(event) => {
+            // A modified click opens a new tab and leaves this page and its edits in place.
+            const newTab = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
+            if (!newTab && !mayLeave()) event.preventDefault()
+          }}
+        >
+          ← Back to {recipe.name}
+        </Link>
       </p>
 
       <div className="page-header">
         <h1>Edit recipe</h1>
-        <button type="button" className="primary" onClick={() => void navigate(`/recipes/${recipe.id}`)}>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => {
+            if (mayLeave()) void navigate(`/recipes/${recipe.id}`)
+          }}
+        >
           Done
         </button>
       </div>
 
       <p className="muted" style={{ marginTop: '-0.75rem', marginBottom: '1.5rem' }}>
-        Ingredients, equipment, and steps save as you change them. The details below need the Save button.
+        Edited equipment and steps save as you change them. The details and ingredients need their Save
+        buttons, and new rows need Add.
       </p>
 
       <div className="stack">
