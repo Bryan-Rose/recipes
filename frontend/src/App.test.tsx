@@ -162,6 +162,29 @@ describe('signing out', () => {
     expect(loggedOut()).toBe(1)
   })
 
+  it('shows a failed sign out, stays signed in, and signs out on Try again', async () => {
+    const { replace } = setup(true)
+    let fail = true
+    server.use(
+      http.post('/api/auth/logout', () =>
+        fail ? HttpResponse.json({ detail: 'Server unavailable' }, { status: 503 }) : new HttpResponse(null, { status: 204 }),
+      ),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Sign out' }))
+    expect(screen.getByText('Signing out…')).toBeInTheDocument()
+
+    expect(await screen.findByText(/Couldn’t sign out: .*Server unavailable/)).toBeInTheDocument()
+    expect(replace).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
+
+    fail = false
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/'))
+  })
+
   it('asks first with unsaved recipe edits, and stays signed in if cancelled', async () => {
     const { loggedOut, confirm } = setup(false)
     const user = userEvent.setup()

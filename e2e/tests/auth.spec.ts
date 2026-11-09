@@ -34,6 +34,20 @@ test('sign in, see the recipes, sign out', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 })
 
+test('a failed sign out says so and can be retried', async ({ page }) => {
+  await page.goto('/')
+  await signIn(page, COOK)
+
+  await page.route('**/api/auth/logout', (route) => route.fulfill({ status: 503, json: { detail: 'Server unavailable' } }), {
+    times: 1,
+  })
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await expect(page.getByText(/Couldn’t sign out/)).toBeVisible()
+
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+})
+
 test('a deep link opens straight to its page after signing in', async ({ page }) => {
   await page.goto('/recipes/new')
   await signIn(page, COOK)

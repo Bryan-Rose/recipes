@@ -74,11 +74,18 @@ function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
 /** A route, not a click handler, so leaving the page (and its unsaved-edit guard) comes first. */
 function SignOut() {
   const { mutate, error } = useLogout()
-  useEffect(() => mutate(), [mutate])
+  useEffect(() => {
+    mutate()
+  }, [mutate])
+
+  if (!error) return <p className="status">Signing out…</p>
   return (
-    <p className={error ? 'error-box' : 'status'}>
-      {error ? `Couldn’t sign out: ${describeError(error)}` : 'Signing out…'}
-    </p>
+    <div className="status">
+      <p className="error-box">Couldn’t sign out: {describeError(error)}</p>
+      <button type="button" style={{ marginTop: '1rem' }} onClick={() => mutate()}>
+        Try again
+      </button>
+    </div>
   )
 }
 
