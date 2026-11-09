@@ -238,3 +238,45 @@ def test_pages_of_deleted_cookbooks_cleared(alembic_config: Config):
         rows = connection.execute(text("SELECT id, cookbook_id, cookbook_page FROM recipes ORDER BY id")).all()
         assert rows == [(1, 1, 12), (2, None, None)]
     engine.dispose()
+
+
+def test_cook_times_become_minutes(alembic_config: Config):
+    command.upgrade(alembic_config, "b4941c86400e")
+    engine = create_engine(alembic_config.attributes["url"])
+    recipes = [
+        ("20 minutes", "0 minutes", None),
+        ("1 hr 15 min", "2h30m", "Use ripe ones"),
+        ("2-3 hours", "overnight", "Chill well"),
+        (None, None, None),
+        ("45", "", None),
+        ("²", "9" * 400 + " minutes", None),
+    ]
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
+        for id_, (active, inactive, notes) in enumerate(recipes, start=1):
+            connection.execute(
+                text(
+                    "INSERT INTO recipes (id, name, created_user_id, active_cook_time, inactive_cook_time, notes)"
+                    " VALUES (:id, :name, 1, :active, :inactive, :notes)"
+                ),
+                {"id": id_, "name": f"r{id_}", "active": active, "inactive": inactive, "notes": notes},
+            )
+
+    command.upgrade(alembic_config, "f88b533c9cdd")
+    rows = "SELECT active_cook_time, typeof(active_cook_time), inactive_cook_time, notes FROM recipes ORDER BY id"
+    with engine.connect() as connection:
+        assert connection.execute(text(rows)).all() == [
+            (20, "integer", 0, None),
+            (75, "integer", 150, "Use ripe ones"),
+            (180, "integer", None, "Chill well\nActive time: 2-3 hours\nInactive time: overnight"),
+            (None, "null", None, None),
+            (45, "integer", None, None),  # blank was never a time
+            (None, "null", None, f"Active time: ²\nInactive time: {'9' * 400} minutes"),
+        ]
+
+    command.downgrade(alembic_config, "b4941c86400e")
+    with engine.connect() as connection:
+        rows = connection.execute(text("SELECT active_cook_time, inactive_cook_time FROM recipes ORDER BY id")).all()
+        assert rows[:2] == [("20 minutes", "0 minutes"), ("75 minutes", "150 minutes")]
+        assert rows[4] == ("45 minutes", None)
+    engine.dispose()

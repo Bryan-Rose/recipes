@@ -3,7 +3,7 @@ from typing import Self
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.schemas.cookbook import CookbookRead
-from app.schemas.fields import DbId, Denominator, Name, Omittable, PositiveInt, SourceUrl, UtcDatetime
+from app.schemas.fields import DbId, Denominator, Minutes, Name, Omittable, PositiveInt, SourceUrl, UtcDatetime
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
@@ -91,8 +91,8 @@ class RecipeBase(BaseModel):
     name: Name
     cookbook_id: DbId | None = None
     cookbook_page: PositiveInt | None = None
-    active_cook_time: str | None = None
-    inactive_cook_time: str | None = None
+    active_cook_time: Minutes | None = None
+    inactive_cook_time: Minutes | None = None
     servings: PositiveInt | None = None
     notes: str | None = None
     source_url: SourceUrl | None = None
@@ -115,8 +115,8 @@ class RecipeUpdate(BaseModel):
     name: Omittable[Name] = None
     cookbook_id: DbId | None = None
     cookbook_page: PositiveInt | None = None
-    active_cook_time: str | None = None
-    inactive_cook_time: str | None = None
+    active_cook_time: Minutes | None = None
+    inactive_cook_time: Minutes | None = None
     servings: PositiveInt | None = None
     notes: str | None = None
     source_url: SourceUrl | None = None

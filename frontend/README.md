@@ -71,7 +71,8 @@ form saves each child as you change it, rather than diffing the whole tree.
 
 - **Duplicate names return 409.** The pickers still match against the
   already-loaded list before offering to create a new row, to avoid the round trip.
-- **No pagination or search on the API.** `GET /recipes/` returns every recipe
-  fully nested; the list page filters client-side.
+- **No pagination, search or sorting on the API.** `GET /recipes/` returns every recipe
+  fully nested; the list page searches, filters by cookbook and sorts client-side,
+  keeping that view in the URL (`?q=&cookbook=&sort=`).
 - **Session-cookie auth.** `App.tsx` shows `LoginPage` until `/auth/me` succeeds. Any 401 marks the user
   signed out (see `main.tsx`). SSO is a full-page navigation to `/api/auth/oidc/login`, not a fetch.

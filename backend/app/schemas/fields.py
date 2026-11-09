@@ -18,6 +18,9 @@ DbId = Annotated[int, Field(ge=1, le=_MAX_INT)]
 PositiveInt = Annotated[int, Field(ge=1, le=_MAX_INT)]
 """A stored count such as an amount or page number."""
 
+Minutes = Annotated[int, Field(ge=0, le=_MAX_INT)]
+"""A duration in whole minutes; 0 is allowed (no resting time)."""
+
 Denominator = Literal[1, 2, 3, 4, 8]
 """The denominators an ingredient amount may use: halves, thirds, quarters, eighths."""
 

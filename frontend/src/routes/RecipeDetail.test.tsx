@@ -121,3 +121,14 @@ describe('deleting', () => {
     expect(screen.getByRole('heading', { name: 'Pancakes' })).toBeInTheDocument()
   })
 })
+
+describe('cook times', () => {
+  beforeEach(() => signedIn())
+
+  it('shows minutes as hours and minutes, including a zero inactive time', async () => {
+    show({ ...recipe, active_cook_time: 75, inactive_cook_time: 0 })
+
+    expect(await screen.findByText('1 h 15 min')).toBeInTheDocument()
+    expect(screen.getByText('0 min')).toBeInTheDocument()
+  })
+})
