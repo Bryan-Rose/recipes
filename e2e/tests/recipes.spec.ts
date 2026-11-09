@@ -181,25 +181,36 @@ test('steps can be put in order when creating and when editing', async ({ page }
   await expect(steps).toHaveText(['Chop.', 'Prep.', 'Fry.'])
 })
 
-test('leaving with unsaved details asks first', async ({ page, baseURL }) => {
+test('leaving with unsaved changes asks first, however you leave', async ({ page, baseURL }) => {
   const api = await apiAs(baseURL!, COOK)
   const name = `E2E Unsaved ${unique()}`
   const created = await api.post('/api/recipes/', { data: { name, servings: 4 } })
   expect(created.status()).toBe(201)
   const { id } = (await created.json()) as { id: number }
 
-  await page.goto(`/recipes/${id}/edit`)
+  await page.goto(`/recipes/${id}`)
+  await page.getByRole('button', { name: 'Edit' }).click()
+  await expect(page.getByRole('heading', { name: 'Edit recipe' })).toBeVisible()
   await page.getByLabel('Servings').fill('6')
 
-  let message = ''
-  page.once('dialog', (dialog) => {
-    message = dialog.message()
+  const messages: string[] = []
+  page.on('dialog', (dialog) => {
+    messages.push(dialog.message())
     void dialog.dismiss()
   })
-  await page.getByRole('button', { name: 'Done' }).click()
-  expect(message).toBe('Discard unsaved details?')
+  // Each way out in turn, waiting for its prompt before the next.
+  const leaves = [
+    () => page.getByRole('button', { name: 'Done' }).click(),
+    () => page.getByRole('link', { name: 'Lookups' }).click(),
+    () => page.evaluate(() => history.back()),
+  ]
+  for (const [i, leave] of leaves.entries()) {
+    await leave()
+    await expect.poll(() => messages).toEqual(Array(i + 1).fill('Discard unsaved changes?'))
+  }
   await expect(page).toHaveURL(`/recipes/${id}/edit`)
   await expect(page.getByLabel('Servings')).toHaveValue('6')
+  page.removeAllListeners('dialog')
 
   page.once('dialog', (dialog) => void dialog.accept())
   await page.getByRole('link', { name: `← Back to ${name}` }).click()
