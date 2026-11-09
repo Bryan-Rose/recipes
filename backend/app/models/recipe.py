@@ -31,8 +31,8 @@ class Recipe(Base):
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     cookbook_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("cookbooks.id"), nullable=True)
     cookbook_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    active_cook_time: Mapped[str | None] = mapped_column(String, nullable=True)
-    inactive_cook_time: Mapped[str | None] = mapped_column(String, nullable=True)
+    active_cook_time: Mapped[int | None] = mapped_column(Integer, nullable=True)  # minutes
+    inactive_cook_time: Mapped[int | None] = mapped_column(Integer, nullable=True)  # minutes
     servings: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_url: Mapped[str | None] = mapped_column(String, nullable=True)

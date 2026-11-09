@@ -83,24 +83,26 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
         </div>
 
         <div className="field">
-          <label htmlFor="recipe-active">Active time</label>
+          <label htmlFor="recipe-active">Active time (minutes)</label>
           <input
             id="recipe-active"
-            type="text"
+            type="number"
+            min="0"
             value={value.active_cook_time ?? ''}
-            onChange={(event) => set('active_cook_time', orNull(event.target.value))}
-            placeholder="20 minutes"
+            onChange={(event) => set('active_cook_time', event.target.value === '' ? null : Number(event.target.value))}
+            placeholder="20"
           />
         </div>
 
         <div className="field">
-          <label htmlFor="recipe-inactive">Inactive time</label>
+          <label htmlFor="recipe-inactive">Inactive time (minutes)</label>
           <input
             id="recipe-inactive"
-            type="text"
+            type="number"
+            min="0"
             value={value.inactive_cook_time ?? ''}
-            onChange={(event) => set('inactive_cook_time', orNull(event.target.value))}
-            placeholder="1 hour resting"
+            onChange={(event) => set('inactive_cook_time', event.target.value === '' ? null : Number(event.target.value))}
+            placeholder="60"
           />
         </div>
       </div>

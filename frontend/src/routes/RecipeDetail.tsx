@@ -6,6 +6,7 @@ import { describeError } from '../api/errors'
 import type { RecipeIngredient } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
 import { formatAmount, scaleAmount } from '../components/amount'
+import { formatMinutes } from '../components/minutes'
 
 export function RecipeDetail() {
   const { recipeId } = useParams()
@@ -21,8 +22,8 @@ export function RecipeDetail() {
   if (error) return <ErrorState error={error} what="this recipe" />
 
   const meta = [
-    recipe.active_cook_time && { label: 'Active', value: recipe.active_cook_time as ReactNode },
-    recipe.inactive_cook_time && { label: 'Inactive', value: recipe.inactive_cook_time },
+    recipe.active_cook_time != null && { label: 'Active', value: formatMinutes(recipe.active_cook_time) as ReactNode },
+    recipe.inactive_cook_time != null && { label: 'Inactive', value: formatMinutes(recipe.inactive_cook_time) },
     recipe.cookbook && {
       label: 'From',
       value: (

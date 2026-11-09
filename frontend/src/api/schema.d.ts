@@ -707,9 +707,9 @@ export interface components {
             /** Cookbook Page */
             cookbook_page?: number | null;
             /** Active Cook Time */
-            active_cook_time?: string | null;
+            active_cook_time?: number | null;
             /** Inactive Cook Time */
-            inactive_cook_time?: string | null;
+            inactive_cook_time?: number | null;
             /** Servings */
             servings?: number | null;
             /** Notes */
@@ -794,9 +794,9 @@ export interface components {
             /** Cookbook Page */
             cookbook_page?: number | null;
             /** Active Cook Time */
-            active_cook_time?: string | null;
+            active_cook_time?: number | null;
             /** Inactive Cook Time */
-            inactive_cook_time?: string | null;
+            inactive_cook_time?: number | null;
             /** Servings */
             servings?: number | null;
             /** Notes */
@@ -848,9 +848,9 @@ export interface components {
             /** Cookbook Page */
             cookbook_page?: number | null;
             /** Active Cook Time */
-            active_cook_time?: string | null;
+            active_cook_time?: number | null;
             /** Inactive Cook Time */
-            inactive_cook_time?: string | null;
+            inactive_cook_time?: number | null;
             /** Servings */
             servings?: number | null;
             /** Notes */

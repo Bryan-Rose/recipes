@@ -84,8 +84,8 @@ def seed(db: Session) -> None:
         name="Spaghetti Carbonara",
         cookbook=essentials,
         cookbook_page=212,
-        active_cook_time="20 minutes",
-        inactive_cook_time="0 minutes",
+        active_cook_time=20,
+        inactive_cook_time=0,
         servings=4,
         created_user=user,
         recipe_ingredients=[
@@ -111,8 +111,8 @@ def seed(db: Session) -> None:
 
     pancakes = Recipe(
         name="Buttermilk Pancakes",
-        active_cook_time="15 minutes",
-        inactive_cook_time="10 minutes",
+        active_cook_time=15,
+        inactive_cook_time=10,
         servings=12,
         created_user=user,
         recipe_ingredients=[
@@ -140,8 +140,8 @@ def seed(db: Session) -> None:
         name="Garlic Bread",
         cookbook=mastering,
         cookbook_page=87,
-        active_cook_time="10 minutes",
-        inactive_cook_time="12 minutes",
+        active_cook_time=10,
+        inactive_cook_time=12,
         servings=6,
         created_user=user,
         recipe_ingredients=[

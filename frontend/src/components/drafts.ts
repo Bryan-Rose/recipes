@@ -13,8 +13,8 @@ export interface RecipeScalars {
   name: string
   cookbook_id: number | null
   cookbook_page: number | null
-  active_cook_time: string | null
-  inactive_cook_time: string | null
+  active_cook_time: number | null
+  inactive_cook_time: number | null
   servings: number | null
   notes: string | null
   source_url: string | null

@@ -23,6 +23,7 @@ test('create, view, edit and delete a recipe', async ({ page }) => {
   await page.getByRole('button', { name: 'New recipe' }).click()
   await page.getByLabel('Name').fill(name)
   await page.getByLabel('Servings').fill('4')
+  await page.getByLabel('Active time (minutes)', { exact: true }).fill('75')
 
   await page.getByRole('button', { name: '+ Add ingredient' }).click()
   await page.getByLabel('Amount').fill('3')
@@ -44,6 +45,7 @@ test('create, view, edit and delete a recipe', async ({ page }) => {
   await expect(page.getByText(ingredient)).toBeVisible()
   await expect(page.getByText('Stock pot')).toBeVisible()
   await expect(page.getByText('Simmer gently for an hour.')).toBeVisible()
+  await expect(page.getByText('1 h 15 min')).toBeVisible()
 
   // A deep link to it works after a full reload (nginx serves the SPA for any path).
   await page.reload()
@@ -254,4 +256,39 @@ test('deleting a recipe someone else already deleted says so and stays put', asy
   await page.getByRole('button', { name: 'Delete' }).click()
   await expect(page.getByText('not found')).toBeVisible()
   await expect(page).toHaveURL(`/recipes/${id}`)
+})
+
+test('the recipe list sorts and filters, and keeps that view after opening a recipe', async ({ page, baseURL }) => {
+  const id = unique()
+  const api = await apiAs(baseURL!, COOK)
+  const author = await (await api.post('/api/authors/', { data: { name: `E2E Sort Author ${id}` } })).json()
+  const book = await (await api.post('/api/cookbooks/', { data: { name: `E2E Sort Book ${id}`, author_id: author.id } })).json()
+  // Created in this order, so "Recently added" puts Slow first.
+  for (const [name, active, inactive] of [
+    ['Quick', 10, 0],
+    ['Middling', 30, 30],
+    ['Slow', 20, 240],
+  ] as const) {
+    const data = { name: `${name} ${id}`, cookbook_id: book.id, active_cook_time: active, inactive_cook_time: inactive }
+    expect((await api.post('/api/recipes/', { data })).status()).toBe(201)
+  }
+  await api.dispose()
+
+  const titles = page.locator('.recipe-card__title')
+  await page.goto('/')
+  await page.getByLabel('Cookbook').selectOption({ label: `E2E Sort Book ${id}` })
+  await expect(titles).toHaveText([`Middling ${id}`, `Quick ${id}`, `Slow ${id}`])
+  await page.getByLabel('Sort by').selectOption('Active time')
+  await expect(titles).toHaveText([`Quick ${id}`, `Slow ${id}`, `Middling ${id}`])
+  await page.getByLabel('Sort by').selectOption('Total time')
+  await expect(titles).toHaveText([`Quick ${id}`, `Middling ${id}`, `Slow ${id}`])
+  await page.getByLabel('Sort by').selectOption('Recently added')
+  await expect(titles).toHaveText([`Slow ${id}`, `Middling ${id}`, `Quick ${id}`])
+  await expect(page.getByText('4 h 20 min total')).toBeVisible()
+
+  await page.getByRole('link', { name: `Quick ${id}` }).click()
+  await expect(page.getByRole('heading', { name: `Quick ${id}` })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByLabel('Sort by')).toHaveValue('added')
+  await expect(titles).toHaveText([`Slow ${id}`, `Middling ${id}`, `Quick ${id}`])
 })

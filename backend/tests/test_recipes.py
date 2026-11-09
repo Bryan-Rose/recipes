@@ -297,6 +297,15 @@ def test_servings_must_be_a_positive_number(client: TestClient, recipe: RecipeRe
         assert client.post("/recipes/", json={"name": "Stew", "servings": servings}).status_code == 422
 
 
+def test_cook_times_are_minutes(client: TestClient, recipe: RecipeRead):
+    response = client.patch(f"/recipes/{recipe.id}", json={"active_cook_time": 75, "inactive_cook_time": 0})
+    assert response.status_code == 200
+    assert (response.json()["active_cook_time"], response.json()["inactive_cook_time"]) == (75, 0)
+    for minutes in (-1, "20 minutes"):
+        assert client.patch(f"/recipes/{recipe.id}", json={"active_cook_time": minutes}).status_code == 422
+        assert client.post("/recipes/", json={"name": "Stew", "inactive_cook_time": minutes}).status_code == 422
+
+
 def test_notes_and_source_url_round_trip(client: TestClient, recipe: RecipeRead):
     body = {"notes": "Halve the salt.\nUse brown butter.", "source_url": "https://example.com/soup?x=1"}
     patched = client.patch(f"/recipes/{recipe.id}", json=body).json()
