@@ -1,15 +1,15 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { MemoryRouter } from 'react-router'
+import { createMemoryRouter, RouterProvider } from 'react-router'
 
 import { createQueryClient } from '../queryClient'
 
-/** Renders with the app's real QueryClient setup and a router at `route`. */
+/** Renders with the app's real QueryClient setup and a data router (as in main.tsx) at `route`. */
 export function renderWithProviders(ui: ReactNode, { route = '/' }: { route?: string } = {}) {
   return render(
     <QueryClientProvider client={createQueryClient()}>
-      <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+      <RouterProvider router={createMemoryRouter([{ path: '*', element: ui }], { initialEntries: [route] })} />
     </QueryClientProvider>,
   )
 }

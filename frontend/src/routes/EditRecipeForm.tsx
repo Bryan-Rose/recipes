@@ -1,5 +1,5 @@
-import { useId, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useEffect, useId, useState } from 'react'
+import { Link, useBlocker, useNavigate } from 'react-router'
 
 import {
   useCreateRecipeIngredient,
@@ -47,8 +47,11 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
   const [scalars, setScalars] = useState<RecipeScalars>(() => toScalars(recipe))
   // Trimmed as on save, so a saved padded name doesn't stay "unsaved".
   const isDirty = JSON.stringify({ ...scalars, name: scalars.name.trim() }) !== JSON.stringify(toScalars(recipe))
-  // shortcut: checks only the details form; unsaved ingredient rows and new rows are still lost (#94).
-  const mayLeave = () => !isDirty || confirm('Discard unsaved details?')
+  // Each section reports whether it holds work that leaving would lose.
+  const [unsavedSections, setUnsavedSections] = useState<Record<string, boolean>>({})
+  const reportUnsaved = (section: string) => (unsaved: boolean) =>
+    setUnsavedSections((current) => (current[section] === unsaved ? current : { ...current, [section]: unsaved }))
+  useLeaveGuard(isDirty || Object.values(unsavedSections).some(Boolean))
 
   function saveScalars(event: React.FormEvent) {
     event.preventDefault()
@@ -59,16 +62,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
   return (
     <>
       <p style={{ marginTop: 0 }}>
-        <Link
-          to={`/recipes/${recipe.id}`}
-          onClick={(event) => {
-            // A modified click opens a new tab and leaves this page and its edits in place.
-            const newTab = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
-            if (!newTab && !mayLeave()) event.preventDefault()
-          }}
-        >
-          ← Back to {recipe.name}
-        </Link>
+        <Link to={`/recipes/${recipe.id}`}>← Back to {recipe.name}</Link>
       </p>
 
       <div className="page-header">
@@ -76,16 +70,14 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
         <button
           type="button"
           className="primary"
-          onClick={() => {
-            if (mayLeave()) void navigate(`/recipes/${recipe.id}`)
-          }}
+          onClick={() => void navigate(`/recipes/${recipe.id}`)}
         >
           Done
         </button>
       </div>
 
       <p className="muted" style={{ marginTop: '-0.75rem', marginBottom: '1.5rem' }}>
-        Edited equipment and steps save as you change them. The details and ingredients need their Save
+        Edited equipment and steps save when you leave the field. The details and ingredients need their Save
         buttons, and new rows need Add.
       </p>
 
@@ -105,7 +97,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
           </div>
         </form>
 
-        <IngredientsSection recipe={recipe} />
+        <IngredientsSection recipe={recipe} onUnsavedChange={reportUnsaved('ingredients')} />
         <TextChildSection
           title="You’ll need"
           items={recipe.requirements.map((item) => ({ id: item.id, text: item.name }))}
@@ -117,6 +109,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
           onUpdate={updateRequirement.mutateAsync}
           onDelete={deleteRequirement.mutateAsync}
           toBody={(text) => ({ name: text })}
+          onUnsavedChange={reportUnsaved('requirements')}
         />
         <TextChildSection
           title="Method"
@@ -130,10 +123,34 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
           onDelete={deleteStep.mutateAsync}
           onReorder={reorderSteps.mutateAsync}
           toBody={(text) => ({ text })}
+          onUnsavedChange={reportUnsaved('steps')}
         />
       </div>
     </>
   )
+}
+
+/** Asks before any navigation, in-app or closing/reloading the tab, while `unsaved`. */
+function useLeaveGuard(unsaved: boolean) {
+  const blocker = useBlocker(unsaved)
+
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return
+    if (confirm('Discard unsaved changes?')) blocker.proceed()
+    else blocker.reset()
+  }, [blocker])
+
+  useWarnOnUnload(unsaved)
+}
+
+/** Asks before closing or reloading the tab while `unsaved`. */
+function useWarnOnUnload(unsaved: boolean) {
+  useEffect(() => {
+    if (!unsaved) return
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsaved])
 }
 
 function toScalars(recipe: Recipe): RecipeScalars {
@@ -151,7 +168,19 @@ function toScalars(recipe: Recipe): RecipeScalars {
 
 /* -------------------------------------------------------------------------- */
 
-function IngredientsSection({ recipe }: { recipe: Recipe }) {
+function toDraft(item: Recipe['recipe_ingredients'][number]): IngredientDraft {
+  return {
+    ingredient_id: item.ingredient.id,
+    measurement_id: item.measurement.id,
+    preparation_id: item.preparation?.id ?? null,
+    amount_numerator: item.amount_numerator,
+    amount_denominator: item.amount_denominator,
+  }
+}
+
+const differs = (a: IngredientDraft, b: IngredientDraft) => JSON.stringify(a) !== JSON.stringify(b)
+
+function IngredientsSection({ recipe, onUnsavedChange }: { recipe: Recipe; onUnsavedChange: (unsaved: boolean) => void }) {
   const createIngredient = useCreateRecipeIngredient(recipe.id)
   const updateIngredient = useUpdateRecipeIngredient(recipe.id)
   const deleteIngredient = useDeleteRecipeIngredient(recipe.id)
@@ -162,6 +191,11 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
   const [newRow, setNewRow] = useState<IngredientDraft | null>(null)
   const error = createIngredient.error ?? updateIngredient.error ?? deleteIngredient.error
 
+  const unsaved =
+    (newRow !== null && differs(newRow, emptyIngredient)) ||
+    recipe.recipe_ingredients.some((item) => item.id in drafts && differs(drafts[item.id], toDraft(item)))
+  useEffect(() => onUnsavedChange(unsaved), [onUnsavedChange, unsaved])
+
   return (
     <section className="card editor-section">
       <h2 className="section-heading">Ingredients</h2>
@@ -169,15 +203,8 @@ function IngredientsSection({ recipe }: { recipe: Recipe }) {
       {recipe.recipe_ingredients.length === 0 && newRow === null && <p className="empty-hint">No ingredients yet.</p>}
 
       {recipe.recipe_ingredients.map((item, index) => {
-        const saved: IngredientDraft = {
-          ingredient_id: item.ingredient.id,
-          measurement_id: item.measurement.id,
-          preparation_id: item.preparation?.id ?? null,
-          amount_numerator: item.amount_numerator,
-          amount_denominator: item.amount_denominator,
-        }
-        const draft = drafts[item.id] ?? saved
-        const dirty = JSON.stringify(draft) !== JSON.stringify(saved)
+        const draft = drafts[item.id] ?? toDraft(item)
+        const dirty = differs(draft, toDraft(item))
 
         return (
           <div key={item.id} className="child-row">
@@ -289,6 +316,7 @@ interface TextChildSectionProps<TBody> {
   onDelete: (id: number) => Promise<unknown>
   /** Given, rows get ↑/↓ buttons; called with every id in the new order. */
   onReorder?: (ids: number[]) => Promise<unknown>
+  onUnsavedChange: (unsaved: boolean) => void
 }
 
 /**
@@ -307,6 +335,7 @@ function TextChildSection<TBody>({
   onUpdate,
   onDelete,
   onReorder,
+  onUnsavedChange,
 }: TextChildSectionProps<TBody>) {
   const [drafts, setDrafts] = useState<Record<number, string>>({})
   const [newText, setNewText] = useState<string | null>(null)
@@ -316,6 +345,10 @@ function TextChildSection<TBody>({
   // Only the Add button uses this; a blur save or delete must not disable it.
   const [creating, setCreating] = useState(false)
   const hintId = useId()
+
+  // Only a typed new row counts: edited rows save on blur, which leaving triggers.
+  const unsaved = newText !== null && newText.trim() !== ''
+  useEffect(() => onUnsavedChange(unsaved), [onUnsavedChange, unsaved])
 
   // Resolves false on failure, so callers keep the typed text for a retry.
   async function run(action: () => Promise<unknown>, report = setError) {
@@ -334,6 +367,8 @@ function TextChildSection<TBody>({
     const trimmed = drafts[item.id]?.trim()
     return trimmed !== undefined && trimmed !== '' && trimmed !== item.text
   }
+  // Closing the tab doesn't reliably blur, so an edited row warns there too.
+  useWarnOnUnload(items.some(isUnsaved))
 
   async function commit(item: TextChild) {
     const draft = drafts[item.id]
