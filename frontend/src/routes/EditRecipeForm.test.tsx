@@ -618,18 +618,48 @@ describe('leaving the recipe editor', () => {
     expect(confirm).not.toHaveBeenCalled()
   })
 
+  const unload = () => {
+    const event = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(event)
+    return event.defaultPrevented
+  }
+
   it('warns on closing or reloading the tab only while something is unsaved', async () => {
     const user = userEvent.setup()
     show()
-    const unload = () => {
-      const event = new Event('beforeunload', { cancelable: true })
-      window.dispatchEvent(event)
-      return event.defaultPrevented
-    }
 
     expect(unload()).toBe(false)
     await user.type(screen.getByLabelText('Amount'), '5')
     expect(unload()).toBe(true)
+  })
+
+  it('warns on closing the tab mid-edit of a saved step, which has not blurred to save', async () => {
+    const user = userEvent.setup()
+    show()
+
+    await user.type(screen.getByDisplayValue('Boil water'), '!')
+    expect(unload()).toBe(true)
+  })
+
+  it('saves an edited step and leaves without asking, since leaving blurs it', async () => {
+    const confirm = mockConfirm(false)
+    let patched: unknown = null
+    server.use(
+      http.patch('/api/recipes/7/steps/3', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json({ id: 3, text: 'Boil water!' })
+      }),
+      http.get('/api/recipes/7', () => HttpResponse.json(withIngredient)),
+    )
+    const user = userEvent.setup()
+    show()
+
+    await user.type(screen.getByDisplayValue('Boil water'), '!')
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+
+    expect(await screen.findByText('Recipe page')).toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+    await waitFor(() => expect(patched).toEqual({ text: 'Boil water!' }))
   })
 
   it('leaves without asking after saving a name with surrounding spaces', async () => {

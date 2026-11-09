@@ -77,7 +77,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
       </div>
 
       <p className="muted" style={{ marginTop: '-0.75rem', marginBottom: '1.5rem' }}>
-        Edited equipment and steps save as you change them. The details and ingredients need their Save
+        Edited equipment and steps save when you leave the field. The details and ingredients need their Save
         buttons, and new rows need Add.
       </p>
 
@@ -140,6 +140,11 @@ function useLeaveGuard(unsaved: boolean) {
     else blocker.reset()
   }, [blocker])
 
+  useWarnOnUnload(unsaved)
+}
+
+/** Asks before closing or reloading the tab while `unsaved`. */
+function useWarnOnUnload(unsaved: boolean) {
   useEffect(() => {
     if (!unsaved) return
     const warn = (event: BeforeUnloadEvent) => event.preventDefault()
@@ -362,6 +367,8 @@ function TextChildSection<TBody>({
     const trimmed = drafts[item.id]?.trim()
     return trimmed !== undefined && trimmed !== '' && trimmed !== item.text
   }
+  // Closing the tab doesn't reliably blur, so an edited row warns there too.
+  useWarnOnUnload(items.some(isUnsaved))
 
   async function commit(item: TextChild) {
     const draft = drafts[item.id]
