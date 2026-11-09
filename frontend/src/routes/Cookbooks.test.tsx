@@ -67,6 +67,13 @@ describe('browsing by cookbook', () => {
     ])
   })
 
+  it('says so when there are no cookbooks', async () => {
+    server.use(http.get('/api/cookbooks/', () => HttpResponse.json([])))
+    renderWithProviders(<App />, { route: '/cookbooks' })
+    const empty = await screen.findByText(/No cookbooks yet/)
+    expect(within(empty).getByRole('link', { name: 'Lookups' })).toHaveAttribute('href', '/lookups/cookbooks')
+  })
+
   it('goes from a recipe card to its cookbook, listed by page', async () => {
     const user = userEvent.setup()
     renderWithProviders(<App />, { route: '/' })

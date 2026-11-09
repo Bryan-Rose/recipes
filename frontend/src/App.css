@@ -177,7 +177,8 @@
   color: var(--text-muted);
 }
 
-/* Only the links sit above the title's overlay; the rest of the card opens the recipe. */
+/* Only the links sit above the title's overlay; the rest of the card opens the recipe.
+   Relies on the title coming before the meta line in the card's markup. */
 .recipe-card__meta a {
   position: relative;
 }
