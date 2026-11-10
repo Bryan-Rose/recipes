@@ -25,7 +25,7 @@ def test_duplicate_name_is_a_conflict(client: TestClient, ingredient: Ingredient
 def test_duplicate_recipe_name_is_a_conflict(client: TestClient):
     client.post("/recipes/", json={"name": "Ratatouille"})
 
-    response = client.post("/recipes/", json={"name": "Ratatouille"})
+    response = client.post("/recipes/", json={"name": "ratatouille"})  # case doesn't make it new
 
     assert response.status_code == 409
     assert len(client.get("/recipes/").json()) == 1

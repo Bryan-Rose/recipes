@@ -36,6 +36,10 @@ def test_create_duplicate_name(client: TestClient, prefix: str, item: LookupRead
     assert client.post(f"{prefix}/", json={"name": "first"}).status_code == 409
 
 
+def test_duplicate_name_ignores_case(client: TestClient, prefix: str, item: LookupRead):
+    assert client.post(f"{prefix}/", json={"name": "FIRST"}).status_code == 409
+
+
 def test_update_to_duplicate_name(client: TestClient, prefix: str, item: LookupRead):
     other = client.post(f"{prefix}/", json={"name": "second"}).json()
     assert client.patch(f"{prefix}/{other['id']}", json={"name": "first"}).status_code == 409
