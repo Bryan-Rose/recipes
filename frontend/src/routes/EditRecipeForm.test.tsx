@@ -261,7 +261,7 @@ describe('recipe editor when a save fails', () => {
   })
 })
 
-describe('ingredient editor when a save fails', () => {
+describe('ingredient editor', () => {
   const lookup = { id: 1, name: 'leek' }
   const withIngredient: Recipe = {
     ...recipe,
