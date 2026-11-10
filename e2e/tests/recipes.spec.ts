@@ -374,3 +374,32 @@ test('tags are added and removed in the forms, shown, and filter the list', asyn
   await page.getByLabel('Tag', { exact: true }).selectOption({ label: 'All tags' })
   await expect(page.getByRole('link', { name: `E2E Untagged ${id}` })).toBeVisible()
 })
+
+test('an ingredient "to taste" shows no amount and ignores scaling', async ({ page, baseURL }) => {
+  const id = unique()
+  const api = await apiAs(baseURL!, COOK)
+  const ingredient = await (await api.post('/api/ingredients/', { data: { name: `sea salt-${id}` } })).json()
+  // The tests share one database, so "to taste" may already exist.
+  const posted = await api.post('/api/measurements/', { data: { name: 'to taste' } })
+  expect([201, 409], 'created, or already there').toContain(posted.status())
+  const measurement = posted.ok()
+    ? await posted.json()
+    : ((await (await api.get('/api/measurements/')).json()) as { id: number; name: string }[]).find(
+        (row) => row.name.toLowerCase() === 'to taste',
+      )!
+  const data = {
+    name: `Seasoned ${id}`,
+    servings: 4,
+    recipe_ingredients: [{ ingredient_id: ingredient.id, measurement_id: measurement.id, amount_numerator: 1 }],
+  }
+  const created = await api.post('/api/recipes/', { data })
+  expect(created.status()).toBe(201)
+  const { id: recipeId } = (await created.json()) as { id: number }
+  await api.dispose()
+
+  await page.goto(`/recipes/${recipeId}`)
+  const line = page.getByRole('listitem').filter({ hasText: `sea salt-${id}` })
+  await expect(line).toHaveText(`sea salt-${id}, to taste`)
+  await page.getByLabel('Servings', { exact: true }).fill('8')
+  await expect(line).toHaveText(`sea salt-${id}, to taste`)
+})

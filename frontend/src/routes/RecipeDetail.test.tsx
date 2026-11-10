@@ -47,6 +47,32 @@ describe('serving scaler', () => {
     expect(amounts()).toEqual(['1 cup milk', '⅔ cup sugar'])
   })
 
+  it('shows "to taste" without an amount, at any servings', async () => {
+    const user = userEvent.setup()
+    const toTaste = { id: 9, name: 'to taste' }
+    show({
+      ...recipe,
+      recipe_ingredients: [
+        { id: 3, amount_numerator: 1, amount_denominator: 1, ingredient: { id: 3, name: 'salt' }, measurement: toTaste, preparation: null },
+        {
+          id: 4,
+          amount_numerator: 2,
+          amount_denominator: 1,
+          ingredient: { id: 4, name: 'chives' },
+          measurement: toTaste,
+          preparation: { id: 1, name: 'minced' },
+        },
+      ],
+    })
+
+    const box = await screen.findByLabelText('Servings')
+    expect(amounts()).toEqual(['salt, to taste', 'chives, minced, to taste'])
+
+    await user.clear(box)
+    await user.type(box, '8')
+    expect(amounts()).toEqual(['salt, to taste', 'chives, minced, to taste'])
+  })
+
   it('steps servings and marks rounded amounts', async () => {
     const user = userEvent.setup()
     show(recipe)

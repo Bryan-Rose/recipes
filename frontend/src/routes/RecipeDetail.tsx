@@ -158,9 +158,20 @@ export function RecipeDetail() {
  * "1 ½ cups butter, melted".
  *
  * The "whole" measurement is really an absence and reads badly if printed:
- * it means the ingredient is simply counted.
+ * it means the ingredient is simply counted. "To taste" has no real amount
+ * (the editor still asks for one), so it's never printed or scaled: "salt, to taste".
  */
 function formatIngredient(item: RecipeIngredient, base: number | null, servings: number | null) {
+  const preparation = item.preparation?.name
+  if (item.measurement.name.toLowerCase() === 'to taste') {
+    return (
+      <>
+        <span>{item.ingredient.name}</span>
+        {preparation && <span className="ingredient-prep">, {preparation}</span>}
+        <span className="ingredient-prep">, {item.measurement.name}</span>
+      </>
+    )
+  }
   const amount =
     base != null && servings != null && servings !== base
       ? scaleAmount(item.amount_numerator, item.amount_denominator, servings, base)
@@ -170,7 +181,6 @@ function formatIngredient(item: RecipeIngredient, base: number | null, servings:
 
   const unit = counted ? '' : `${plural ? pluralize(item.measurement.name) : item.measurement.name} `
   const name = counted && plural ? pluralize(item.ingredient.name) : item.ingredient.name
-  const preparation = item.preparation?.name
 
   return (
     <>
