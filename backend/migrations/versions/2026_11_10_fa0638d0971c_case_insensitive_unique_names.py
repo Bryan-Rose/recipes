@@ -7,6 +7,8 @@ Create Date: 2026-11-10 10:44:31.177762
 """
 
 from collections.abc import Sequence
+from itertools import groupby
+from operator import itemgetter
 
 import sqlalchemy as sa
 from alembic import op
@@ -23,13 +25,14 @@ TABLES = ("authors", "ingredients", "measurements", "preparations", "recipes", "
 
 def upgrade() -> None:
     connection = op.get_bind()
-    clashes = [
-        f"{table}: {names}"
-        for table in TABLES
-        for (names,) in connection.execute(
-            sa.text(f"SELECT group_concat(name, ', ') FROM {table} GROUP BY name COLLATE NOCASE HAVING count(*) > 1")
-        )
-    ]
+    clashes = []
+    for table in TABLES:
+        # SQLite's lower() folds ASCII only, like NOCASE; sorted so the listing is stable.
+        rows = connection.execute(sa.text(f"SELECT lower(name), name FROM {table} ORDER BY lower(name), name"))
+        for _, group in groupby(rows, key=itemgetter(0)):
+            names = [name for _, name in group]
+            if len(names) > 1:
+                clashes.append(f"{table}: {', '.join(names)}")
     if clashes:
         raise RuntimeError(
             "These names differ only in case and would break the new unique rule. "
