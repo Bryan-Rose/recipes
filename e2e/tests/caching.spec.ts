@@ -26,6 +26,7 @@ test('the recipe list and assets are sent compressed', async ({ page, baseURL })
   expect((await api.post('/api/recipes/', { data: { name: `Gzip ${unique()}` } })).status()).toBe(201)
   const list = await api.get('/api/recipes/', { headers: { 'Accept-Encoding': 'gzip' } })
   expect(list.headers()['content-encoding']).toBe('gzip')
+  expect(list.headers()['vary']).toContain('Accept-Encoding')
   await api.dispose()
 
   await page.goto('/')

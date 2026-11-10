@@ -147,7 +147,7 @@ class RecipeSummary(BaseModel):
     id: int
     name: str
     cookbook_id: int | None
-    cookbook_page: int | None
+    cookbook_page: PositiveInt | None
     active_cook_time: Minutes | None
     inactive_cook_time: Minutes | None
     created_at: UtcDatetime

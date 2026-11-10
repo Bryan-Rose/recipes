@@ -65,11 +65,10 @@ def get_recipe(db: Session, recipe_id: int) -> Recipe | None:
 
 
 def get_recipes(db: Session) -> Sequence[Recipe]:
-    # Only what RecipeSummary reads; steps are loaded just to count them.
+    # Only what RecipeSummary reads.
     options = [
         selectinload(Recipe.cookbook),
         selectinload(Recipe.tags),
-        selectinload(Recipe.steps),
         selectinload(Recipe.recipe_ingredients).selectinload(RecipeIngredient.ingredient),
     ]
     return db.execute(select(Recipe).options(*options)).scalars().all()

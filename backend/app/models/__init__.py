@@ -14,3 +14,7 @@ from app.models.user import User  # noqa: F401
 Cookbook.recipe_count = column_property(  # pyright: ignore[reportAttributeAccessIssue]
     select(func.count(Recipe.id)).where(Recipe.cookbook_id == Cookbook.id).correlate_except(Recipe).scalar_subquery()
 )
+# For RecipeSummary; counted in SQL so the list doesn't load every step. Defined here to sit with recipe_count.
+Recipe.step_count = column_property(  # pyright: ignore[reportAttributeAccessIssue]
+    select(func.count(Step.id)).where(Step.recipe_id == Recipe.id).correlate_except(Step).scalar_subquery()
+)
