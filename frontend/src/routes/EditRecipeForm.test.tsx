@@ -290,6 +290,31 @@ describe('ingredient editor when a save fails', () => {
     expect(amount).toHaveValue(25)
   })
 
+  it('keeps an amount typed while a new ingredient is being saved', async () => {
+    let release!: () => void
+    const saved = new Promise<void>((resolve) => (release = resolve))
+    const ingredients = [lookup]
+    server.use(
+      http.get('/api/ingredients/', () => HttpResponse.json(ingredients)),
+      http.post('/api/ingredients/', async () => {
+        await saved
+        ingredients.push({ id: 2, name: 'onion' })
+        return HttpResponse.json(ingredients[1], { status: 201 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={withIngredient} />)
+
+    await user.click(await screen.findByRole('button', { name: '+ New ingredient' }))
+    await user.type(screen.getByLabelText('New ingredient name'), 'onion')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await user.type(screen.getByLabelText('Amount'), '5')
+    release()
+
+    await waitFor(() => expect(screen.getByLabelText('Ingredient', { exact: true })).toHaveValue('2'))
+    expect(screen.getByLabelText('Amount')).toHaveValue(25)
+  })
+
   it('shows the error and keeps a new ingredient row', async () => {
     server.use(http.post('/api/recipes/7/recipeingredients/', failure))
     const user = userEvent.setup()

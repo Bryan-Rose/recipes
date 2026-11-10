@@ -212,7 +212,9 @@ function IngredientsSection({ recipe, onUnsavedChange }: { recipe: Recipe; onUns
             <span className="child-row__index">{index + 1}</span>
             <IngredientFields
               value={draft}
-              onChange={(next) => setDrafts((current) => ({ ...current, [item.id]: next }))}
+              onChange={(update) =>
+                setDrafts((current) => ({ ...current, [item.id]: update(current[item.id] ?? toDraft(item)) }))
+              }
             />
             <div className="row" style={{ paddingTop: '1.4rem' }}>
               {dirty && (
@@ -254,7 +256,8 @@ function IngredientsSection({ recipe, onUnsavedChange }: { recipe: Recipe; onUns
       {newRow !== null && (
         <div className="child-row">
           <span className="child-row__index">+</span>
-          <IngredientFields value={newRow} onChange={setNewRow} />
+          {/* A create resolving after Cancel leaves the row closed. */}
+          <IngredientFields value={newRow} onChange={(update) => setNewRow((current) => current && update(current))} />
           <div className="row" style={{ paddingTop: '1.4rem' }}>
             <button
               type="button"
