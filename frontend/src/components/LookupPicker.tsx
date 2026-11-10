@@ -47,7 +47,7 @@ export function LookupPicker<T extends Lookup>({
 
   async function commit() {
     const name = draft.trim()
-    if (name === '') return
+    if (name === '' || isSaving) return // Enter bypasses the disabled Add
 
     const existing = findByName(options, name)
     if (existing) {
@@ -67,12 +67,13 @@ export function LookupPicker<T extends Lookup>({
     } catch (caught) {
       if (attempt.current === current) setError(describeError(caught))
     } finally {
-      setIsSaving(false)
+      if (attempt.current === current) setIsSaving(false) // reset() already cleared it for an abandoned one
     }
   }
 
   function reset() {
     attempt.current += 1
+    setIsSaving(false)
     setDraft('')
     setIsAdding(false)
     setError(null)

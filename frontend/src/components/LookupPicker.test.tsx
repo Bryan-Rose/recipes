@@ -47,8 +47,8 @@ describe('LookupPicker', () => {
   })
 
   it.each([
-    ['Cancel is clicked', async () => await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))],
-    ['the picker is removed', (unmount: () => void) => unmount()],
+    ['Cancel is clicked', async ({ user }: { user: ReturnType<typeof userEvent.setup> }) => await user.click(screen.getByRole('button', { name: 'Cancel' }))],
+    ['the picker is removed', ({ unmount }: { unmount: () => void }) => unmount()],
   ])('ignores a create that resolves after %s', async (_, leave) => {
     let resolve!: (row: { id: number; name: string }) => void
     const { onChange, unmount, user } = setup(vi.fn(() => new Promise((r) => (resolve = r))))
@@ -56,11 +56,32 @@ describe('LookupPicker', () => {
     await user.click(screen.getByRole('button', { name: '+ New ingredient' }))
     await user.type(screen.getByLabelText('New ingredient name'), 'sugar')
     await user.click(screen.getByRole('button', { name: 'Add' }))
-    await leave(unmount)
+    await leave({ user, unmount })
     resolve({ id: 3, name: 'sugar' })
 
     await new Promise((r) => setTimeout(r)) // let the awaited create continue
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('keeps a newer create in flight when one abandoned by Cancel resolves', async () => {
+    const pending: ((row: { id: number; name: string }) => void)[] = []
+    const { onChange, onCreate, user } = setup(vi.fn(() => new Promise((r) => pending.push(r))))
+
+    await user.click(screen.getByRole('button', { name: '+ New ingredient' }))
+    await user.type(screen.getByLabelText('New ingredient name'), 'sugar{Enter}')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getByRole('button', { name: '+ New ingredient' }))
+    await user.type(screen.getByLabelText('New ingredient name'), 'salt{Enter}')
+    pending[0]({ id: 3, name: 'sugar' })
+    await new Promise((r) => setTimeout(r)) // let the abandoned create finish
+
+    expect(screen.getByRole('button', { name: 'Adding…' })).toBeDisabled()
+    await user.type(screen.getByLabelText('New ingredient name'), '{Enter}') // no second POST while saving
+    expect(onCreate).toHaveBeenCalledTimes(2)
+
+    pending[1]({ id: 4, name: 'salt' })
+    await screen.findByRole('button', { name: '+ New ingredient' })
+    expect(onChange.mock.calls).toEqual([[4]])
   })
 
   it('shows the error and keeps the draft when creating fails', async () => {
