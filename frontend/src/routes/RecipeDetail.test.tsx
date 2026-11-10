@@ -132,3 +132,12 @@ describe('cook times', () => {
     expect(screen.getByText('0 min')).toBeInTheDocument()
   })
 })
+
+it('shows the tags by name, each linking to the list filtered by it', async () => {
+  signedIn()
+  show({ ...recipe, tags: [{ id: 5, name: 'Sweet' }, { id: 4, name: 'Breakfast' }] })
+
+  const tags = await screen.findByRole('list', { name: 'Tags' })
+  expect(within(tags).getAllByRole('link').map((link) => link.textContent)).toEqual(['Breakfast', 'Sweet'])
+  expect(within(tags).getByRole('link', { name: 'Breakfast' })).toHaveAttribute('href', '/?tag=4')
+})

@@ -292,3 +292,41 @@ test('the recipe list sorts and filters, and keeps that view after opening a rec
   await expect(page.getByLabel('Sort by')).toHaveValue('added')
   await expect(titles).toHaveText([`Slow ${id}`, `Middling ${id}`, `Quick ${id}`])
 })
+
+test('tags are added and removed in the forms, shown, and filter the list', async ({ page, baseURL }) => {
+  const id = unique()
+  const name = `E2E Tagged ${id}`
+  const [weeknight, vegan] = [`weeknight-${id}`, `vegan-${id}`]
+  const api = await apiAs(baseURL!, COOK)
+  expect((await api.post('/api/tags/', { data: { name: weeknight } })).status()).toBe(201)
+  expect((await api.post('/api/recipes/', { data: { name: `E2E Untagged ${id}` } })).status()).toBe(201)
+
+  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByLabel('Name').fill(name)
+  await page.getByLabel('Tag', { exact: true }).selectOption({ label: weeknight })
+  await page.getByRole('button', { name: '+ New tag' }).click()
+  await page.getByLabel('New tag name').fill(vegan)
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.getByRole('list', { name: 'Tags' }).getByRole('listitem')).toHaveCount(2)
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  const tags = page.getByRole('list', { name: 'Tags' })
+  await expect(tags.getByRole('link', { name: vegan })).toBeVisible()
+  await expect(tags.getByRole('link', { name: weeknight })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('button', { name: `Remove tag ${vegan}` }).click()
+  await page.getByRole('button', { name: 'Save details' }).click()
+  await expect(page.getByText('Unsaved changes')).toBeHidden()
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(tags.getByRole('link')).toHaveText([weeknight])
+
+  // The tag link opens the list filtered by that tag.
+  await tags.getByRole('link', { name: weeknight }).click()
+  await expect(page.getByLabel('Tag', { exact: true })).toHaveValue(/\d+/)
+  await expect(page.getByRole('link', { name, exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: `E2E Untagged ${id}` })).toBeHidden()
+  await page.getByLabel('Tag', { exact: true }).selectOption({ label: 'All tags' })
+  await expect(page.getByRole('link', { name: `E2E Untagged ${id}` })).toBeVisible()
+})

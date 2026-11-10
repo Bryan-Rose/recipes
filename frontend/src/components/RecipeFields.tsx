@@ -1,22 +1,28 @@
-import { useCookbooks } from '../api/lookups'
+import type { Dispatch, SetStateAction } from 'react'
+
+import { useCookbooks, useCreateTag, useTags } from '../api/lookups'
 import type { RecipeScalars } from './drafts'
+import { LookupPicker } from './LookupPicker'
 
 interface RecipeFieldsProps {
   value: RecipeScalars
-  onChange: (next: RecipeScalars) => void
+  /** A state setter: updates read the latest value, so a tag created mid-edit can't undo typing. */
+  onChange: Dispatch<SetStateAction<RecipeScalars>>
 }
 
 export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
   const { data: cookbooks } = useCookbooks()
+  const { data: tags } = useTags()
+  const createTag = useCreateTag()
 
   function set<K extends keyof RecipeScalars>(key: K, next: RecipeScalars[K]) {
-    onChange({ ...value, [key]: next })
+    onChange((current) => ({ ...current, [key]: next }))
   }
 
   function setCookbook(raw: string) {
     if (raw === '') {
       // The page input is disabled without a cookbook, so a kept page would be saved invisibly.
-      onChange({ ...value, cookbook_id: null, cookbook_page: null })
+      onChange((current) => ({ ...current, cookbook_id: null, cookbook_page: null }))
     } else {
       set('cookbook_id', Number(raw))
     }
@@ -117,6 +123,46 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
           onChange={(event) => set('source_url', orNull(event.target.value))}
           placeholder="https://example.com/recipe"
         />
+      </div>
+
+      <div>
+        {/* Picking a tag adds it, so the picker always shows "Select tag…". It lists the picked tags
+            too, so that typing an existing name as a new tag finds it instead of getting a 409. */}
+        <LookupPicker
+          label="Tag"
+          options={tags}
+          value={null}
+          onChange={(id) =>
+            onChange((current) =>
+              id === null || current.tag_ids.includes(id)
+                ? current
+                : { ...current, tag_ids: [...current.tag_ids, id].sort((a, b) => a - b) },
+            )
+          }
+          onCreate={(name) => createTag.mutateAsync(name)}
+        />
+        {value.tag_ids.length > 0 && (
+          <ul className="tag-list" aria-label="Tags">
+            {value.tag_ids
+              .map((id) => ({ id, name: tags?.find((tag) => tag.id === id)?.name ?? '…' }))
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map(({ id, name }) => (
+                <li key={id} className="tag">
+                  {name}
+                  <button
+                    type="button"
+                    className="ghost tag__remove"
+                    aria-label={`Remove tag ${name}`}
+                    onClick={() =>
+                      onChange((current) => ({ ...current, tag_ids: current.tag_ids.filter((other) => other !== id) }))
+                    }
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+          </ul>
+        )}
       </div>
 
       <div className="field">

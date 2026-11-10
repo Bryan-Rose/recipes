@@ -442,6 +442,31 @@ describe('recipe details form', () => {
 
     await waitFor(() => expect(sent).toMatchObject({ notes: null, source_url: null }))
   })
+
+  it('loads the recipe tags, is clean until they change, and saves them', async () => {
+    let sent: unknown
+    server.use(
+      http.get('/api/tags/', () => HttpResponse.json([{ id: 1, name: 'Dinner' }, { id: 2, name: 'Quick' }])),
+      http.patch('/api/recipes/7', async ({ request }) => {
+        sent = await request.json()
+        return HttpResponse.json(recipe)
+      }),
+    )
+    const user = userEvent.setup()
+    // Out of id order, as the API may return them; re-adding a removed tag must not count as a change.
+    const tagged = { ...recipe, tags: [{ id: 2, name: 'Quick' }, { id: 1, name: 'Dinner' }] }
+    renderWithProviders(<EditRecipeForm recipe={tagged} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Remove tag Quick' }))
+    expect(screen.getByRole('button', { name: 'Save details' })).toBeEnabled()
+    await user.selectOptions(screen.getByLabelText('Tag'), await screen.findByRole('option', { name: 'Quick' }))
+    expect(screen.getByRole('button', { name: 'Save details' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Remove tag Dinner' }))
+    await user.click(screen.getByRole('button', { name: 'Save details' }))
+
+    await waitFor(() => expect(sent).toMatchObject({ tag_ids: [2] }))
+  })
 })
 
 describe('reordering steps', () => {

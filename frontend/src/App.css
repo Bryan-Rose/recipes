@@ -437,3 +437,33 @@
   width: 4rem;
   text-align: center;
 }
+
+.tag-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-size: 0.8rem;
+}
+
+/* Tag links sit above the card title's overlay, like the meta links. */
+.tag a {
+  position: relative;
+  color: inherit;
+}
+
+.tag__remove {
+  padding: 0 0.2rem;
+  line-height: 1;
+}

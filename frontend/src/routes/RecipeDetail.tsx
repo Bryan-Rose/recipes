@@ -75,6 +75,16 @@ export function RecipeDetail() {
         </div>
       </div>
 
+      {recipe.tags.length > 0 && (
+        <ul className="tag-list" aria-label="Tags" style={{ marginBottom: '1rem' }}>
+          {recipe.tags.toSorted((a, b) => a.name.localeCompare(b.name)).map((tag) => (
+            <li key={tag.id} className="tag">
+              <Link to={`/?tag=${tag.id}`}>{tag.name}</Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {deleteRecipe.error && <p className="error-box">{describeError(deleteRecipe.error)}</p>}
 
       {(meta.length > 0 || recipe.servings != null) && (
