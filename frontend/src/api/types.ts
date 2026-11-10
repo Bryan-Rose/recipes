@@ -24,6 +24,7 @@ export type Preparation = Schemas['PreparationRead']
 export type Tag = Schemas['TagRead']
 
 export type Recipe = Schemas['RecipeRead']
+export type RecipeSummary = Schemas['RecipeSummary']
 export type RecipeCreate = Schemas['RecipeCreate']
 export type RecipeUpdate = Schemas['RecipeUpdate']
 

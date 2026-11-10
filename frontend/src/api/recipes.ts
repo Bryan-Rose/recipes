@@ -15,6 +15,7 @@ import type {
   RecipeIngredient,
   RecipeIngredientCreate,
   RecipeIngredientUpdate,
+  RecipeSummary,
   RecipeUpdate,
   Requirement,
   RequirementCreate,
@@ -30,10 +31,8 @@ export const recipeKeys = {
 export function useRecipes() {
   return useQuery({
     queryKey: recipeKeys.all,
-    // GET /recipes/ returns the fully nested shape for every recipe — the list
-    // page renders a fraction of it. Fine at this scale, worth revisiting if
-    // the collection grows.
-    queryFn: () => api.get<Recipe[]>('/recipes/'),
+    // A summary per recipe; the list pages search, filter and sort it client side.
+    queryFn: () => api.get<RecipeSummary[]>('/recipes/'),
   })
 }
 

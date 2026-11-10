@@ -839,6 +839,36 @@ export interface components {
              */
             tags: components["schemas"]["TagRead"][];
         };
+        /**
+         * RecipeSummary
+         * @description A GET /recipes/ row: what the list and browse pages show and search, without steps or full ingredients.
+         */
+        RecipeSummary: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Cookbook Id */
+            cookbook_id: number | null;
+            /** Cookbook Page */
+            cookbook_page: number | null;
+            /** Active Cook Time */
+            active_cook_time: number | null;
+            /** Inactive Cook Time */
+            inactive_cook_time: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            cookbook: components["schemas"]["CookbookRead"] | null;
+            /** Tags */
+            tags: components["schemas"]["TagRead"][];
+            /** Ingredient Names */
+            ingredient_names: string[];
+            /** Step Count */
+            step_count: number;
+        };
         /** RecipeUpdate */
         RecipeUpdate: {
             /** Name */
@@ -2203,7 +2233,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RecipeRead"][];
+                    "application/json": components["schemas"]["RecipeSummary"][];
                 };
             };
         };

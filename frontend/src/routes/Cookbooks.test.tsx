@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import App from '../App'
-import type { Cookbook, Recipe } from '../api/types'
+import type { Cookbook, Recipe, RecipeSummary } from '../api/types'
 import { renderWithProviders } from '../test/render'
 import { server, signedIn } from '../test/server'
 
@@ -14,21 +14,25 @@ const mastering: Cookbook = { id: 5, name: 'Mastering', created_at: '2026-01-01T
 const french: Cookbook = { id: 6, name: 'French Chef', created_at: '2026-01-01T00:00:00Z', author: julia, recipe_count: 0 }
 const fast: Cookbook = { id: 7, name: 'Fast Food My Way', created_at: '2026-01-01T00:00:00Z', author: jacques, recipe_count: 0 }
 
-function recipe(id: number, name: string, cookbook: Cookbook | null, page: number | null): Recipe {
+function recipe(id: number, name: string, cookbook: Cookbook | null, page: number | null): RecipeSummary {
   return {
     id,
     name,
     cookbook_id: cookbook?.id ?? null,
     cookbook_page: page,
     cookbook,
-    created_user_id: 1,
+    active_cook_time: null,
+    inactive_cook_time: null,
     created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    steps: [],
-    requirements: [],
     tags: [],
-    recipe_ingredients: [],
+    ingredient_names: [],
+    step_count: 0,
   }
+}
+
+/** The full recipe GET /recipes/{id} returns for a list row. */
+function detail(summary: RecipeSummary): Recipe {
+  return { ...summary, created_user_id: 1, updated_at: summary.created_at, steps: [], requirements: [], recipe_ingredients: [] }
 }
 
 const recipes = [
@@ -83,7 +87,7 @@ describe('browsing by cookbook', () => {
     expect(await screen.findByRole('heading', { name: 'Mastering' })).toBeInTheDocument()
     // Unpaged recipes come last.
     expect(rows('Recipes in Mastering')).toEqual(['p. 126Omelette', 'p. 315Boeuf', '—Aspic'])
-    server.use(http.get('/api/recipes/2', () => HttpResponse.json(recipes[1])))
+    server.use(http.get('/api/recipes/2', () => HttpResponse.json(detail(recipes[1]))))
     await user.click(screen.getByRole('link', { name: 'Omelette' }))
     expect(await screen.findByRole('heading', { name: 'Omelette' })).toBeInTheDocument()
   })
@@ -101,7 +105,7 @@ describe('browsing by cookbook', () => {
   })
 
   it('links the cookbook and author from the recipe page', async () => {
-    server.use(http.get('/api/recipes/1', () => HttpResponse.json(recipes[0])))
+    server.use(http.get('/api/recipes/1', () => HttpResponse.json(detail(recipes[0]))))
     renderWithProviders(<App />, { route: '/recipes/1' })
 
     expect(await screen.findByRole('link', { name: 'Mastering' })).toHaveAttribute('href', '/cookbooks/5')

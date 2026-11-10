@@ -293,6 +293,28 @@ test('the recipe list sorts and filters, and keeps that view after opening a rec
   await expect(titles).toHaveText([`Slow ${id}`, `Middling ${id}`, `Quick ${id}`])
 })
 
+test('the recipe list finds a recipe by ingredient and counts its ingredients and steps', async ({ page, baseURL }) => {
+  const id = unique()
+  const api = await apiAs(baseURL!, COOK)
+  const ingredient = await (await api.post('/api/ingredients/', { data: { name: `sorrel-${id}` } })).json()
+  const measurement = await (await api.post('/api/measurements/', { data: { name: `bunch-${id}` } })).json()
+  const data = {
+    name: `Green Sauce ${id}`,
+    steps: [{ text: 'Chop.' }, { text: 'Stir.' }],
+    recipe_ingredients: [{ ingredient_id: ingredient.id, measurement_id: measurement.id, amount_numerator: 1 }],
+  }
+  expect((await api.post('/api/recipes/', { data })).status()).toBe(201)
+  await api.dispose()
+
+  await page.goto('/')
+  await page.getByLabel('Search recipes').fill(`SORREL-${id}`)
+  const card = page.locator('.recipe-card')
+  await expect(card).toHaveCount(1)
+  await expect(card.locator('.recipe-card__title')).toHaveText(`Green Sauce ${id}`)
+  await expect(card).toContainText('1 ingredients')
+  await expect(card).toContainText('2 steps')
+})
+
 test('tags are added and removed in the forms, shown, and filter the list', async ({ page, baseURL }) => {
   const id = unique()
   const name = `E2E Tagged ${id}`

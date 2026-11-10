@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import App from '../App'
-import type { Cookbook, Recipe } from '../api/types'
+import type { Cookbook, RecipeSummary } from '../api/types'
 import { renderWithProviders } from '../test/render'
 import { server, signedIn } from '../test/server'
 
@@ -12,17 +12,19 @@ const author = { id: 1, name: 'Julia Child' }
 const mastering: Cookbook = { id: 5, name: 'Mastering', created_at: '2026-01-01T00:00:00Z', author, recipe_count: 2 }
 const baking: Cookbook = { id: 6, name: 'Baking', created_at: '2026-01-01T00:00:00Z', author, recipe_count: 1 }
 
-function recipe(id: number, name: string, extra: Partial<Recipe>): Recipe {
+function recipe(id: number, name: string, extra: Partial<RecipeSummary>): RecipeSummary {
   return {
     id,
     name,
-    created_user_id: 1,
+    cookbook_id: extra.cookbook?.id ?? null,
+    cookbook_page: null,
+    cookbook: null,
+    active_cook_time: null,
+    inactive_cook_time: null,
     created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    steps: [],
-    requirements: [],
     tags: [],
-    recipe_ingredients: [],
+    ingredient_names: [],
+    step_count: 0,
     ...extra,
   }
 }
@@ -31,7 +33,7 @@ const dinner = { id: 1, name: 'Dinner' }
 const quick = { id: 2, name: 'Quick' }
 
 const recipes = [
-  recipe(1, 'Stew', { cookbook: mastering, tags: [dinner], active_cook_time: 30, inactive_cook_time: 120, created_at: '2026-03-01T00:00:00Z' }),
+  recipe(1, 'Stew', { cookbook: mastering, tags: [dinner], ingredient_names: ['Beef', 'Red wine'], step_count: 3, active_cook_time: 30, inactive_cook_time: 120, created_at: '2026-03-01T00:00:00Z' }),
   recipe(2, 'Bread', { cookbook: baking, active_cook_time: 20, inactive_cook_time: 180, created_at: '2026-02-01T00:00:00Z' }),
   recipe(3, 'Omelette', { cookbook: mastering, tags: [quick, dinner], active_cook_time: 10, created_at: '2026-01-01T00:00:00Z' }),
   recipe(4, 'Toast', { created_at: '2026-04-01T00:00:00Z' }),
@@ -56,6 +58,8 @@ describe('recipe list', () => {
     expect(names()).toEqual(['Bread', 'Omelette', 'Stew', 'Toast'])
     expect(screen.getByText('2 h 30 min total')).toBeInTheDocument()
     expect(screen.getByText('10 min active')).toBeInTheDocument()
+    expect(screen.getByText('2 ingredients')).toBeInTheDocument()
+    expect(screen.getByText('3 steps')).toBeInTheDocument()
   })
 
   it.each([
@@ -82,6 +86,10 @@ describe('recipe list', () => {
 
     await user.type(screen.getByRole('textbox', { name: 'Search recipes' }), 'om')
     expect(names()).toEqual(['Omelette'])
+
+    await user.clear(screen.getByRole('textbox', { name: 'Search recipes' }))
+    await user.type(screen.getByRole('textbox', { name: 'Search recipes' }), 'WINE')
+    expect(names()).toEqual(['Stew'])
 
     await user.clear(screen.getByRole('textbox', { name: 'Search recipes' }))
     await user.type(screen.getByRole('textbox', { name: 'Search recipes' }), 'bread')

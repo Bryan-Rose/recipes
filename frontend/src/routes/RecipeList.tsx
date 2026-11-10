@@ -1,23 +1,23 @@
 import { Link, useSearchParams } from 'react-router'
 
 import { useRecipes } from '../api/recipes'
-import type { Recipe } from '../api/types'
+import type { RecipeSummary } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
 import { formatMinutes } from '../components/minutes'
 
-function totalMinutes(recipe: Recipe) {
+function totalMinutes(recipe: RecipeSummary) {
   const { active_cook_time: active, inactive_cook_time: inactive } = recipe
   return active == null && inactive == null ? null : (active ?? 0) + (inactive ?? 0)
 }
 
 /** Shortest first; recipes without a time go last. */
-function byMinutes(minutes: (recipe: Recipe) => number | null | undefined) {
-  return (a: Recipe, b: Recipe) => (minutes(a) ?? Infinity) - (minutes(b) ?? Infinity)
+function byMinutes(minutes: (recipe: RecipeSummary) => number | null | undefined) {
+  return (a: RecipeSummary, b: RecipeSummary) => (minutes(a) ?? Infinity) - (minutes(b) ?? Infinity)
 }
 
-const byName = (a: Recipe, b: Recipe) => a.name.localeCompare(b.name)
+const byName = (a: RecipeSummary, b: RecipeSummary) => a.name.localeCompare(b.name)
 
-const SORTS: Record<string, { label: string; compare: (a: Recipe, b: Recipe) => number }> = {
+const SORTS: Record<string, { label: string; compare: (a: RecipeSummary, b: RecipeSummary) => number }> = {
   name: { label: 'Name', compare: byName },
   added: { label: 'Recently added', compare: (a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id },
   active: { label: 'Active time', compare: byMinutes((recipe) => recipe.active_cook_time) },
@@ -54,8 +54,8 @@ export function RecipeList() {
   const sort = params.get('sort') ?? ''
   const { compare } = SORTS[sort] ?? SORTS.name
 
-  // The API has no search, filter or sort parameters, and GET /recipes/ already
-  // returns every recipe fully nested, so doing it here costs nothing extra.
+  // shortcut: GET /recipes/ returns every recipe as a summary and this filters it in the browser,
+  // fine for a few hundred recipes; add server-side search and paging if the collection gets much larger.
   const needle = search.trim().toLowerCase()
   const visible = recipes
     .filter((recipe) => !cookbookId || String(recipe.cookbook?.id) === cookbookId)
@@ -65,7 +65,7 @@ export function RecipeList() {
         !needle ||
         recipe.name.toLowerCase().includes(needle) ||
         recipe.cookbook?.name.toLowerCase().includes(needle) ||
-        recipe.recipe_ingredients.some((item) => item.ingredient.name.toLowerCase().includes(needle)),
+        recipe.ingredient_names.some((name) => name.toLowerCase().includes(needle)),
     )
     .sort((a, b) => compare(a, b) || byName(a, b))
 
@@ -153,8 +153,8 @@ export function RecipeList() {
                   </ul>
                 )}
                 <span className="recipe-card__stats">
-                  <span>{recipe.recipe_ingredients.length} ingredients</span>
-                  <span>{recipe.steps.length} steps</span>
+                  <span>{recipe.ingredient_names.length} ingredients</span>
+                  <span>{recipe.step_count} steps</span>
                   {recipe.active_cook_time != null && <span>{formatMinutes(recipe.active_cook_time)} active</span>}
                   {total != null && total !== recipe.active_cook_time && <span>{formatMinutes(total)} total</span>}
                 </span>

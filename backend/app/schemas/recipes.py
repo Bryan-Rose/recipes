@@ -139,4 +139,22 @@ class RecipeRead(RecipeBase):
     tags: list[TagRead] = []
 
 
+class RecipeSummary(BaseModel):
+    """A GET /recipes/ row: what the list and browse pages show and search, without steps or full ingredients."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    cookbook_id: int | None
+    cookbook_page: int | None
+    active_cook_time: Minutes | None
+    inactive_cook_time: Minutes | None
+    created_at: UtcDatetime
+    cookbook: CookbookRead | None
+    tags: list[TagRead]
+    ingredient_names: list[str]  # one per recipe ingredient, so its length is the ingredient count
+    step_count: int
+
+
 ## Recipe
