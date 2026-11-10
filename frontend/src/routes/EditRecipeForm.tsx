@@ -256,7 +256,6 @@ function IngredientsSection({ recipe, onUnsavedChange }: { recipe: Recipe; onUns
       {newRow !== null && (
         <div className="child-row">
           <span className="child-row__index">+</span>
-          {/* A create resolving after Cancel leaves the row closed. */}
           <IngredientFields value={newRow} onChange={(update) => setNewRow((current) => current && update(current))} />
           <div className="row" style={{ paddingTop: '1.4rem' }}>
             <button

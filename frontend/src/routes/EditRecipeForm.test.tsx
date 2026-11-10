@@ -290,7 +290,7 @@ describe('ingredient editor when a save fails', () => {
     expect(amount).toHaveValue(25)
   })
 
-  it('keeps an amount typed while a new ingredient is being saved', async () => {
+  it("keeps an existing row's amount typed while a new ingredient is being saved", async () => {
     let release!: () => void
     const saved = new Promise<void>((resolve) => (release = resolve))
     const ingredients = [lookup]
@@ -313,6 +313,37 @@ describe('ingredient editor when a save fails', () => {
 
     await waitFor(() => expect(screen.getByLabelText('Ingredient', { exact: true })).toHaveValue('2'))
     expect(screen.getByLabelText('Amount')).toHaveValue(25)
+  })
+
+  it('leaves a reopened new row empty when an ingredient created before Cancel resolves', async () => {
+    let release!: () => void
+    const saved = new Promise<void>((resolve) => (release = resolve))
+    const ingredients = [lookup]
+    let created = false
+    server.use(
+      http.get('/api/ingredients/', () => HttpResponse.json(ingredients)),
+      http.post('/api/ingredients/', async () => {
+        await saved
+        ingredients.push({ id: 2, name: 'onion' })
+        created = true
+        return HttpResponse.json(ingredients[1], { status: 201 })
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.click(screen.getByRole('button', { name: '+ Add ingredient' }))
+    await user.click(await screen.findByRole('button', { name: '+ New ingredient' }))
+    await user.type(screen.getByLabelText('New ingredient name'), 'onion')
+    // The picker's Add and Cancel come before the row's.
+    await user.click(screen.getAllByRole('button', { name: 'Add' })[0])
+    await user.click(screen.getAllByRole('button', { name: 'Cancel' }).at(-1)!)
+    await user.click(screen.getByRole('button', { name: '+ Add ingredient' }))
+    release()
+
+    await waitFor(() => expect(created).toBe(true))
+    await expect.poll(() => screen.queryByRole('option', { name: 'onion' })).toBeInTheDocument() // the refetch landed
+    expect(screen.getByLabelText('Ingredient', { exact: true })).toHaveValue('')
   })
 
   it('shows the error and keeps a new ingredient row', async () => {

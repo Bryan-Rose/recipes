@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import { findByName } from '../api/lookups'
 import { describeError } from '../api/errors'
@@ -36,6 +36,14 @@ export function LookupPicker<T extends Lookup>({
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const selectId = useId()
+  // A create that resolves after this picker's row was removed must not pick into whatever row replaced it.
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
   async function commit() {
     const name = draft.trim()
@@ -52,6 +60,7 @@ export function LookupPicker<T extends Lookup>({
     setError(null)
     try {
       const created = await onCreate(name)
+      if (!mounted.current) return
       onChange(created.id)
       reset()
     } catch (caught) {
