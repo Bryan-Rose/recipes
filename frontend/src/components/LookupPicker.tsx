@@ -36,7 +36,7 @@ export function LookupPicker<T extends Lookup>({
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const selectId = useId()
-  // Bumped by Cancel and on unmount: a create resolving after either must not pick, here or in a row that replaced this one.
+  // Bumped by reset() (Cancel, Escape, a finished save) and on unmount: a create resolving after either must not pick, here or in a row that replaced this one.
   const attempt = useRef(0)
   useEffect(
     () => () => {
