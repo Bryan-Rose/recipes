@@ -95,6 +95,8 @@ describe('recipe list', () => {
     const stewTags = await screen.findByRole('list', { name: 'Stew tags' })
     expect(within(stewTags).getByRole('link', { name: 'Dinner' })).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Toast tags' })).not.toBeInTheDocument()
+    // Sorted by name, whatever order the API sent.
+    expect(within(screen.getByRole('list', { name: 'Omelette tags' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Dinner', 'Quick'])
 
     const tag = screen.getByRole('combobox', { name: 'Tag' })
     expect(within(tag).getAllByRole('option').map((o) => o.textContent)).toEqual(['All tags', 'Dinner', 'Quick'])

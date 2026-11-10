@@ -77,7 +77,7 @@ export function RecipeDetail() {
 
       {recipe.tags.length > 0 && (
         <ul className="tag-list" aria-label="Tags" style={{ marginBottom: '1rem' }}>
-          {recipe.tags.map((tag) => (
+          {recipe.tags.toSorted((a, b) => a.name.localeCompare(b.name)).map((tag) => (
             <li key={tag.id} className="tag">
               <Link to={`/?tag=${tag.id}`}>{tag.name}</Link>
             </li>
