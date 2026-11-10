@@ -381,6 +381,7 @@ test('an ingredient "to taste" shows no amount and ignores scaling', async ({ pa
   const ingredient = await (await api.post('/api/ingredients/', { data: { name: `sea salt-${id}` } })).json()
   // The tests share one database, so "to taste" may already exist.
   const posted = await api.post('/api/measurements/', { data: { name: 'to taste' } })
+  expect([201, 409], 'created, or already there').toContain(posted.status())
   const measurement = posted.ok()
     ? await posted.json()
     : ((await (await api.get('/api/measurements/')).json()) as { id: number; name: string }[]).find(
