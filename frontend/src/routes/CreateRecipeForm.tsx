@@ -86,9 +86,9 @@ export function CreateRecipeForm() {
               <span className="child-row__index">{index + 1}</span>
               <IngredientFields
                 value={row.value}
-                onChange={(next) =>
+                onChange={(update) =>
                   setIngredients((current) =>
-                    current.map((item) => (item.key === row.key ? { ...item, value: next } : item)),
+                    current.map((item) => (item.key === row.key ? { ...item, value: update(item.value) } : item)),
                   )
                 }
               />

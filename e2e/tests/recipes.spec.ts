@@ -122,6 +122,27 @@ test('adding an ingredient someone else just created says it already exists', as
   await expect(page.getByText(/constraint failed/)).toBeHidden()
 })
 
+test('an amount typed while a new ingredient saves is kept', async ({ page }) => {
+  const ingredient = `celeriac-${unique()}`
+  let release!: () => void
+  const held = new Promise<void>((resolve) => (release = resolve))
+  await page.route('**/api/ingredients/', async (route) => {
+    if (route.request().method() === 'POST') await held
+    await route.continue()
+  })
+
+  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByRole('button', { name: '+ Add ingredient' }).click()
+  await page.getByRole('button', { name: '+ New ingredient' }).click()
+  await page.getByLabel('New ingredient name').fill(ingredient)
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await page.getByLabel('Amount').fill('4')
+  release()
+
+  await expect(page.getByLabel('Ingredient', { exact: true }).locator('option:checked')).toHaveText(ingredient)
+  await expect(page.getByLabel('Amount')).toHaveValue('4')
+})
+
 test('a step that fails to save keeps its text for a retry', async ({ page, baseURL }) => {
   const api = await apiAs(baseURL!, COOK)
   const created = await api.post('/api/recipes/', { data: { name: `E2E Retry ${unique()}` } })

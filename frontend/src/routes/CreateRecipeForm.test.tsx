@@ -192,3 +192,33 @@ it('keeps a name typed while a new tag is being saved', async () => {
   expect(await screen.findByRole('button', { name: 'Remove tag Vegan' })).toBeInTheDocument()
   expect(screen.getByLabelText('Name')).toHaveValue('Lasagne')
 })
+
+it('keeps an amount typed while a new ingredient is being saved', async () => {
+  let release!: () => void
+  const saved = new Promise<void>((resolve) => (release = resolve))
+  const ingredients: { id: number; name: string }[] = []
+  server.use(
+    http.get('/api/cookbooks/', () => HttpResponse.json([])),
+    http.get('/api/measurements/', () => HttpResponse.json([])),
+    http.get('/api/preparations/', () => HttpResponse.json([])),
+    http.get('/api/ingredients/', () => HttpResponse.json(ingredients)),
+    http.post('/api/ingredients/', async () => {
+      await saved
+      const created = { id: 3, name: 'sugar' }
+      ingredients.push(created)
+      return HttpResponse.json(created, { status: 201 })
+    }),
+  )
+  const user = userEvent.setup()
+  renderWithProviders(<CreateRecipeForm />)
+
+  await user.click(screen.getByRole('button', { name: '+ Add ingredient' }))
+  await user.click(await screen.findByRole('button', { name: '+ New ingredient' }))
+  await user.type(screen.getByLabelText('New ingredient name'), 'sugar')
+  await user.click(screen.getByRole('button', { name: 'Add' }))
+  await user.type(screen.getByLabelText('Amount'), '2')
+  release()
+
+  await waitFor(() => expect(screen.getByLabelText('Ingredient', { exact: true })).toHaveDisplayValue('sugar'))
+  expect(screen.getByLabelText('Amount')).toHaveValue(12) // the new row starts at 1
+})

@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import { findByName } from '../api/lookups'
 import { describeError } from '../api/errors'
@@ -36,10 +36,18 @@ export function LookupPicker<T extends Lookup>({
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const selectId = useId()
+  // Bumped by reset() (Cancel, Escape, a finished save) and on unmount: a create resolving after either must not pick, here or in a row that replaced this one.
+  const attempt = useRef(0)
+  useEffect(
+    () => () => {
+      attempt.current += 1
+    },
+    [],
+  )
 
   async function commit() {
     const name = draft.trim()
-    if (name === '') return
+    if (name === '' || isSaving) return // Enter bypasses the disabled Add
 
     const existing = findByName(options, name)
     if (existing) {
@@ -48,20 +56,24 @@ export function LookupPicker<T extends Lookup>({
       return
     }
 
+    const current = attempt.current
     setIsSaving(true)
     setError(null)
     try {
       const created = await onCreate(name)
+      if (attempt.current !== current) return
       onChange(created.id)
       reset()
     } catch (caught) {
-      setError(describeError(caught))
+      if (attempt.current === current) setError(describeError(caught))
     } finally {
-      setIsSaving(false)
+      if (attempt.current === current) setIsSaving(false) // reset() already cleared it for an abandoned one
     }
   }
 
   function reset() {
+    attempt.current += 1
+    setIsSaving(false)
     setDraft('')
     setIsAdding(false)
     setError(null)

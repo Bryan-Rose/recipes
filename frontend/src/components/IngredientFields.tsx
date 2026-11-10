@@ -14,7 +14,8 @@ import { LookupPicker } from './LookupPicker'
 
 interface IngredientFieldsProps {
   value: IngredientDraft
-  onChange: (next: IngredientDraft) => void
+  // An updater, not a value: a picker's create resolves after later edits to the row, which must survive.
+  onChange: (update: (current: IngredientDraft) => IngredientDraft) => void
   disabled?: boolean
 }
 
@@ -30,12 +31,12 @@ export function IngredientFields({ value, onChange, disabled }: IngredientFields
   const createPreparation = useCreatePreparation()
 
   function set<K extends keyof IngredientDraft>(key: K, next: IngredientDraft[K]) {
-    onChange({ ...value, [key]: next })
+    onChange((current) => ({ ...current, [key]: next }))
   }
 
   function setAmount(nextWhole: number, nextFraction: number) {
     const [n, d] = nextFraction === -1 ? [0, 1 as const] : FRACTIONS[nextFraction]
-    onChange({ ...value, amount_numerator: nextWhole * d + n, amount_denominator: d })
+    onChange((current) => ({ ...current, amount_numerator: nextWhole * d + n, amount_denominator: d }))
   }
 
   return (
