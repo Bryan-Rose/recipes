@@ -37,10 +37,11 @@ from scripts.seed_lookups import seed_lookups
 
 
 def seed(db: Session) -> None:
-    seed_lookups(db)  # commits on its own, so the sample user below isn't half-saved if a recipe fails
-    preparations = {row.name: row for row in db.scalars(select(Preparation))}
-    measurements = {row.name: row for row in db.scalars(select(Measurement))}
-    ingredients = {row.name: row for row in db.scalars(select(Ingredient))}
+    seed_lookups(db)
+    # Keyed by lowercase name: a lookup someone already added as "Cup" stands in for "cup".
+    preparations = {row.name.lower(): row for row in db.scalars(select(Preparation))}
+    measurements = {row.name.lower(): row for row in db.scalars(select(Measurement))}
+    ingredients = {row.name.lower(): row for row in db.scalars(select(Ingredient))}
 
     # Sample recipes need an author. No password, so nobody can sign in as it;
     # create real accounts with scripts/create_user.py.

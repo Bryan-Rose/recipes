@@ -35,3 +35,20 @@ def test_sample_data_uses_seeded_lookups(db_session: Session):
 
     assert db_session.scalar(select(func.count()).select_from(Recipe)) == 3
     assert db_session.scalar(select(func.count()).select_from(Ingredient)) == len(INGREDIENTS)
+
+
+def test_sample_data_reuses_lookups_in_any_case(db_session: Session):
+    db_session.add_all([Measurement(name="Cup"), Ingredient(name="Butter")])
+    db_session.commit()
+
+    seed(db_session)
+
+    assert db_session.scalar(select(func.count()).select_from(Recipe)) == 3
+    assert db_session.scalars(select(Measurement.name).where(Measurement.name == "cup")).all() == ["Cup"]
+
+
+def test_seed_lookups_leaves_committing_to_the_caller(db_session: Session):
+    seed_lookups(db_session)
+    db_session.rollback()
+
+    assert db_session.scalar(select(func.count()).select_from(Ingredient)) == 0

@@ -17,7 +17,7 @@ from app.models.ingredient import Ingredient
 from app.models.measurement import Measurement
 from app.models.preparation import Preparation
 
-# Lowercase and singular, like names people type into the pickers.
+# Lowercase, and singular unless the plural is the usual name (peas, lentils).
 MEASUREMENTS = (
     "teaspoon", "tablespoon", "cup", "fluid ounce", "pint", "quart", "gallon", "milliliter", "liter",
     "ounce", "pound", "gram", "kilogram",
@@ -69,20 +69,23 @@ INGREDIENTS = (
 
 
 def seed_lookups(db: Session) -> dict[str, int]:
-    """Add the starter names missing from each table; returns how many were added per table."""
+    """Add the starter names missing from each table; returns how many were added per table.
+
+    Doesn't commit, so a caller seeding more on top saves or rolls back all of it together."""
     added = {}
     for model, names in ((Measurement, MEASUREMENTS), (Preparation, PREPARATIONS), (Ingredient, INGREDIENTS)):
         # The name columns compare case-insensitively (NOCASE), so "Cup" counts as "cup".
         missing = [name for name in names if db.scalar(select(model.id).where(model.name == name)) is None]
         db.add_all(model(name=name) for name in missing)
         added[model.__tablename__] = len(missing)
-    db.commit()
     return added
 
 
 def main() -> None:
     with SessionLocal() as db:
-        for table, count in seed_lookups(db).items():
+        added = seed_lookups(db)
+        db.commit()
+        for table, count in added.items():
             print(f"{table}: added {count}")
 
 
