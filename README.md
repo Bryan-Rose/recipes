@@ -16,6 +16,7 @@ The full stack runs with Docker Compose: nginx serves the frontend and proxies
 cp .env.example .env              # optional: port, HTTPS cookies, OIDC SSO
 docker compose up -d --build
 docker compose exec backend python -m scripts.create_user <you> --admin
+docker compose exec backend python -m scripts.seed_lookups   # optional: starter measurements, preparations, ingredients
 ```
 
 Then open http://localhost:8080. That first admin adds everyone else from the

@@ -33,34 +33,20 @@ from app.models.measurement import Measurement
 from app.models.preparation import Preparation
 from app.models.recipe import Recipe, RecipeIngredient, Requirement, Step
 from app.models.user import User
+from scripts.seed_lookups import seed_lookups
 
 
 def seed(db: Session) -> None:
+    seed_lookups(db)
+    # Keyed by lowercase name: a lookup someone already added as "Cup" stands in for "cup".
+    preparations = {row.name.lower(): row for row in db.scalars(select(Preparation))}
+    measurements = {row.name.lower(): row for row in db.scalars(select(Measurement))}
+    ingredients = {row.name.lower(): row for row in db.scalars(select(Ingredient))}
+
     # Sample recipes need an author. No password, so nobody can sign in as it;
     # create real accounts with scripts/create_user.py.
     user = User(username="sample", full_name="Sample Data")
     db.add(user)
-
-    preparations = {name: Preparation(name=name) for name in ("chopped", "diced", "minced", "sliced", "melted", "beaten")}
-    measurements = {name: Measurement(name=name) for name in ("cup", "tablespoon", "teaspoon", "ounce", "pound", "gram", "clove", "whole")}
-    ingredients = {
-        name: Ingredient(name=name)
-        for name in (
-            "butter",
-            "flour",
-            "sugar",
-            "egg",
-            "milk",
-            "salt",
-            "garlic",
-            "onion",
-            "olive oil",
-            "black pepper",
-            "parmesan",
-            "spaghetti",
-        )
-    }
-    db.add_all([*preparations.values(), *measurements.values(), *ingredients.values()])
 
     child = Author(name="Julia Child")
     hazan = Author(name="Marcella Hazan")
