@@ -46,7 +46,8 @@ uv sync                                  # install/refresh deps from uv.lock
 uv run uvicorn app.main:app --reload     # dev server on :8000
 uv run pytest                            # tests
 uv run ruff check .                      # lint
-uv run python -m scripts.init_db [--reset]  # migrate local app.db to head and seed sample data
+uv run python -m scripts.init_db [--reset]  # migrate local app.db to head and seed sample data (starter lookups plus recipes)
+uv run python -m scripts.seed_lookups       # add missing starter measurements/preparations/ingredients; safe to rerun
 uv run alembic revision --autogenerate -m "<what changed>"  # after changing a model; review the file
 uv run alembic upgrade head                 # apply migrations (init_db also does this)
 uv run python -m scripts.create_user <name> --admin [--sso-only]  # create a login (first admin)
@@ -57,6 +58,7 @@ Full stack in containers (run from the repo root):
 ```bash
 docker compose up -d --build                                    # http://localhost:8080
 docker compose exec backend python -m scripts.create_user <name> --admin
+docker compose exec backend python -m scripts.seed_lookups       # optional starter lookups; never runs on start
 ```
 
 `compose.yml` runs two images. `frontend/Dockerfile` builds the SPA into nginx, and `frontend/nginx.conf` serves it and proxies `/api/` to `backend:8000` with the prefix stripped, mirroring the Vite dev proxy. `backend/Dockerfile` runs as a non-root user (uid `RECIPES_UID`, default 1000) with SQLite at `/data/app.db`, bind-mounted from the repo's `./data/` (git-ignored apart from its own `.gitignore`), and runs `init_db --no-seed` (i.e. `alembic upgrade head`) before uvicorn on every start, so deploying a new migration is just a rebuild. Compose passes the repo-root `.env` (see `.env.example`) to the backend. Only the frontend port is published, on `127.0.0.1` unless `RECIPES_BIND` says otherwise, because production sits behind a reverse proxy (Caddy; see README "Deploying"). The server uses Caddy in Docker with `compose.server.example.yml`, a full compose file. The server copies it to the git-ignored `compose.server.yml` and selects it with `COMPOSE_FILE` in `.env`. **When you change `compose.yml`, make the same change in `compose.server.example.yml`**, since nothing keeps them in sync. FastAPI's `/docs` and `/redoc` exist only when `RECIPES_DEBUG=true`.
