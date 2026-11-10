@@ -17,7 +17,7 @@ from app.models.ingredient import Ingredient
 from app.models.measurement import Measurement
 from app.models.preparation import Preparation
 
-# Lowercase, and singular unless the plural is the usual name (peas, lentils).
+# Lowercase, and singular unless the plural is the usual name (beans, nuts, peas).
 MEASUREMENTS = (
     "teaspoon", "tablespoon", "cup", "fluid ounce", "pint", "quart", "gallon", "milliliter", "liter",
     "ounce", "pound", "gram", "kilogram",
