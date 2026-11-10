@@ -12,6 +12,7 @@ from app.schemas.recipes import (
     RecipeIngredientRead,
     RecipeIngredientUpdate,
     RecipeRead,
+    RecipeSummary,
     RecipeUpdate,
     RequirementCreate,
     RequirementRead,
@@ -32,7 +33,7 @@ recipe_ingredient_router = APIRouter(prefix="/recipes/{recipe_id}/recipeingredie
 ## Recipes
 
 
-@recipe_router.get("/", response_model=list[RecipeRead])
+@recipe_router.get("/", response_model=list[RecipeSummary])
 def list_recipes(db: Session = Depends(get_db)):
     return recipes_service.get_recipes(db)
 

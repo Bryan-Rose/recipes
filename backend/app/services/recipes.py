@@ -65,7 +65,13 @@ def get_recipe(db: Session, recipe_id: int) -> Recipe | None:
 
 
 def get_recipes(db: Session) -> Sequence[Recipe]:
-    return db.execute(select(Recipe).options(*_RECIPE_LOAD_OPTIONS)).scalars().all()
+    # Only what RecipeSummary reads.
+    options = [
+        selectinload(Recipe.cookbook),
+        selectinload(Recipe.tags),
+        selectinload(Recipe.recipe_ingredients).selectinload(RecipeIngredient.ingredient),
+    ]
+    return db.execute(select(Recipe).options(*options)).scalars().all()
 
 
 def create_recipe(db: Session, recipe_in: RecipeCreate, created_user_id: int) -> Recipe:

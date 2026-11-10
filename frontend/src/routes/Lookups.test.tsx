@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import App from '../App'
-import type { Cookbook, Recipe } from '../api/types'
+import type { Cookbook, Recipe, RecipeSummary } from '../api/types'
 import { renderWithProviders } from '../test/render'
 import { server, signedIn } from '../test/server'
 
@@ -175,10 +175,20 @@ describe('lookups', () => {
       cookbook_id: mastering.id,
       cookbook: mastering,
     }
+    const summary: RecipeSummary = {
+      ...recipe,
+      cookbook_id: mastering.id,
+      cookbook_page: null,
+      active_cook_time: null,
+      inactive_cook_time: null,
+      cookbook: mastering,
+      ingredient_names: [],
+      step_count: 0,
+    }
     let count = 1
     server.use(
       http.get('/api/cookbooks/', () => HttpResponse.json([{ ...mastering, recipe_count: count }])),
-      http.get('/api/recipes/', () => HttpResponse.json(count ? [recipe] : [])),
+      http.get('/api/recipes/', () => HttpResponse.json(count ? [summary] : [])),
       http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
       http.get('/api/ingredients/', () => HttpResponse.json([])),
       http.delete('/api/recipes/7', () => {

@@ -6,7 +6,7 @@ from app.schemas.cookbook import CookbookRead
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
-from app.schemas.recipes import RecipeRead
+from app.schemas.recipes import RecipeRead, RecipeSummary
 from app.schemas.tag import TagRead
 
 
@@ -97,7 +97,40 @@ def test_created_recipe_appears_in_list(client: TestClient, recipe: RecipeRead):
     response = client.get("/recipes/")
 
     assert response.status_code == 200
-    assert [RecipeRead.model_validate(row) for row in response.json()] == [recipe]
+    assert [RecipeSummary.model_validate(row) for row in response.json()] == [
+        RecipeSummary.model_validate({**recipe.model_dump(), "ingredient_names": [], "step_count": 0})
+    ]
+
+
+def test_list_summarises_recipes_without_nested_rows(
+    client: TestClient,
+    cookbook: CookbookRead,
+    tag: TagRead,
+    ingredient: IngredientRead,
+    measurement: MeasurementRead,
+):
+    ingredients = [{"ingredient_id": ingredient.id, "measurement_id": measurement.id, "amount_numerator": n} for n in (1, 2)]
+    client.post(
+        "/recipes/",
+        json={
+            "name": "Coq au Vin",
+            "cookbook_id": cookbook.id,
+            "cookbook_page": 12,
+            "steps": [{"text": "Brown the chicken."}, {"text": "Add the wine."}],
+            "requirements": [{"name": "Dutch oven"}],
+            "recipe_ingredients": ingredients,
+            "tag_ids": [tag.id],
+        },
+    )
+
+    [row] = client.get("/recipes/").json()
+
+    assert row["ingredient_names"] == [ingredient.name, ingredient.name]
+    assert row["step_count"] == 2
+    assert row["cookbook"] == cookbook.model_dump(mode="json")
+    assert row["cookbook_page"] == 12
+    assert row["tags"] == [tag.model_dump()]
+    assert not {"steps", "requirements", "recipe_ingredients", "notes"} & row.keys()
 
 
 def test_get_recipe(client: TestClient, recipe: RecipeRead):

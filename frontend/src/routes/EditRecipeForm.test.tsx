@@ -84,7 +84,6 @@ describe('recipe editor when a save fails', () => {
       http.patch('/api/recipes/7/steps/3', failure),
       http.post('/api/recipes/7/steps/', () => HttpResponse.json({ id: 4, text: 'Add salt' }, { status: 201 })),
       http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
-      http.get('/api/recipes/', () => HttpResponse.json([recipe])),
     )
     const user = userEvent.setup()
     renderWithProviders(<EditRecipeForm recipe={recipe} />)
@@ -119,7 +118,6 @@ describe('recipe editor when a save fails', () => {
         return HttpResponse.json({ id: 4, text: 'Add salt' }, { status: 201 })
       }),
       http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
-      http.get('/api/recipes/', () => HttpResponse.json([recipe])),
     )
     const user = userEvent.setup()
     renderWithProviders(<EditRecipeForm recipe={recipe} />)
@@ -164,7 +162,6 @@ describe('recipe editor when a save fails', () => {
         return HttpResponse.json({ id: 4, text: 'Add salt' }, { status: 201 })
       }),
       http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
-      http.get('/api/recipes/', () => HttpResponse.json([recipe])),
     )
     const user = userEvent.setup()
     renderWithProviders(<EditRecipeForm recipe={recipe} />)
@@ -205,7 +202,6 @@ describe('recipe editor when a save fails', () => {
         return new HttpResponse(null, { status: 204 })
       }),
       http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
-      http.get('/api/recipes/', () => HttpResponse.json([recipe])),
     )
     const user = userEvent.setup()
     renderWithProviders(<EditRecipeForm recipe={recipe} />)

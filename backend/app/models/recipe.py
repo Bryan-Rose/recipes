@@ -58,6 +58,11 @@ class Recipe(Base):
     )
     tags: Mapped[list[Tag]] = relationship(secondary=recipe_tags, back_populates="recipes")
 
+    # Read by RecipeSummary, so the list endpoint can leave out the nested rows (step_count is in models/__init__.py).
+    @property
+    def ingredient_names(self) -> list[str]:
+        return [item.ingredient.name for item in self.recipe_ingredients]
+
 
 class Tag(Base):
     __tablename__ = "tags"

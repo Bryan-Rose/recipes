@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router'
 
 import { useAuthors, useCookbooks } from '../api/lookups'
 import { useRecipes } from '../api/recipes'
-import type { Cookbook, Recipe } from '../api/types'
+import type { Cookbook, RecipeSummary } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
 
 const plural = (count: number) => `${count} ${count === 1 ? 'recipe' : 'recipes'}`
@@ -97,7 +97,7 @@ export function AuthorPage() {
 }
 
 /** A cookbook's recipes in page order; those without a page come last, by name. */
-function CookbookRecipes({ cookbook, recipes }: { cookbook: Cookbook; recipes: Recipe[] }) {
+function CookbookRecipes({ cookbook, recipes }: { cookbook: Cookbook; recipes: RecipeSummary[] }) {
   const inBook = recipes
     .filter((recipe) => recipe.cookbook?.id === cookbook.id)
     .sort(

@@ -46,9 +46,15 @@ docker compose exec backend python -m scripts.create_user <you> --admin
 
 ```
 recipes.example.com {
+	encode zstd gzip
 	reverse_proxy 127.0.0.1:8080
 }
 ```
+
+`encode` compresses responses. nginx in the frontend container already gzips, and
+Caddy passes that through, but `encode` also gives zstd to browsers that support it.
+The recipe list (`GET /api/recipes/`) carries every recipe, so compression matters
+on slow connections.
 
 **Caddy in Docker** (the production setup). `compose.server.example.yml` is the
 server's compose file. The frontend runs as container `whattoeat` on Caddy's
@@ -66,7 +72,10 @@ Caddy reaches nginx by the container's `hostname` (Docker's network DNS resolves
 on the container's own port, **80**, not the host port:
 
 ```
-reverse_proxy whattoeat.docker.internal:80
+recipes.example.com {
+	encode zstd gzip
+	reverse_proxy whattoeat.docker.internal:80
+}
 ```
 
 When `compose.yml` changes upstream (a new setting or healthcheck), carry the
