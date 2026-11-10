@@ -31,6 +31,7 @@ def test_keeps_existing_names_in_any_case(db_session: Session):
 
 
 def test_sample_data_uses_seeded_lookups(db_session: Session):
+    db_session.autoflush = False  # like SessionLocal, which init_db uses
     seed(db_session)
 
     assert db_session.scalar(select(func.count()).select_from(Recipe)) == 3

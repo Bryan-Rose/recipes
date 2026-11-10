@@ -78,6 +78,7 @@ def seed_lookups(db: Session) -> dict[str, int]:
         missing = [name for name in names if db.scalar(select(model.id).where(model.name == name)) is None]
         db.add_all(model(name=name) for name in missing)
         added[model.__tablename__] = len(missing)
+    db.flush()  # SessionLocal doesn't autoflush, and callers query these rows next
     return added
 
 
