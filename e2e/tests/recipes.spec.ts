@@ -110,12 +110,13 @@ test('adding an ingredient someone else just created says it already exists', as
   await page.getByRole('button', { name: '+ Add ingredient' }).click()
   await expect(page.getByLabel('Ingredient', { exact: true })).toBeVisible()
 
-  // Created after the form loaded its list, so the picker can't match it and POSTs a duplicate.
+  // Created after the form loaded its list, so the picker can't match it and POSTs a duplicate,
+  // differing only in case, which the database still treats as the same name.
   const api = await apiAs(baseURL!, COOK)
   expect((await api.post('/api/ingredients/', { data: { name: ingredient } })).status()).toBe(201)
 
   await page.getByRole('button', { name: '+ New ingredient' }).click()
-  await page.getByLabel('New ingredient name').fill(ingredient)
+  await page.getByLabel('New ingredient name').fill(ingredient.toUpperCase())
   await page.getByRole('button', { name: 'Add', exact: true }).click()
 
   await expect(page.getByText('Already exists')).toBeVisible()

@@ -15,6 +15,7 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import IntegrityError
 
 import app.models  # noqa: F401 — registers every model on Base.metadata
 from app.database import Base
@@ -279,4 +280,50 @@ def test_cook_times_become_minutes(alembic_config: Config):
         rows = connection.execute(text("SELECT active_cook_time, inactive_cook_time FROM recipes ORDER BY id")).all()
         assert rows[:2] == [("20 minutes", "0 minutes"), ("75 minutes", "150 minutes")]
         assert rows[4] == ("45 minutes", None)
+    engine.dispose()
+
+
+NAMED_TABLES = ("authors", "ingredients", "measurements", "preparations", "recipes", "tags")
+
+
+def _insert_named_rows(connection, ingredients: str) -> None:
+    connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
+    connection.execute(text("INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'Pie', 1)"))
+    connection.execute(text(f"INSERT INTO ingredients (name) VALUES {ingredients}"))
+
+
+def test_names_become_case_insensitive(alembic_config: Config):
+    command.upgrade(alembic_config, "f88b533c9cdd")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        _insert_named_rows(connection, "('Egg'), ('flour')")
+
+    command.upgrade(alembic_config, "fa0638d0971c")
+    with engine.begin() as connection:
+        assert connection.execute(text("SELECT name FROM ingredients ORDER BY id")).scalars().all() == ["Egg", "flour"]
+        # Autogenerate can't see collations, so check the rebuilt tables directly.
+        for table in NAMED_TABLES:
+            sql = connection.execute(text("SELECT sql FROM sqlite_master WHERE name = :t"), {"t": table}).scalar_one()
+            assert 'name VARCHAR COLLATE "NOCASE" NOT NULL' in sql, table
+        with pytest.raises(IntegrityError):
+            connection.execute(text("INSERT INTO recipes (name, created_user_id) VALUES ('PIE', 1)"))
+
+    command.downgrade(alembic_config, "f88b533c9cdd")
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO ingredients (name) VALUES ('EGG')"))  # case-sensitive again
+    engine.dispose()
+
+
+def test_case_only_duplicates_stop_the_migration(alembic_config: Config):
+    command.upgrade(alembic_config, "f88b533c9cdd")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        _insert_named_rows(connection, "('Egg'), ('egg'), ('flour')")
+
+    with pytest.raises(RuntimeError, match="ingredients: Egg, egg"):
+        command.upgrade(alembic_config, "fa0638d0971c")
+
+    with engine.connect() as connection:
+        assert MigrationContext.configure(connection).get_current_revision() == "f88b533c9cdd"
+        assert connection.execute(text("SELECT count(*) FROM ingredients")).scalar() == 3
     engine.dispose()

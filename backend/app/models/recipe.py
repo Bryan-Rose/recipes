@@ -28,7 +28,7 @@ class Recipe(Base):
     __tablename__ = "recipes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(collation="NOCASE"), unique=True, index=True, nullable=False)
     cookbook_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("cookbooks.id"), nullable=True)
     cookbook_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
     active_cook_time: Mapped[int | None] = mapped_column(Integer, nullable=True)  # minutes
@@ -67,7 +67,7 @@ class Recipe(Base):
 class Tag(Base):
     __tablename__ = "tags"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(collation="NOCASE"), unique=True, index=True, nullable=False)
     recipes: Mapped[list[Recipe]] = relationship(secondary=recipe_tags, back_populates="tags")
 
 

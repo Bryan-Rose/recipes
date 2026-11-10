@@ -31,6 +31,15 @@ def test_duplicate_recipe_name_is_a_conflict(client: TestClient):
     assert len(client.get("/recipes/").json()) == 1
 
 
+def test_recipe_names_ignore_case(client: TestClient):
+    client.post("/recipes/", json={"name": "Ratatouille"})
+    other = client.post("/recipes/", json={"name": "Tian"}).json()
+
+    assert client.post("/recipes/", json={"name": "ratatouille"}).status_code == 409
+    assert client.patch(f"/recipes/{other['id']}", json={"name": "RATATOUILLE"}).status_code == 409
+    assert client.patch(f"/recipes/{other['id']}", json={"name": "TIAN"}).json()["name"] == "TIAN"
+
+
 ## Deleting rows that are still referenced
 
 
