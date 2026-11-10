@@ -143,9 +143,10 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
         />
         {value.tag_ids.length > 0 && (
           <ul className="tag-list" aria-label="Tags">
-            {value.tag_ids.map((id) => {
-              const name = tags?.find((tag) => tag.id === id)?.name ?? '…'
-              return (
+            {value.tag_ids
+              .map((id) => ({ id, name: tags?.find((tag) => tag.id === id)?.name ?? '…' }))
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map(({ id, name }) => (
                 <li key={id} className="tag">
                   {name}
                   <button
@@ -159,8 +160,7 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
                     ×
                   </button>
                 </li>
-              )
-            })}
+              ))}
           </ul>
         )}
       </div>

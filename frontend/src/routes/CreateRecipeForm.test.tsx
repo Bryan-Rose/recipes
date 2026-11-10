@@ -132,7 +132,8 @@ it('keeps the ingredient picker loading, not one-row, when its list never loaded
 
 it('adds existing and new tags, removes one, and saves the rest', async () => {
   let sent: { tag_ids: number[] } | undefined
-  const tags = [{ id: 1, name: 'Dinner' }, { id: 2, name: 'Quick' }]
+  // Ids out of name order, so the chips must sort by name to read Dinner, Quick, Vegan.
+  const tags = [{ id: 1, name: 'Quick' }, { id: 2, name: 'Dinner' }]
   server.use(
     http.get('/api/cookbooks/', () => HttpResponse.json([])),
     http.get('/api/tags/', () => HttpResponse.json(tags)),
@@ -163,7 +164,7 @@ it('adds existing and new tags, removes one, and saves the rest', async () => {
   await user.click(screen.getByRole('button', { name: 'Remove tag Quick' }))
   await user.click(screen.getByRole('button', { name: 'Save recipe' }))
 
-  await waitFor(() => expect(sent?.tag_ids).toEqual([1, 9]))
+  await waitFor(() => expect(sent?.tag_ids).toEqual([2, 9]))
 })
 
 it('keeps a name typed while a new tag is being saved', async () => {
