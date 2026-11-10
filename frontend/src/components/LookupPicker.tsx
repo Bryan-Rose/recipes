@@ -36,14 +36,14 @@ export function LookupPicker<T extends Lookup>({
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const selectId = useId()
-  // A create that resolves after this picker's row was removed must not pick into whatever row replaced it.
-  const mounted = useRef(false)
-  useEffect(() => {
-    mounted.current = true
-    return () => {
-      mounted.current = false
-    }
-  }, [])
+  // Bumped by Cancel and on unmount: a create resolving after either must not pick, here or in a row that replaced this one.
+  const attempt = useRef(0)
+  useEffect(
+    () => () => {
+      attempt.current += 1
+    },
+    [],
+  )
 
   async function commit() {
     const name = draft.trim()
@@ -56,21 +56,23 @@ export function LookupPicker<T extends Lookup>({
       return
     }
 
+    const current = attempt.current
     setIsSaving(true)
     setError(null)
     try {
       const created = await onCreate(name)
-      if (!mounted.current) return
+      if (attempt.current !== current) return
       onChange(created.id)
       reset()
     } catch (caught) {
-      setError(describeError(caught))
+      if (attempt.current === current) setError(describeError(caught))
     } finally {
       setIsSaving(false)
     }
   }
 
   function reset() {
+    attempt.current += 1
     setDraft('')
     setIsAdding(false)
     setError(null)

@@ -12,8 +12,8 @@ const options = [
 
 function setup(onCreate = vi.fn()) {
   const onChange = vi.fn()
-  render(<LookupPicker label="Ingredient" options={options} value={null} onChange={onChange} onCreate={onCreate} />)
-  return { onChange, onCreate, user: userEvent.setup() }
+  const { unmount } = render(<LookupPicker label="Ingredient" options={options} value={null} onChange={onChange} onCreate={onCreate} />)
+  return { onChange, onCreate, unmount, user: userEvent.setup() }
 }
 
 describe('LookupPicker', () => {
@@ -44,6 +44,23 @@ describe('LookupPicker', () => {
 
     expect(onCreate).toHaveBeenCalledWith('sugar')
     expect(onChange).toHaveBeenCalledWith(3)
+  })
+
+  it.each([
+    ['Cancel is clicked', async () => await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))],
+    ['the picker is removed', (unmount: () => void) => unmount()],
+  ])('ignores a create that resolves after %s', async (_, leave) => {
+    let resolve!: (row: { id: number; name: string }) => void
+    const { onChange, unmount, user } = setup(vi.fn(() => new Promise((r) => (resolve = r))))
+
+    await user.click(screen.getByRole('button', { name: '+ New ingredient' }))
+    await user.type(screen.getByLabelText('New ingredient name'), 'sugar')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await leave(unmount)
+    resolve({ id: 3, name: 'sugar' })
+
+    await new Promise((r) => setTimeout(r)) // let the awaited create continue
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('shows the error and keeps the draft when creating fails', async () => {

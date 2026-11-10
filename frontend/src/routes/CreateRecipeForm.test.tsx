@@ -204,8 +204,9 @@ it('keeps an amount typed while a new ingredient is being saved', async () => {
     http.get('/api/ingredients/', () => HttpResponse.json(ingredients)),
     http.post('/api/ingredients/', async () => {
       await saved
-      ingredients.push({ id: 3, name: 'sugar' })
-      return HttpResponse.json(ingredients[0], { status: 201 })
+      const created = { id: 3, name: 'sugar' }
+      ingredients.push(created)
+      return HttpResponse.json(created, { status: 201 })
     }),
   )
   const user = userEvent.setup()
