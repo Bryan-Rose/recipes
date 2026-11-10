@@ -165,3 +165,29 @@ it('adds existing and new tags, removes one, and saves the rest', async () => {
 
   await waitFor(() => expect(sent?.tag_ids).toEqual([1, 9]))
 })
+
+it('keeps a name typed while a new tag is being saved', async () => {
+  let release!: () => void
+  const saved = new Promise<void>((resolve) => (release = resolve))
+  const tags: { id: number; name: string }[] = []
+  server.use(
+    http.get('/api/cookbooks/', () => HttpResponse.json([])),
+    http.get('/api/tags/', () => HttpResponse.json(tags)),
+    http.post('/api/tags/', async () => {
+      await saved
+      tags.push({ id: 9, name: 'Vegan' })
+      return HttpResponse.json(tags[0], { status: 201 })
+    }),
+  )
+  const user = userEvent.setup()
+  renderWithProviders(<CreateRecipeForm />)
+
+  await user.click(await screen.findByRole('button', { name: '+ New tag' }))
+  await user.type(screen.getByLabelText('New tag name'), 'Vegan')
+  await user.click(screen.getByRole('button', { name: 'Add' }))
+  await user.type(screen.getByLabelText('Name'), 'Lasagne')
+  release()
+
+  expect(await screen.findByRole('button', { name: 'Remove tag Vegan' })).toBeInTheDocument()
+  expect(screen.getByLabelText('Name')).toHaveValue('Lasagne')
+})

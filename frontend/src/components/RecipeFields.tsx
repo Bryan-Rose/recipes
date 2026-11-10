@@ -1,10 +1,13 @@
+import type { Dispatch, SetStateAction } from 'react'
+
 import { useCookbooks, useCreateTag, useTags } from '../api/lookups'
 import type { RecipeScalars } from './drafts'
 import { LookupPicker } from './LookupPicker'
 
 interface RecipeFieldsProps {
   value: RecipeScalars
-  onChange: (next: RecipeScalars) => void
+  /** A state setter: updates read the latest value, so a tag created mid-edit can't undo typing. */
+  onChange: Dispatch<SetStateAction<RecipeScalars>>
 }
 
 export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
@@ -13,13 +16,13 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
   const createTag = useCreateTag()
 
   function set<K extends keyof RecipeScalars>(key: K, next: RecipeScalars[K]) {
-    onChange({ ...value, [key]: next })
+    onChange((current) => ({ ...current, [key]: next }))
   }
 
   function setCookbook(raw: string) {
     if (raw === '') {
       // The page input is disabled without a cookbook, so a kept page would be saved invisibly.
-      onChange({ ...value, cookbook_id: null, cookbook_page: null })
+      onChange((current) => ({ ...current, cookbook_id: null, cookbook_page: null }))
     } else {
       set('cookbook_id', Number(raw))
     }
@@ -130,7 +133,11 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
           options={tags}
           value={null}
           onChange={(id) =>
-            id !== null && !value.tag_ids.includes(id) && set('tag_ids', [...value.tag_ids, id].sort((a, b) => a - b))
+            onChange((current) =>
+              id === null || current.tag_ids.includes(id)
+                ? current
+                : { ...current, tag_ids: [...current.tag_ids, id].sort((a, b) => a - b) },
+            )
           }
           onCreate={(name) => createTag.mutateAsync(name)}
         />
@@ -145,7 +152,9 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
                     type="button"
                     className="ghost tag__remove"
                     aria-label={`Remove tag ${name}`}
-                    onClick={() => set('tag_ids', value.tag_ids.filter((other) => other !== id))}
+                    onClick={() =>
+                      onChange((current) => ({ ...current, tag_ids: current.tag_ids.filter((other) => other !== id) }))
+                    }
                   >
                     ×
                   </button>
