@@ -2,7 +2,7 @@
 
 Two projects in one repo:
 
-- `backend/` — FastAPI app managed by [uv], Python 3.14. Layered as `models/` → `schemas/` → `services/` → `routers/`, with CRUD routes for recipes (and their nested steps, requirements, ingredients) plus authors, cookbooks, ingredients, measurements, preparations, tags, and users. `POST /imports/text` has the Claude API parse pasted text into a draft for the frontend's review screen (`services/imports.py`); it's on only when `RECIPES_ANTHROPIC_API_KEY` is set. Passwords are hashed with stdlib scrypt in `services/users.py`. pytest suite in `backend/tests/`. Cookie-session auth with optional OIDC SSO (see Backend auth below). Schema changes go through Alembic (see Migrations below).
+- `backend/` — FastAPI app managed by [uv], Python 3.14. Layered as `models/` → `schemas/` → `services/` → `routers/`, with CRUD routes for recipes (and their nested steps, requirements, ingredients) plus authors, cookbooks, ingredients, measurements, preparations, tags, and users. `POST /imports/text` and `/imports/photos` have the Claude API parse pasted text or photos of cookbook pages (resized to JPEG in the browser, never stored) into a draft for the frontend's review screen (`services/imports.py`); it's on only when `RECIPES_ANTHROPIC_API_KEY` is set. Passwords are hashed with stdlib scrypt in `services/users.py`. pytest suite in `backend/tests/`. Cookie-session auth with optional OIDC SSO (see Backend auth below). Schema changes go through Alembic (see Migrations below).
 - `frontend/` — React 19 + TypeScript on Vite 8, using react-router and TanStack Query. It talks to the API through the Vite dev proxy (`/api` → `:8000`). See `frontend/README.md` for its structure and the API limitations that shape the UI.
 
 <!-- agent-kit:begin -->

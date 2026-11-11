@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 
@@ -22,6 +23,10 @@ DRAFT = {
     "requirements": ["Frying pan"],
     "steps": ["Mix.", "Fry."],
 }
+
+
+JPEG = base64.b64encode(b"\xff\xd8\xff\xe0 page one").decode()
+JPEG_2 = base64.b64encode(b"\xff\xd8\xff\xe0 page two").decode()
 
 
 def message(text: str, stop_reason: str = "end_turn", model: str = "claude-sonnet-5-5", **usage) -> dict:
@@ -104,7 +109,7 @@ def test_cut_off_reply_says_too_long(client: TestClient, fake_api: FakeApi, capl
     with caplog.at_level(logging.INFO, logger="app"):
         response = client.post("/imports/text", json={"text": "Pancakes"})
     assert response.status_code == 422
-    assert response.json() == {"detail": "That's too long to read in one go; try a shorter excerpt"}
+    assert response.json() == {"detail": "That's too long to read in one go; try sending less of it"}
     assert "cut off" in caplog.text
 
 
@@ -143,9 +148,10 @@ def test_text_must_be_present_and_bounded(client: TestClient, fake_api: FakeApi,
     assert fake_api.requests == []
 
 
-def test_requires_login(client: TestClient):
+@pytest.mark.parametrize(("path", "body"), [("/imports/text", {"text": "Pancakes"}), ("/imports/photos", {"photos": [JPEG]})])
+def test_requires_login(client: TestClient, path: str, body: dict):
     client.cookies.clear()
-    assert client.post("/imports/text", json={"text": "Pancakes"}).status_code == 401
+    assert client.post(path, json=body).status_code == 401
 
 
 def test_auth_config_says_whether_import_is_on(client: TestClient):
@@ -188,3 +194,46 @@ def test_unpriced_model_has_no_cost(client: TestClient, fake_api: FakeApi, caplo
         usage = client.post("/imports/text", json={"text": "Pancakes"}).json()["usage"]
     assert usage["cost_usd"] is None
     assert "cost unknown" in caplog.text
+
+
+def test_photos_go_in_order_before_the_lookups(client: TestClient, fake_api: FakeApi, ingredient):
+    response = client.post("/imports/photos", json={"photos": [JPEG, JPEG_2]})
+    assert response.status_code == 200
+    assert response.json()["name"] == "Pancakes"
+    (sent,) = fake_api.requests
+    *images, request = sent["messages"][0]["content"]
+    assert images == [{"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": p}} for p in (JPEG, JPEG_2)]
+    assert request["type"] == "text"
+    assert ingredient.name in request["text"]
+
+
+def test_photos_share_the_error_handling(client: TestClient, fake_api: FakeApi):
+    fake_api.body = message("", "refusal")
+    response = client.post("/imports/photos", json={"photos": [JPEG]})
+    assert response.json() == {"detail": "Couldn't read a recipe from that"}
+
+
+@pytest.mark.parametrize(
+    "photos",
+    [
+        [],
+        [JPEG] * 5,
+        ["not base64!"],
+        ["/9j/é"],  # non-ASCII
+        [base64.b64encode(b"\x89PNG\r\n\x1a\n").decode()],  # base64, but not a JPEG
+        ["/9j/" + "A" * 5_000_000],  # a JPEG header, but over the size limit
+    ],
+)
+def test_photos_must_be_one_to_four_jpegs(client: TestClient, fake_api: FakeApi, photos: list[str]):
+    assert client.post("/imports/photos", json={"photos": photos}).status_code == 422
+    assert fake_api.requests == []
+
+
+def test_four_photos_are_allowed(client: TestClient, fake_api: FakeApi):
+    assert client.post("/imports/photos", json={"photos": [JPEG] * 4}).status_code == 200
+
+
+@pytest.mark.parametrize("photo", ["not base64!", "/9j/é"])
+def test_bad_photo_says_what_is_expected(client: TestClient, fake_api: FakeApi, photo: str):
+    (error,) = client.post("/imports/photos", json={"photos": [photo]}).json()["detail"]
+    assert "must be a base64 JPEG" in error["msg"]

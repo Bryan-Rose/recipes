@@ -1,12 +1,18 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, expect, it } from 'vitest'
+import { beforeEach, expect, it, vi } from 'vitest'
 
 import App from '../App'
 import type { RecipeCreate, RecipeImport } from '../api/types'
 import { renderWithProviders } from '../test/render'
 import { passwordOnly, server, signedIn } from '../test/server'
+
+// jsdom has no canvas; a photo "converts" to its file name, and bad.heic can't be decoded.
+vi.mock('../components/photos', () => ({
+  toJpeg: async (file: File) => (file.name === 'bad.heic' ? Promise.reject(new Error('decode')) : `jpeg:${file.name}`),
+}))
+const photo = (name: string) => new File(['x'], name, { type: 'image/jpeg' })
 
 const draft: RecipeImport = {
   name: 'Leek soup',
@@ -229,4 +235,56 @@ it('goes back to the pasted text from the review', async () => {
 
   expect(screen.getByLabelText('Recipe text')).toHaveValue('Leek soup')
   expect(screen.queryByRole('heading', { name: 'Review import' })).not.toBeInTheDocument()
+})
+
+it('reads photos of the pages in order and goes back to them', async () => {
+  let sent: unknown
+  server.use(
+    http.post('/api/imports/photos', async ({ request }) => {
+      sent = await request.json()
+      return HttpResponse.json(draft)
+    }),
+  )
+  const user = userEvent.setup()
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  await user.upload(await screen.findByLabelText(/Or photos of the pages/), [photo('p1.jpg'), photo('p2.jpg')])
+  expect(await screen.findByRole('img', { name: 'Page 2' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Read photos' }))
+
+  await screen.findByRole('heading', { name: 'Review import' })
+  expect(sent).toEqual({ photos: ['jpeg:p1.jpg', 'jpeg:p2.jpg'] })
+  const source = screen.getByRole('complementary')
+  expect(within(source).getByRole('img', { name: 'Page 1' })).toHaveAttribute('src', 'data:image/jpeg;base64,jpeg:p1.jpg')
+
+  await user.click(screen.getByRole('button', { name: 'Change photos' }))
+  expect(screen.getAllByRole('img').map((img) => img.getAttribute('alt'))).toEqual(['Page 1', 'Page 2'])
+  await user.click(screen.getByRole('button', { name: 'Clear photos' }))
+  expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Read photos' })).toBeDisabled()
+})
+
+it('takes at most four photos', async () => {
+  const user = userEvent.setup()
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  const input = await screen.findByLabelText(/Or photos of the pages/)
+  await user.upload(input, [photo('1.jpg'), photo('2.jpg'), photo('3.jpg')])
+  await screen.findByRole('img', { name: 'Page 3' })
+  await user.upload(input, [photo('4.jpg'), photo('5.jpg')])
+
+  expect(await screen.findByText('One recipe takes up to 4 photos.')).toBeInTheDocument()
+  expect(screen.getAllByRole('img')).toHaveLength(3)
+})
+
+it('keeps the photos that open and names the one that does not', async () => {
+  const user = userEvent.setup()
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  await user.upload(await screen.findByLabelText(/Or photos of the pages/), [photo('p1.jpg'), photo('bad.heic'), photo('p3.jpg')])
+
+  expect(await screen.findByText('Couldn’t open bad.heic. Try a JPEG or PNG.')).toBeInTheDocument()
+  expect(screen.getAllByRole('img').map((img) => img.getAttribute('src'))).toEqual([
+    'data:image/jpeg;base64,jpeg:p1.jpg',
+    'data:image/jpeg;base64,jpeg:p3.jpg',
+  ])
+  await user.click(screen.getByRole('button', { name: 'Clear photos' }))
+  expect(screen.queryByText(/Couldn’t open/)).not.toBeInTheDocument()
 })

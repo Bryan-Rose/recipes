@@ -472,3 +472,21 @@
   padding: 0 0.2rem;
   line-height: 1;
 }
+
+.import-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.import-photos .import-photo {
+  width: 8rem;
+  margin: 0;
+}
+
+.import-photo {
+  display: block;
+  max-width: 100%;
+  margin-bottom: 0.75rem;
+  border-radius: 4px;
+}

@@ -1,6 +1,7 @@
+import base64
 from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
 
 from app.schemas.fields import Denominator, Name
 
@@ -44,3 +45,24 @@ class RecipeImport(RecipeDraft):
 
 class TextImport(BaseModel):
     text: Annotated[Name, Field(max_length=20_000)]
+
+
+def _jpeg(value: str) -> str:
+    try:
+        is_jpeg = base64.b64decode(value, validate=True).startswith(b"\xff\xd8\xff")
+    except ValueError:  # binascii.Error, or non-ASCII text
+        is_jpeg = False
+    if not is_jpeg:
+        raise ValueError("must be a base64 JPEG")
+    return value
+
+
+# The Claude API takes images up to 5 MB; capping the base64 text at 5 MB keeps each decoded
+# photo under 3.75 MB. The browser sends ~1600px JPEGs, well under that.
+JpegBase64 = Annotated[str, Field(max_length=5_000_000), AfterValidator(_jpeg)]
+
+
+class PhotoImport(BaseModel):
+    """Pages of one recipe, in order."""
+
+    photos: Annotated[list[JpegBase64], Field(min_length=1, max_length=4)]

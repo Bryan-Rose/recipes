@@ -2,6 +2,7 @@
 
 It "parses" the pasted recipe by line: name, measurement, ingredient, then one
 step per remaining line. So a test controls every name and can keep them unique.
+Photos can't be read that way, so they give a fixed recipe with one step per photo.
 """
 
 import json
@@ -13,8 +14,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         prompt = body["messages"][0]["content"]
-        lines = re.search(r"<recipe>\n(.*)\n</recipe>", prompt, re.S).group(1).splitlines()
-        name, measurement, ingredient, *steps = lines
+        if isinstance(prompt, list):
+            pages = sum(block["type"] == "image" for block in prompt)
+            name, measurement, ingredient = "Photographed Stew", "whole", "onion"
+            steps = [f"Step from photo {n}." for n in range(1, pages + 1)]
+        else:
+            lines = re.search(r"<recipe>\n(.*)\n</recipe>", prompt, re.S).group(1).splitlines()
+            name, measurement, ingredient, *steps = lines
         draft = {
             "name": name,
             "servings": 2,

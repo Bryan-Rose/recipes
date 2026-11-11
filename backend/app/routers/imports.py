@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from functools import lru_cache
 
 import anthropic
@@ -9,7 +10,7 @@ from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.database import get_db
 from app.models.user import User
-from app.schemas.imports import RecipeImport, TextImport
+from app.schemas.imports import ImportUsage, PhotoImport, RecipeDraft, RecipeImport, TextImport
 from app.services import imports as imports_service
 
 log = logging.getLogger(__name__)
@@ -30,17 +31,10 @@ def get_import_client(settings: Settings = Depends(get_settings)) -> anthropic.A
     return _client(settings.anthropic_api_key.get_secret_value().strip(), settings.anthropic_base_url)
 
 
-@router.post("/text", response_model=RecipeImport)
-def import_text(
-    body: TextImport,
-    user: User = Depends(get_current_user),
-    client: anthropic.Anthropic = Depends(get_import_client),
-    settings: Settings = Depends(get_settings),
-    db: Session = Depends(get_db),
-):
+def _run(user: User, parse: Callable[[], tuple[RecipeDraft | None, ImportUsage]]) -> RecipeImport:
     too_long = False
     try:
-        draft, usage = imports_service.parse_text(client, settings.import_model, db, body.text)
+        draft, usage = parse()
     except imports_service.ReplyCutOff as exc:
         draft, usage, too_long = None, exc.usage, True
     except anthropic.APIError as exc:
@@ -59,8 +53,30 @@ def import_text(
     )
     if too_long:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="That's too long to read in one go; try a shorter excerpt"
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="That's too long to read in one go; try sending less of it"
         )
     if draft is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Couldn't read a recipe from that")
     return RecipeImport(**draft.model_dump(), usage=usage)
+
+
+@router.post("/text", response_model=RecipeImport)
+def import_text(
+    body: TextImport,
+    user: User = Depends(get_current_user),
+    client: anthropic.Anthropic = Depends(get_import_client),
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+):
+    return _run(user, lambda: imports_service.parse_text(client, settings.import_model, db, body.text))
+
+
+@router.post("/photos", response_model=RecipeImport)
+def import_photos(
+    body: PhotoImport,
+    user: User = Depends(get_current_user),
+    client: anthropic.Anthropic = Depends(get_import_client),
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+):
+    return _run(user, lambda: imports_service.parse_photos(client, settings.import_model, db, body.photos))
