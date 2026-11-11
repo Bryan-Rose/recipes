@@ -288,3 +288,38 @@ it('keeps the photos that open and names the one that does not', async () => {
   await user.click(screen.getByRole('button', { name: 'Clear photos' }))
   expect(screen.queryByText(/Couldn’t open/)).not.toBeInTheDocument()
 })
+
+it('reads a recipe from a link and goes back to it', async () => {
+  let sent: unknown
+  server.use(
+    http.post('/api/imports/url', async ({ request }) => {
+      sent = await request.json()
+      return HttpResponse.json(draft)
+    }),
+  )
+  const user = userEvent.setup()
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  await user.type(await screen.findByLabelText('Or a link to the recipe'), 'https://example.com/soup')
+  await user.click(screen.getByRole('button', { name: 'Read link' }))
+
+  await screen.findByRole('heading', { name: 'Review import' })
+  expect(sent).toEqual({ url: 'https://example.com/soup' })
+  expect(within(screen.getByRole('complementary')).getByRole('link', { name: 'https://example.com/soup' })).toHaveAttribute(
+    'href',
+    'https://example.com/soup',
+  )
+
+  await user.click(screen.getByRole('button', { name: 'Edit link' }))
+  expect(screen.getByLabelText('Or a link to the recipe')).toHaveValue('https://example.com/soup')
+})
+
+it('says why a link could not be read', async () => {
+  const detail = "Couldn't open that page: the site answered 403. Try pasting the recipe text."
+  server.use(http.post('/api/imports/url', () => HttpResponse.json({ detail }, { status: 422 })))
+  const user = userEvent.setup()
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  await user.type(await screen.findByLabelText('Or a link to the recipe'), 'https://example.com/soup')
+  await user.click(screen.getByRole('button', { name: 'Read link' }))
+
+  expect(await screen.findByText(detail)).toBeInTheDocument()
+})

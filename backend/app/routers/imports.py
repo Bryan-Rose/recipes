@@ -3,6 +3,7 @@ from collections.abc import Callable
 from functools import lru_cache
 
 import anthropic
+import httpx2
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -10,7 +11,8 @@ from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.database import get_db
 from app.models.user import User
-from app.schemas.imports import ImportUsage, PhotoImport, RecipeDraft, RecipeImport, TextImport
+from app.schemas.imports import ImportUsage, PhotoImport, RecipeDraft, RecipeImport, TextImport, UrlImport
+from app.services import fetch
 from app.services import imports as imports_service
 
 log = logging.getLogger(__name__)
@@ -80,3 +82,29 @@ def import_photos(
     db: Session = Depends(get_db),
 ):
     return _run(user, lambda: imports_service.parse_photos(client, settings.import_model, db, body.photos))
+
+
+def get_fetch_transport() -> httpx2.BaseTransport | None:
+    """None is the real network; tests swap in a mock."""
+    return None
+
+
+@router.post("/url", response_model=RecipeImport)
+def import_url(
+    body: UrlImport,
+    user: User = Depends(get_current_user),
+    client: anthropic.Anthropic = Depends(get_import_client),
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+    transport: httpx2.BaseTransport | None = Depends(get_fetch_transport),
+):
+    try:
+        html = fetch.fetch_page(str(body.url), transport, allow_private=settings.import_fetch_private)
+    except fetch.FetchError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Couldn't open that page: {exc}. Try pasting the recipe text."
+        ) from exc
+    text = fetch.page_text(html)
+    if not text:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Couldn't read a recipe from that")
+    return _run(user, lambda: imports_service.parse_text(client, settings.import_model, db, text))

@@ -31,7 +31,9 @@ one line per thing you changed or left out to notes, so nothing is lost.
 - notes: any other useful text from the recipe (tips, storage, variations), then the lines above. null if none.
 - Photos are pages of one recipe, in order. Ignore page numbers, running heads and anything that isn't this recipe. \
 If a page shows more than one recipe, take the one that continues across the photos (or the most complete one), and \
-say in notes which you took. Where the print is unreadable, leave a gap and say so in notes."""
+say in notes which you took. Where the print is unreadable, leave a gap and say so in notes.
+- A web page comes as its schema.org Recipe JSON, or as the page's text with menus, stories, ads and comments around \
+the recipe; take only the recipe."""
 
 
 # shortcut: list prices in USD per million (input, output) tokens, copied by hand

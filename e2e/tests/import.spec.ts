@@ -74,3 +74,33 @@ test('a file that is not an image is named, and the photos beside it are kept', 
   await expect(page.getByRole('img', { name: 'Page 1' })).toBeVisible()
   await expect(page.getByRole('img', { name: 'Page 2' })).toHaveCount(0)
 })
+
+test('import from a link to the recipe page', async ({ page }) => {
+  const id = unique()
+  const name = `Linked Soup ${id}`
+  const text = [name, 'whole', `leek-${id}`, 'Slice the leeks.'].join('\n')
+  // The mock serves this page on the e2e network, which RECIPES_IMPORT_FETCH_PRIVATE lets the backend reach.
+  const url = `http://mock-anthropic:8080/page?text=${encodeURIComponent(text)}`
+  await page.goto('/')
+  await signIn(page, COOK)
+  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByLabel('Or a link to the recipe').fill(url)
+  await page.getByRole('button', { name: 'Read link' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Review import' })).toBeVisible()
+  await expect(page.getByRole('complementary').getByRole('link')).toHaveAttribute('href', url)
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(page.getByText('Slice the leeks.')).toBeVisible()
+})
+
+test("a link that can't be opened says why", async ({ page }) => {
+  await page.goto('/')
+  await signIn(page, COOK)
+  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByLabel('Or a link to the recipe').fill('http://no-such-host.invalid/recipe')
+  await page.getByRole('button', { name: 'Read link' }).click()
+
+  await expect(page.getByText("Couldn't open that page: that site's address doesn't resolve. Try pasting the recipe text.")).toBeVisible()
+})

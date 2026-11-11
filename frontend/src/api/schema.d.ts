@@ -416,6 +416,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/imports/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Url */
+        post: operations["import_url_imports_url_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recipes/": {
         parameters: {
             query?: never;
@@ -1044,6 +1061,14 @@ export interface components {
         TextImport: {
             /** Text */
             text: string;
+        };
+        /** UrlImport */
+        UrlImport: {
+            /**
+             * Url
+             * Format: uri
+             */
+            url: string;
         };
         /** UserCreate */
         UserCreate: {
@@ -2360,6 +2385,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["PhotoImport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeImport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_url_imports_url_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UrlImport"];
             };
         };
         responses: {
