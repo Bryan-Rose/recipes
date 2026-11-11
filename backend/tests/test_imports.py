@@ -82,7 +82,17 @@ def test_model_comes_from_settings(client: TestClient, fake_api: FakeApi):
     assert fake_api.requests[0]["model"] == "claude-haiku-5-5"
 
 
-@pytest.mark.parametrize(("text", "stop_reason"), [("", "refusal"), ('{"name": "Pan', "max_tokens"), (json.dumps(DRAFT), "refusal")])
+@pytest.mark.parametrize(
+    ("text", "stop_reason"),
+    [
+        ("", "refusal"),
+        ('{"name": "Pan', "max_tokens"),
+        (json.dumps(DRAFT), "refusal"),
+        # Finished normally, but the reply isn't JSON or doesn't fit the schema.
+        ("Here is the recipe:", "end_turn"),
+        (json.dumps({k: v for k, v in DRAFT.items() if k != "name"}), "end_turn"),
+    ],
+)
 def test_unfinished_parse_is_422(client: TestClient, fake_api: FakeApi, text: str, stop_reason: str):
     fake_api.body = message(text, stop_reason)
     response = client.post("/imports/text", json={"text": "Pancakes"})

@@ -12,6 +12,12 @@ import { FRACTIONS, splitAmount } from './amount'
 import type { IngredientDraft, LookupKind } from './drafts'
 import { LookupPicker } from './LookupPicker'
 
+const ID_FIELD = {
+  ingredient: 'ingredient_id',
+  measurement: 'measurement_id',
+  preparation: 'preparation_id',
+} as const satisfies Record<LookupKind, keyof IngredientDraft>
+
 interface IngredientFieldsProps {
   value: IngredientDraft
   // An updater, not a value: a picker's create resolves after later edits to the row, which must survive.
@@ -32,7 +38,7 @@ export function IngredientFields({ value, onChange, disabled }: IngredientFields
 
   // Any pick, "None" or "Don't add" settles the field, so its pending name goes.
   function pick(kind: LookupKind, id: number | null) {
-    onChange((current) => ({ ...current, [`${kind}_id`]: id, pending: current.pending && { ...current.pending, [kind]: undefined } }))
+    onChange((current) => ({ ...current, [ID_FIELD[kind]]: id, pending: current.pending && { ...current.pending, [kind]: undefined } }))
   }
 
   function setAmount(nextWhole: number, nextFraction: number) {
