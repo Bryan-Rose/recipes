@@ -9,7 +9,7 @@ import {
   usePreparations,
 } from '../api/lookups'
 import { FRACTIONS, splitAmount } from './amount'
-import type { IngredientDraft } from './drafts'
+import type { IngredientDraft, LookupKind } from './drafts'
 import { LookupPicker } from './LookupPicker'
 
 interface IngredientFieldsProps {
@@ -30,8 +30,9 @@ export function IngredientFields({ value, onChange, disabled }: IngredientFields
   const createMeasurement = useCreateMeasurement()
   const createPreparation = useCreatePreparation()
 
-  function set<K extends keyof IngredientDraft>(key: K, next: IngredientDraft[K]) {
-    onChange((current) => ({ ...current, [key]: next }))
+  // Any pick, "None" or "Don't add" settles the field, so its pending name goes.
+  function pick(kind: LookupKind, id: number | null) {
+    onChange((current) => ({ ...current, [`${kind}_id`]: id, pending: current.pending && { ...current.pending, [kind]: undefined } }))
   }
 
   function setAmount(nextWhole: number, nextFraction: number) {
@@ -76,7 +77,8 @@ export function IngredientFields({ value, onChange, disabled }: IngredientFields
         label="Measurement"
         options={measurements.data}
         value={value.measurement_id}
-        onChange={(id) => set('measurement_id', id)}
+        onChange={(id) => pick('measurement', id)}
+        pendingName={value.pending?.measurement}
         onCreate={(name) => createMeasurement.mutateAsync(name)}
         disabled={disabled}
       />
@@ -85,7 +87,8 @@ export function IngredientFields({ value, onChange, disabled }: IngredientFields
         label="Ingredient"
         options={ingredients.data}
         value={value.ingredient_id}
-        onChange={(id) => set('ingredient_id', id)}
+        onChange={(id) => pick('ingredient', id)}
+        pendingName={value.pending?.ingredient}
         onCreate={(name) => createIngredient.mutateAsync(name)}
         disabled={disabled}
       />
@@ -94,7 +97,8 @@ export function IngredientFields({ value, onChange, disabled }: IngredientFields
         label="Preparation"
         options={preparations.data}
         value={value.preparation_id}
-        onChange={(id) => set('preparation_id', id)}
+        onChange={(id) => pick('preparation', id)}
+        pendingName={value.pending?.preparation}
         onCreate={(name) => createPreparation.mutateAsync(name)}
         disabled={disabled}
         noneLabel="None"

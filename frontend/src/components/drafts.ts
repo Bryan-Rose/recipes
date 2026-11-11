@@ -5,7 +5,8 @@
  * components only, which is what Vite's fast refresh needs to work properly.
  */
 
-import type { RecipeIngredientCreate } from '../api/types'
+import { findByName } from '../api/lookups'
+import type { Lookup, RecipeDraft, RecipeIngredientCreate } from '../api/types'
 import type { Denominator } from './amount'
 
 /** The scalar half of a recipe — everything `RecipeUpdate` accepts. */
@@ -44,7 +45,11 @@ export interface IngredientDraft {
   preparation_id: number | null
   amount_numerator: number
   amount_denominator: Denominator
+  /** Imported names that match no existing row, by field; the row is created when the recipe is saved. */
+  pending?: Partial<Record<LookupKind, string>>
 }
+
+export type LookupKind = 'ingredient' | 'measurement' | 'preparation'
 
 export const emptyIngredient: IngredientDraft = {
   ingredient_id: null,
@@ -62,6 +67,60 @@ export function isComplete(draft: IngredientDraft): draft is IngredientDraft & R
     Number.isInteger(draft.amount_numerator) &&
     draft.amount_numerator >= 1
   )
+}
+
+/** Like isComplete, but a pending (to-be-created) ingredient or measurement counts as picked. */
+export function isFilled(draft: IngredientDraft): boolean {
+  const picked = (id: number | null, pending: string | undefined) => id !== null || Boolean(pending)
+  return (
+    picked(draft.ingredient_id, draft.pending?.ingredient) &&
+    picked(draft.measurement_id, draft.pending?.measurement) &&
+    Number.isInteger(draft.amount_numerator) &&
+    draft.amount_numerator >= 1
+  )
+}
+
+/** What CreateRecipeForm starts from. */
+export interface RecipeInitial {
+  scalars: RecipeScalars
+  ingredients: IngredientDraft[]
+  requirements: string[]
+  steps: string[]
+}
+
+/** An imported draft as form state: names matched to existing rows case-insensitively, the rest left pending. */
+export function fromImport(draft: RecipeDraft, lists: Record<LookupKind, readonly Lookup[]>): RecipeInitial {
+  // Claude is asked for these ranges, but the API would 422 on a stray value; leave it blank instead.
+  const atLeast = (min: number, value: number | null) => (value !== null && value >= min ? value : null)
+  return {
+    scalars: {
+      ...emptyScalars,
+      name: draft.name,
+      servings: atLeast(1, draft.servings),
+      active_cook_time: atLeast(0, draft.active_cook_time),
+      inactive_cook_time: atLeast(0, draft.inactive_cook_time),
+      notes: draft.notes?.trim() || null,
+    },
+    ingredients: draft.ingredients.map((line) => {
+      const pending: Partial<Record<LookupKind, string>> = {}
+      const match = (kind: LookupKind, name: string | null) => {
+        if (!name?.trim()) return null
+        const found = findByName(lists[kind], name)
+        if (!found) pending[kind] = name.trim()
+        return found?.id ?? null
+      }
+      return {
+        ingredient_id: match('ingredient', line.ingredient),
+        measurement_id: match('measurement', line.measurement),
+        preparation_id: match('preparation', line.preparation),
+        amount_numerator: line.amount_numerator,
+        amount_denominator: line.amount_denominator,
+        pending,
+      }
+    }),
+    requirements: draft.requirements,
+    steps: draft.steps,
+  }
 }
 
 /** A copy of `items` with the one at `index` moved one place up (-1) or down (+1). */

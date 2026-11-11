@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -55,7 +55,8 @@ describe('lookups', () => {
     await user.click(row.getByRole('button', { name: 'Save' }))
 
     await expect.poll(() => patched).toEqual({ name: 'tbsp' })
-    expect(row.queryByLabelText('Name')).not.toBeInTheDocument()
+    // The editor closes once the save's refetch settles, which can trail the PATCH.
+    await waitFor(() => expect(row.queryByLabelText('Name')).not.toBeInTheDocument())
   })
 
   it('explains a duplicate name', async () => {

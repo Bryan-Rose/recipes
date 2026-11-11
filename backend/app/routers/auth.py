@@ -46,6 +46,7 @@ def auth_config(settings: Settings = Depends(get_settings)):
         password_login=settings.password_login_enabled,
         oidc=settings.oidc_enabled,
         oidc_display_name=settings.oidc_display_name,
+        recipe_import=settings.import_enabled,
     )
 
 

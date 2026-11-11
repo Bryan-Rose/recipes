@@ -13,6 +13,8 @@ interface LookupPickerProps<T extends Lookup> {
   disabled?: boolean
   /** Makes the field optional: this label becomes a selectable "nothing picked" option. */
   noneLabel?: string
+  /** A name to create on save (from an import), shown while nothing is picked. */
+  pendingName?: string
 }
 
 /**
@@ -30,6 +32,7 @@ export function LookupPicker<T extends Lookup>({
   onCreate,
   disabled,
   noneLabel,
+  pendingName,
 }: LookupPickerProps<T>) {
   const [isAdding, setIsAdding] = useState(false)
   const [draft, setDraft] = useState('')
@@ -97,6 +100,15 @@ export function LookupPicker<T extends Lookup>({
           </option>
         ))}
       </select>
+
+      {value === null && pendingName && (
+        <p className="muted picker__pending">
+          New: “{pendingName}”, added when you save.{' '}
+          <button type="button" className="ghost" onClick={() => onChange(null)} disabled={disabled}>
+            Don’t add
+          </button>
+        </p>
+      )}
 
       {isAdding ? (
         <div className="picker__create">

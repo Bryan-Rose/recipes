@@ -12,6 +12,7 @@ import { ApiError, api } from './client'
 import type {
   Recipe,
   RecipeCreate,
+  RecipeDraft,
   RecipeIngredient,
   RecipeIngredientCreate,
   RecipeIngredientUpdate,
@@ -53,6 +54,10 @@ function explainUnknownTags(error: unknown): never {
 
 export const useCreateRecipe = () =>
   useMutation({ mutationFn: (recipe: RecipeCreate) => api.post<Recipe>('/recipes/', recipe).catch(explainUnknownTags) })
+
+/** Parses pasted text into a draft for review; saves nothing. */
+export const useImportText = () =>
+  useMutation({ mutationFn: (text: string) => api.post<RecipeDraft>('/imports/text', { text }) })
 
 export const useUpdateRecipe = (id: number) =>
   useMutation({

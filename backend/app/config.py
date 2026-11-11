@@ -1,7 +1,7 @@
 import secrets
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,6 +33,16 @@ class Settings(BaseSettings):
     # Create a local user on first SSO login. When false, only users who
     # already exist (matched by username) can sign in with SSO.
     oidc_create_users: bool = True
+
+    # Recipe import (Claude API). Hidden in the UI unless a key is set.
+    anthropic_api_key: SecretStr | None = None
+    # Only for tests: e2e points this at a mock Messages API.
+    anthropic_base_url: str | None = None
+    import_model: str = "claude-sonnet-5-5"
+
+    @property
+    def import_enabled(self) -> bool:
+        return self.anthropic_api_key is not None
 
     @property
     def oidc_enabled(self) -> bool:

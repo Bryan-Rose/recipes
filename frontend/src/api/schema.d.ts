@@ -382,6 +382,23 @@ export interface paths {
         patch: operations["update_user_users__user_id__patch"];
         trace?: never;
     };
+    "/imports/text": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Text */
+        post: operations["import_text_imports_text_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recipes/": {
         parameters: {
             query?: never;
@@ -559,6 +576,8 @@ export interface components {
             oidc: boolean;
             /** Oidc Display Name */
             oidc_display_name: string;
+            /** Recipe Import */
+            recipe_import: boolean;
         };
         /** AuthorCreate */
         AuthorCreate: {
@@ -626,6 +645,22 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** ImportedIngredient */
+        ImportedIngredient: {
+            /** Amount Numerator */
+            amount_numerator: number;
+            /**
+             * Amount Denominator
+             * @enum {integer}
+             */
+            amount_denominator: 1 | 2 | 3 | 4 | 8;
+            /** Measurement */
+            measurement: string;
+            /** Ingredient */
+            ingredient: string;
+            /** Preparation */
+            preparation: string | null;
         };
         /** IngredientCreate */
         IngredientCreate: {
@@ -736,6 +771,28 @@ export interface components {
              * @default []
              */
             tag_ids: number[];
+        };
+        /**
+         * RecipeDraft
+         * @description A parsed recipe for the user to review. Lookups are by name; nothing is saved.
+         */
+        RecipeDraft: {
+            /** Name */
+            name: string;
+            /** Servings */
+            servings: number | null;
+            /** Active Cook Time */
+            active_cook_time: number | null;
+            /** Inactive Cook Time */
+            inactive_cook_time: number | null;
+            /** Notes */
+            notes: string | null;
+            /** Ingredients */
+            ingredients: components["schemas"]["ImportedIngredient"][];
+            /** Requirements */
+            requirements: string[];
+            /** Steps */
+            steps: string[];
         };
         /** RecipeIngredientCreate */
         RecipeIngredientCreate: {
@@ -945,6 +1002,11 @@ export interface components {
         TagUpdate: {
             /** Name */
             name: string;
+        };
+        /** TextImport */
+        TextImport: {
+            /** Text */
+            text: string;
         };
         /** UserCreate */
         UserCreate: {
@@ -2205,6 +2267,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_text_imports_text_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TextImport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeDraft"];
                 };
             };
             /** @description Validation Error */

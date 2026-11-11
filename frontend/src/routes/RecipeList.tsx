@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from 'react-router'
 
+import { useAuthConfig } from '../api/auth'
 import { useRecipes } from '../api/recipes'
 import type { RecipeSummary } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
@@ -26,6 +27,7 @@ const SORTS: Record<string, { label: string; compare: (a: RecipeSummary, b: Reci
 
 export function RecipeList() {
   const { data: recipes, isPending, error } = useRecipes()
+  const importEnabled = useAuthConfig().data?.recipe_import
   // The view lives in the URL so it survives opening a recipe and coming back.
   const [params, setParams] = useSearchParams()
   const search = params.get('q') ?? ''
@@ -109,6 +111,11 @@ export function RecipeList() {
               </option>
             ))}
           </select>
+          {importEnabled && (
+            <Link to="/recipes/import">
+              <button type="button">Import</button>
+            </Link>
+          )}
           <Link to="/recipes/new">
             <button type="button" className="primary">
               New recipe

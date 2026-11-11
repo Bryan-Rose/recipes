@@ -1,11 +1,20 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
-import { useCreateRecipe } from '../api/recipes'
+import {
+  findByName,
+  useCreateIngredient,
+  useCreateMeasurement,
+  useCreatePreparation,
+  useIngredients,
+  useMeasurements,
+  usePreparations,
+} from '../api/lookups'
+import { useCreateRecipe, useRecipes } from '../api/recipes'
 import { describeError } from '../api/errors'
 import type { RecipeCreate } from '../api/types'
-import { emptyIngredient, emptyScalars, isComplete, moveItem } from '../components/drafts'
-import type { IngredientDraft, RecipeScalars } from '../components/drafts'
+import { emptyIngredient, emptyScalars, isComplete, isFilled, moveItem } from '../components/drafts'
+import type { IngredientDraft, LookupKind, RecipeInitial, RecipeScalars } from '../components/drafts'
 import { IngredientFields } from '../components/IngredientFields'
 import { MoveButtons } from '../components/MoveButtons'
 import { RecipeFields } from '../components/RecipeFields'
@@ -24,24 +33,72 @@ function keyed<T>(value: T): Keyed<T> {
 
 /**
  * A new recipe is built entirely client-side and saved in one POST, because
- * `RecipeCreate` accepts its children nested. Nothing hits the API until Save.
+ * `RecipeCreate` accepts its children nested. Nothing hits the API until Save,
+ * which first creates any lookups an import left pending.
  */
-export function CreateRecipeForm() {
+export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?: RecipeInitial; heading?: string }) {
   const navigate = useNavigate()
   const createRecipe = useCreateRecipe()
+  const { data: recipes } = useRecipes()
+  const lookups = {
+    ingredient: [useIngredients().data, useCreateIngredient()],
+    measurement: [useMeasurements().data, useCreateMeasurement()],
+    preparation: [usePreparations().data, useCreatePreparation()],
+  } as const
 
-  const [scalars, setScalars] = useState<RecipeScalars>(emptyScalars)
-  const [ingredients, setIngredients] = useState<Keyed<IngredientDraft>[]>([])
-  const [requirements, setRequirements] = useState<Keyed<string>[]>([])
-  const [steps, setSteps] = useState<Keyed<string>[]>([])
+  const [scalars, setScalars] = useState<RecipeScalars>(initial?.scalars ?? emptyScalars)
+  const [ingredients, setIngredients] = useState<Keyed<IngredientDraft>[]>(() => (initial?.ingredients ?? []).map(keyed))
+  const [requirements, setRequirements] = useState<Keyed<string>[]>(() => (initial?.requirements ?? []).map(keyed))
+  const [steps, setSteps] = useState<Keyed<string>[]>(() => (initial?.steps ?? []).map(keyed))
+  const [pendingError, setPendingError] = useState<unknown>(null)
+  const [creatingPending, setCreatingPending] = useState(false)
 
-  const incompleteIngredients = ingredients.filter((row) => !isComplete(row.value)).length
-  const canSave = scalars.name.trim() !== '' && incompleteIngredients === 0 && !createRecipe.isPending
+  const duplicate = findByName(recipes, scalars.name)
+  const incompleteIngredients = ingredients.filter((row) => !isFilled(row.value)).length
+  const canSave =
+    scalars.name.trim() !== '' && incompleteIngredients === 0 && !createRecipe.isPending && !creatingPending
 
-  function handleSubmit(event: React.FormEvent) {
+  /** The rows without `pending`, each pending name swapped for a row id; each new name is created once. */
+  async function resolvePending(rows: IngredientDraft[]): Promise<IngredientDraft[]> {
+    const ids = new Map<string, Promise<number>>()
+    function idFor(kind: LookupKind, name: string) {
+      const key = `${kind}:${name.toLowerCase()}`
+      let id = ids.get(key)
+      if (id === undefined) {
+        const [options, create] = lookups[kind]
+        const existing = findByName(options, name)
+        id = existing ? Promise.resolve(existing.id) : create.mutateAsync(name).then((created) => created.id)
+        ids.set(key, id)
+      }
+      return id
+    }
+    const resolve = async (kind: LookupKind, id: number | null, name: string | undefined) =>
+      id ?? (name ? await idFor(kind, name) : null)
+    return Promise.all(
+      rows.map(async ({ pending, ...row }) => ({
+        ...row,
+        ingredient_id: await resolve('ingredient', row.ingredient_id, pending?.ingredient),
+        measurement_id: await resolve('measurement', row.measurement_id, pending?.measurement),
+        preparation_id: await resolve('preparation', row.preparation_id, pending?.preparation),
+      })),
+    )
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (!canSave) return
-    const recipeIngredients = ingredients.map((row) => row.value).filter(isComplete)
+    setCreatingPending(true)
+    setPendingError(null)
+    let rows: IngredientDraft[]
+    try {
+      rows = await resolvePending(ingredients.map((row) => row.value))
+    } catch (caught) {
+      setPendingError(caught)
+      return
+    } finally {
+      setCreatingPending(false)
+    }
+    const recipeIngredients = rows.filter(isComplete)
     // Never drop a row silently; canSave should already have blocked this.
     if (recipeIngredients.length !== ingredients.length) return
 
@@ -64,18 +121,24 @@ export function CreateRecipeForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={(event) => void handleSubmit(event)}>
       <p style={{ marginTop: 0 }}>
         <Link to="/">← All recipes</Link>
       </p>
 
       <div className="page-header">
-        <h1>New recipe</h1>
+        <h1>{heading}</h1>
       </div>
 
       <div className="stack">
         <section className="card editor-section">
           <RecipeFields value={scalars} onChange={setScalars} />
+          {duplicate && (
+            <p className="error-box" style={{ marginTop: '1rem' }}>
+              <Link to={`/recipes/${duplicate.id}`}>A recipe called “{duplicate.name}”</Link> already exists. Recipe
+              names must be unique, so rename this one to save it.
+            </p>
+          )}
         </section>
 
         <section className="card editor-section">
@@ -190,11 +253,12 @@ export function CreateRecipeForm() {
           </button>
         </section>
 
+        {pendingError !== null && <p className="error-box">{describeError(pendingError)}</p>}
         {createRecipe.error && <p className="error-box">{describeError(createRecipe.error)}</p>}
 
         <div className="editor-actions">
           <button type="submit" className="primary" disabled={!canSave}>
-            {createRecipe.isPending ? 'Saving…' : 'Save recipe'}
+            {createRecipe.isPending || creatingPending ? 'Saving…' : 'Save recipe'}
           </button>
           <Link to="/">
             <button type="button" className="ghost">

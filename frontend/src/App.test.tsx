@@ -97,7 +97,7 @@ describe('login page', () => {
   it('offers SSO with the configured name, and hides the password form when disabled', async () => {
     server.use(
       http.get('/api/auth/config', () =>
-        HttpResponse.json({ password_login: false, oidc: true, oidc_display_name: 'Pocket ID' }),
+        HttpResponse.json({ password_login: false, oidc: true, oidc_display_name: 'Pocket ID', recipe_import: false }),
       ),
     )
     renderWithProviders(<App />)
