@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, Navigate } from 'react-router'
+
+import { useAuthConfig } from '../api/auth'
 
 import { describeError } from '../api/errors'
 import { useIngredients, useMeasurements, usePreparations } from '../api/lookups'
@@ -14,6 +16,8 @@ export function ImportRecipe() {
   const importText = useImportText()
   const lists = [useIngredients(), useMeasurements(), usePreparations()]
   const [ingredient, measurement, preparation] = lists.map((list) => list.data)
+  // A deep link while import is off would only end in a 503.
+  if (useAuthConfig().data?.recipe_import === false) return <Navigate to="/" replace />
 
   if (importText.data) {
     // Matching names to rows needs the lists; they load alongside the parse.

@@ -38,8 +38,11 @@ def import_text(
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ):
+    too_long = False
     try:
         draft, usage = imports_service.parse_text(client, settings.import_model, db, body.text)
+    except imports_service.ReplyCutOff as exc:
+        draft, usage, too_long = None, exc.usage, True
     except anthropic.APIError as exc:
         # The SDK's message can name the account or key state, so log it rather than return it.
         log.warning("Recipe import failed: %s", exc)
@@ -52,8 +55,12 @@ def import_text(
         usage.input_tokens,
         usage.output_tokens,
         cost,
-        "draft returned" if draft else "no draft",
+        "draft returned" if draft else "cut off" if too_long else "no draft",
     )
+    if too_long:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="That's too long to read in one go; try a shorter excerpt"
+        )
     if draft is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Couldn't read a recipe from that")
     return RecipeImport(**draft.model_dump(), usage=usage)

@@ -72,6 +72,13 @@ def _names(db: Session, model: type[Ingredient | Measurement | Preparation]) -> 
     return "\n".join(names) or "(none yet)"
 
 
+class ReplyCutOff(Exception):
+    """Claude ran out of output tokens before finishing the draft."""
+
+    def __init__(self, usage: ImportUsage):
+        self.usage = usage
+
+
 def parse_text(client: Anthropic, model: str, db: Session, text: str) -> tuple[RecipeDraft | None, ImportUsage]:
     """The draft (None when Claude declined or couldn't finish one) and what the call cost."""
     prompt = (
@@ -93,7 +100,9 @@ def parse_text(client: Anthropic, model: str, db: Session, text: str) -> tuple[R
         fallbacks="default",
     )
     usage = usage_of(response, model)
-    if response.stop_reason in ("refusal", "max_tokens"):
+    if response.stop_reason == "max_tokens":
+        raise ReplyCutOff(usage)
+    if response.stop_reason == "refusal":
         return None, usage
     reply = next((block.text for block in response.content if block.type == "text"), "")
     try:

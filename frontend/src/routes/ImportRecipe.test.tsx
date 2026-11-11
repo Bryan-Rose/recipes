@@ -48,6 +48,13 @@ it('is offered only when import is set up', async () => {
   expect(screen.queryByRole('button', { name: 'Import' })).not.toBeInTheDocument()
 })
 
+it('sends a deep link back to the list when import is off', async () => {
+  server.use(http.get('/api/auth/config', () => HttpResponse.json(passwordOnly)))
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  expect(await screen.findByRole('button', { name: 'New recipe' })).toBeInTheDocument()
+  expect(screen.queryByLabelText('Recipe text')).not.toBeInTheDocument()
+})
+
 it('reviews the draft beside the source and creates new lookups once on save', async () => {
   let sentText: unknown
   const created: Record<string, string[]> = { ingredients: [], measurements: [], preparations: [] }

@@ -90,7 +90,7 @@ export interface RecipeInitial {
 
 /** An imported draft as form state: names matched to existing rows case-insensitively, the rest left pending. */
 export function fromImport(draft: RecipeDraft, lists: Record<LookupKind, readonly Lookup[]>): RecipeInitial {
-  // The schema only says these are integers, but the API would 422 on zero or less; leave it blank instead.
+  // The schema only says these are integers, but the API 422s below its minimums (servings 1, times 0); leave it blank instead.
   const atLeast = (min: number, value: number | null) => (value !== null && value >= min ? value : null)
   return {
     scalars: {

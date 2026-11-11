@@ -86,7 +86,6 @@ def test_model_comes_from_settings(client: TestClient, fake_api: FakeApi):
     ("text", "stop_reason"),
     [
         ("", "refusal"),
-        ('{"name": "Pan', "max_tokens"),
         (json.dumps(DRAFT), "refusal"),
         # Finished normally, but the reply isn't JSON or doesn't fit the schema.
         ("Here is the recipe:", "end_turn"),
@@ -98,6 +97,15 @@ def test_unfinished_parse_is_422(client: TestClient, fake_api: FakeApi, text: st
     response = client.post("/imports/text", json={"text": "Pancakes"})
     assert response.status_code == 422
     assert response.json() == {"detail": "Couldn't read a recipe from that"}
+
+
+def test_cut_off_reply_says_too_long(client: TestClient, fake_api: FakeApi, caplog: pytest.LogCaptureFixture):
+    fake_api.body = message('{"name": "Pan', "max_tokens")
+    with caplog.at_level(logging.INFO, logger="app"):
+        response = client.post("/imports/text", json={"text": "Pancakes"})
+    assert response.status_code == 422
+    assert response.json() == {"detail": "That's too long to read in one go; try a shorter excerpt"}
+    assert "cut off" in caplog.text
 
 
 def test_api_error_is_502_without_its_message(client: TestClient, fake_api: FakeApi):
