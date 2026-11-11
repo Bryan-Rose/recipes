@@ -17,15 +17,18 @@ export const testUser: User = {
   updated_at: '2026-01-01T00:00:00',
 }
 
-export const passwordOnly: AuthConfig = { password_login: true, oidc: false, oidc_display_name: 'SSO' }
+export const passwordOnly: AuthConfig = { password_login: true, oidc: false, oidc_display_name: 'SSO', recipe_import: false }
 
 /** Default: signed out, password login only, no recipes or tags. */
 export const server = setupServer(
   http.get('/api/auth/config', () => HttpResponse.json(passwordOnly)),
   http.get('/api/auth/me', () => HttpResponse.json({ detail: 'Not signed in' }, { status: 401 })),
   http.get('/api/recipes/', () => HttpResponse.json([])),
-  // RecipeFields loads tags for its picker.
+  // RecipeFields loads tags for its picker, and CreateRecipeForm the ingredient lookups.
   http.get('/api/tags/', () => HttpResponse.json([])),
+  http.get('/api/ingredients/', () => HttpResponse.json([])),
+  http.get('/api/measurements/', () => HttpResponse.json([])),
+  http.get('/api/preparations/', () => HttpResponse.json([])),
 )
 
 export function signedIn(user: User = testUser) {

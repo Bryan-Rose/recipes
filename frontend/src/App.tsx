@@ -7,6 +7,7 @@ import { ErrorState, Loading } from './components/Feedback'
 import { Account } from './routes/Account'
 import { AuthorPage, CookbookIndex, CookbookPage } from './routes/Cookbooks'
 import { LoginPage } from './routes/LoginPage'
+import { ImportRecipe } from './routes/ImportRecipe'
 import { Lookups } from './routes/Lookups'
 import { RecipeDetail } from './routes/RecipeDetail'
 import { RecipeEdit } from './routes/RecipeEdit'
@@ -62,6 +63,7 @@ function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/" element={<RecipeList />} />
       <Route path="/recipes/new" element={<RecipeEdit />} />
+      <Route path="/recipes/import" element={<ImportRecipe />} />
       <Route path="/recipes/:recipeId" element={<RecipeDetail />} />
       <Route path="/recipes/:recipeId/edit" element={<RecipeEdit />} />
       <Route path="/cookbooks" element={<CookbookIndex />} />

@@ -33,6 +33,8 @@ schema = (
     .exclude(method="DELETE", path="/users/{user_id}")
     # Redirects to an IdP; covered by the e2e suite.
     .exclude(path_regex="^/auth/oidc/")
+    # Calls the paid Claude API (503 without a key); covered by test_imports.py and e2e.
+    .exclude(path_regex="^/imports/")
 )
 
 RECIPE_BODY_OPERATIONS = {("POST", "/recipes/"), ("PATCH", "/recipes/{recipe_id}")}

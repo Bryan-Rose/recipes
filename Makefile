@@ -27,7 +27,7 @@ contract-check:
 fuzz:
 	cd backend && uv run pytest -m fuzz -p no:cacheprovider
 
-# Browser tests (Playwright) against the real Docker stack plus a mock OIDC IdP,
+# Browser tests (Playwright) against the real Docker stack plus a mock OIDC IdP and Claude API,
 # as a separate compose project with a throwaway database. Report and failure
 # traces land in e2e/out (open e2e/out/report/index.html).
 E2E := docker compose -p recipes-e2e -f compose.yml -f e2e/compose.e2e.yml --profile e2e
@@ -40,7 +40,7 @@ e2e:
 	mkdir -p e2e/out
 	$(E2E) down -v --remove-orphans
 	$(E2E) build
-	$(E2E) up -d --wait backend frontend mock-idp
+	$(E2E) up -d --wait backend frontend mock-idp mock-anthropic
 	printf '%s' cook-password | $(E2E) exec -T backend python -m scripts.create_user cook --full-name "Home Cook" --password-stdin
 	printf '%s' admin-password | $(E2E) exec -T backend python -m scripts.create_user admin --full-name Admin --admin --password-stdin
 	$(E2E) run --rm e2e; status=$$?; $(E2E) down -v --remove-orphans; exit $$status

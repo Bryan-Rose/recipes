@@ -5,6 +5,7 @@ description = "FastAPI backend for a shared recipe collection"
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.1",
+    "anthropic>=2.8.0",
     "authlib>=1.9.1",
     "fastapi>=0.139.2",
     "httpx2>=2.12.0",

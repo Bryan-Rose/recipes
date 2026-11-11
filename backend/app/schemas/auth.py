@@ -18,3 +18,4 @@ class AuthConfig(BaseModel):
     password_login: bool
     oidc: bool
     oidc_display_name: str
+    recipe_import: bool

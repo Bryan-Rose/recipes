@@ -393,6 +393,11 @@
   font-size: 0.8rem;
 }
 
+.picker__pending {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+}
+
 .empty-hint {
   color: var(--text-faint);
   font-size: 0.9rem;

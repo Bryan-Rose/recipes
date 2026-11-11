@@ -2,7 +2,7 @@
 
 Two projects in one repo:
 
-- `backend/` — FastAPI app managed by [uv], Python 3.14. Layered as `models/` → `schemas/` → `services/` → `routers/`, with CRUD routes for recipes (and their nested steps, requirements, ingredients) plus authors, cookbooks, ingredients, measurements, preparations, tags, and users. Passwords are hashed with stdlib scrypt in `services/users.py`. pytest suite in `backend/tests/`. Cookie-session auth with optional OIDC SSO (see Backend auth below). Schema changes go through Alembic (see Migrations below).
+- `backend/` — FastAPI app managed by [uv], Python 3.14. Layered as `models/` → `schemas/` → `services/` → `routers/`, with CRUD routes for recipes (and their nested steps, requirements, ingredients) plus authors, cookbooks, ingredients, measurements, preparations, tags, and users. `POST /imports/text` has the Claude API parse pasted text into a draft for the frontend's review screen (`services/imports.py`); it's on only when `RECIPES_ANTHROPIC_API_KEY` is set. Passwords are hashed with stdlib scrypt in `services/users.py`. pytest suite in `backend/tests/`. Cookie-session auth with optional OIDC SSO (see Backend auth below). Schema changes go through Alembic (see Migrations below).
 - `frontend/` — React 19 + TypeScript on Vite 8, using react-router and TanStack Query. It talks to the API through the Vite dev proxy (`/api` → `:8000`). See `frontend/README.md` for its structure and the API limitations that shape the UI.
 
 <!-- agent-kit:begin -->
@@ -85,10 +85,10 @@ Note `npm run build` is also the typecheck: `tsconfig.app.json` sets `noEmit`, s
 |---|---|---|
 | Backend API/integration | `backend/tests/` | Every endpoint and rule, through the real app via `TestClient`. Use the fixtures in `conftest.py`. |
 | Migrations | `backend/tests/test_migrations.py` | Covers drift and upgrade/downgrade on an empty database. A migration that touches existing rows (backfill, new non-null column, type change, split or merge) also needs a test that inserts rows at the previous revision, upgrades, and checks the data. |
-| API fuzzing | `backend/tests/fuzz/` | Schemathesis covers every OpenAPI operation automatically. Touch it only to exclude an operation that would break the signed-in session (see the comments there). |
+| API fuzzing | `backend/tests/fuzz/` | Schemathesis covers every OpenAPI operation automatically. Touch it only to exclude an operation that would break the signed-in session, redirect off-site, or call a paid API (see the comments there). |
 | Contract | `frontend/scripts/api-types.sh` | After any backend schema change, run `npm run gen:api` and commit `schema.d.ts`, or `make check` fails. |
 | Frontend components | `frontend/src/**/*.test.tsx` | Vitest + Testing Library. The API is mocked with MSW (`src/test/server.ts`), and an unmocked request fails the test. Render with `renderWithProviders` (`src/test/render.tsx`) so the app's real QueryClient and 401 handling apply. Query by role and label, which also enforces accessible markup. |
-| End to end | `e2e/tests/` | User journeys in a real browser against the built Docker images and a mock OIDC IdP. Users `COOK` and `ADMIN` are seeded by `make e2e` (see `e2e/tests/helpers.ts`). Tests share one database and run serially, so give created data `unique()` names. Reports and failure traces land in `e2e/out/report`. |
+| End to end | `e2e/tests/` | User journeys in a real browser against the built Docker images, a mock OIDC IdP and a mock Claude API (`e2e/mock-anthropic/`). Users `COOK` and `ADMIN` are seeded by `make e2e` (see `e2e/tests/helpers.ts`). Tests share one database and run serially, so give created data `unique()` names. Reports and failure traces land in `e2e/out/report`. |
 
 - **The coverage floor (`fail_under` in `backend/pyproject.toml`) only goes up.** Raise it when coverage improves; never lower it to make a change pass.
 - **Show that a new test can fail.** Break the code it covers, watch it fail, then restore. Several harness bugs in this suite passed silently until checked that way.
