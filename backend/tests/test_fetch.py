@@ -166,3 +166,8 @@ def test_deeply_nested_json_ld_falls_back_to_the_text():
 
 def test_text_is_capped():
     assert len(page_text("<p>" + "x" * (fetch.MAX_TEXT + 10) + "</p>")) == fetch.MAX_TEXT
+
+
+def test_json_ld_type_is_matched_loosely():
+    html = '<script type="Application/LD+JSON; charset=utf-8">{"@type": "Recipe", "name": "Soup"}</script><p>Story</p>'
+    assert json.loads(page_text(html)) == {"@type": "Recipe", "name": "Soup"}

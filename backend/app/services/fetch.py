@@ -99,7 +99,8 @@ class _Page(HTMLParser):
         self._in_json_ld = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag == "script" and ("type", "application/ld+json") in attrs:
+        kind = (dict(attrs).get("type") or "").split(";")[0].strip().lower()
+        if tag == "script" and kind == "application/ld+json":
             self._in_json_ld = True
             self.json_ld.append("")
         elif tag in _HIDDEN:
