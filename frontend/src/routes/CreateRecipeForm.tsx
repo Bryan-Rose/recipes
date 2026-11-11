@@ -56,7 +56,11 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
   const duplicate = findByName(recipes, scalars.name)
   const incompleteIngredients = ingredients.filter((row) => !isFilled(row.value)).length
   const canSave =
-    scalars.name.trim() !== '' && incompleteIngredients === 0 && !createRecipe.isPending && !creatingPending
+    scalars.name.trim() !== '' &&
+    !duplicate &&
+    incompleteIngredients === 0 &&
+    !createRecipe.isPending &&
+    !creatingPending
 
   /** The rows without `pending`, each pending name swapped for a row id; each new name is created once. */
   async function resolvePending(rows: IngredientDraft[]): Promise<IngredientDraft[]> {

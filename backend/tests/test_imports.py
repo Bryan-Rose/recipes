@@ -95,10 +95,12 @@ def test_api_error_is_502_without_its_message(client: TestClient, fake_api: Fake
     assert "api-key" not in response.text
 
 
-def test_without_a_key_is_503(client: TestClient):
-    fastapi_app.dependency_overrides[get_settings] = lambda: Settings(anthropic_api_key=None)
-    response = client.post("/imports/text", json={"text": "Pancakes"})
-    assert response.status_code == 503
+@pytest.mark.parametrize("key", [None, "", "  "])
+def test_without_a_key_is_503(client: TestClient, key: str | None):
+    settings = Settings(anthropic_api_key=key)  # pyright: ignore[reportArgumentType]
+    fastapi_app.dependency_overrides[get_settings] = lambda: settings
+    assert settings.import_enabled is False
+    assert client.post("/imports/text", json={"text": "Pancakes"}).status_code == 503
 
 
 def test_key_makes_a_client(client: TestClient):
@@ -106,6 +108,8 @@ def test_key_makes_a_client(client: TestClient):
     sdk = get_import_client(settings)
     assert sdk.api_key == "sk-test"
     assert str(sdk.base_url).startswith("http://mock:9000")
+    assert sdk.max_retries == 0
+    assert get_import_client(settings) is sdk  # reused, not rebuilt per request
 
 
 @pytest.mark.parametrize("text", ["", "   ", "x" * 20_001])

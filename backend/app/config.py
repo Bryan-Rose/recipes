@@ -42,7 +42,8 @@ class Settings(BaseSettings):
 
     @property
     def import_enabled(self) -> bool:
-        return self.anthropic_api_key is not None
+        # A blank RECIPES_ANTHROPIC_API_KEY= counts as unset.
+        return bool(self.anthropic_api_key and self.anthropic_api_key.get_secret_value().strip())
 
     @property
     def oidc_enabled(self) -> bool:

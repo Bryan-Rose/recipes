@@ -135,8 +135,11 @@ it('warns when a recipe with that name exists', async () => {
   const user = await readRecipe()
 
   expect(await screen.findByRole('link', { name: 'A recipe called “LEEK SOUP”' })).toHaveAttribute('href', '/recipes/3')
+  // Saving would 409 after creating the pending lookups, so it's blocked until renamed.
+  expect(screen.getByRole('button', { name: 'Save recipe' })).toBeDisabled()
   await user.type(screen.getByLabelText('Name'), ' II')
   expect(screen.queryByRole('link', { name: /A recipe called/ })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save recipe' })).toBeEnabled()
 })
 
 it('shows a failed parse and keeps the text', async () => {
@@ -149,4 +152,14 @@ it('shows a failed parse and keeps the text', async () => {
 
   expect(await screen.findByText('The recipe reader isn’t responding; try again')).toBeInTheDocument()
   expect(screen.getByLabelText('Recipe text')).toHaveValue('Leek soup')
+})
+
+it('shows a lookup list that fails to load instead of spinning', async () => {
+  server.use(
+    http.post('/api/imports/text', () => HttpResponse.json(draft)),
+    http.get('/api/preparations/', () => HttpResponse.json({ detail: 'Database is down' }, { status: 500 })),
+  )
+  await readRecipe()
+
+  expect(await screen.findByText(/Couldn.t load lookups: Database is down/)).toBeInTheDocument()
 })

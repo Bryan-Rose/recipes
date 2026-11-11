@@ -1,4 +1,5 @@
 import logging
+from functools import lru_cache
 
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,16 +15,17 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/imports", tags=["imports"])
 
 
+@lru_cache
+def _client(api_key: str, base_url: str | None) -> anthropic.Anthropic:
+    # One attempt under nginx's 120s read timeout: the reply isn't streamed, so a retry
+    # after a timeout would start (and bill) the whole parse again. The user can retry.
+    return anthropic.Anthropic(api_key=api_key, base_url=base_url, timeout=110.0, max_retries=0)
+
+
 def get_import_client(settings: Settings = Depends(get_settings)) -> anthropic.Anthropic:
-    if settings.anthropic_api_key is None:
+    if not settings.import_enabled or settings.anthropic_api_key is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Recipe import isn't set up")
-    # Under the proxies' 120s read timeout, retry included.
-    return anthropic.Anthropic(
-        api_key=settings.anthropic_api_key.get_secret_value(),
-        base_url=settings.anthropic_base_url,
-        timeout=55.0,
-        max_retries=1,
-    )
+    return _client(settings.anthropic_api_key.get_secret_value().strip(), settings.anthropic_base_url)
 
 
 @router.post("/text", response_model=RecipeDraft)

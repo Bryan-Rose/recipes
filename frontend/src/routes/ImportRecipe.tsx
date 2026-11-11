@@ -5,19 +5,20 @@ import { describeError } from '../api/errors'
 import { useIngredients, useMeasurements, usePreparations } from '../api/lookups'
 import { useImportText } from '../api/recipes'
 import { fromImport } from '../components/drafts'
-import { Loading } from '../components/Feedback'
+import { ErrorState, Loading } from '../components/Feedback'
 import { CreateRecipeForm } from './CreateRecipeForm'
 
 /** Paste a recipe, have Claude parse it, then review the draft beside the source before saving. */
 export function ImportRecipe() {
   const [text, setText] = useState('')
   const importText = useImportText()
-  const ingredient = useIngredients().data
-  const measurement = useMeasurements().data
-  const preparation = usePreparations().data
+  const lists = [useIngredients(), useMeasurements(), usePreparations()]
+  const [ingredient, measurement, preparation] = lists.map((list) => list.data)
 
   if (importText.data) {
     // Matching names to rows needs the lists; they load alongside the parse.
+    const failed = lists.find((list) => list.error)?.error
+    if (failed) return <ErrorState error={failed} what="lookups" />
     if (!ingredient || !measurement || !preparation) return <Loading what="lookups" />
     return (
       <div className="detail-columns">
