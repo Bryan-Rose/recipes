@@ -15,8 +15,9 @@ export function ImportRecipe() {
   const importText = useImportText()
   const lists = [useIngredients(), useMeasurements(), usePreparations()]
   const [ingredient, measurement, preparation] = lists.map((list) => list.data)
+  const importEnabled = useAuthConfig().data?.recipe_import
   // A deep link while import is off would only end in a 503.
-  if (useAuthConfig().data?.recipe_import === false) return <Navigate to="/" replace />
+  if (importEnabled === false) return <Navigate to="/" replace />
 
   if (importText.data) {
     // Matching names to rows needs the lists; they load alongside the parse.

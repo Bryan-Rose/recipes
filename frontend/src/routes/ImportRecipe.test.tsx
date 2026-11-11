@@ -217,4 +217,5 @@ it('keeps Save off until the recipe list is there to check for duplicates', asyn
   await screen.findByRole('heading', { name: 'Review import' })
 
   expect(screen.getByRole('button', { name: 'Save recipe' })).toBeDisabled()
+  expect(await screen.findByText('Couldn’t load recipes to check the name: Database is down')).toBeInTheDocument()
 })

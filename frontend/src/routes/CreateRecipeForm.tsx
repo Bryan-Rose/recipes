@@ -39,7 +39,7 @@ function keyed<T>(value: T): Keyed<T> {
 export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?: RecipeInitial; heading?: string }) {
   const navigate = useNavigate()
   const createRecipe = useCreateRecipe()
-  const { data: recipes } = useRecipes()
+  const { data: recipes, error: recipesError } = useRecipes()
   const lookups = {
     ingredient: [useIngredients().data, useCreateIngredient()],
     measurement: [useMeasurements().data, useCreateMeasurement()],
@@ -259,6 +259,9 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
           </button>
         </section>
 
+        {recipesError && (
+          <p className="error-box">Couldn&rsquo;t load recipes to check the name: {describeError(recipesError)}</p>
+        )}
         {pendingError !== null && <p className="error-box">{describeError(pendingError)}</p>}
         {createRecipe.error && <p className="error-box">{describeError(createRecipe.error)}</p>}
 
