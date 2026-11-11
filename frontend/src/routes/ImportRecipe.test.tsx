@@ -203,3 +203,18 @@ it('shows a failed lookup create on save and lets you retry', async () => {
   expect(recipePosts).toBe(0)
   expect(screen.getByRole('button', { name: 'Save recipe' })).toBeEnabled()
 })
+
+it('keeps Save off until the recipe list is there to check for duplicates', async () => {
+  server.use(
+    http.post('/api/imports/text', () => HttpResponse.json(draft)),
+    http.get('/api/recipes/', () => HttpResponse.json({ detail: 'Database is down' }, { status: 500 })),
+  )
+  // Opened directly, so the list page never loaded the recipes.
+  const user = userEvent.setup()
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  await user.type(await screen.findByLabelText('Recipe text'), 'Leek soup')
+  await user.click(screen.getByRole('button', { name: 'Read recipe' }))
+  await screen.findByRole('heading', { name: 'Review import' })
+
+  expect(screen.getByRole('button', { name: 'Save recipe' })).toBeDisabled()
+})

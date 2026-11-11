@@ -57,6 +57,8 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
   const incompleteIngredients = ingredients.filter((row) => !isFilled(row.value)).length
   const canSave =
     scalars.name.trim() !== '' &&
+    // Without the list the duplicate check can't run, and a 409 would come after creating pending lookups.
+    recipes !== undefined &&
     !duplicate &&
     incompleteIngredients === 0 &&
     !createRecipe.isPending &&
