@@ -1,3 +1,4 @@
+import itertools
 import json
 import socket
 
@@ -125,3 +126,43 @@ def test_falls_back_to_the_visible_text():
         "<html><head><title>Soup</title><style>p{}</style></head><body><nav>Home</nav><script>track()</script><p>2 leeks</p></body></html>"
     )
     assert page_text(html) == "Soup\nHome\n2 leeks"
+
+
+def test_deadline_covers_the_whole_redirect_chain(web: FakeWeb, monkeypatch: pytest.MonkeyPatch):
+    clock = [0.0]
+    monkeypatch.setattr(fetch.time, "monotonic", lambda: clock[0])
+    handle = web.handle
+
+    def slow(request: httpx2.Request) -> httpx2.Response:
+        clock[0] += 6  # each hop takes 6 of the 15 seconds
+        return handle(request)
+
+    web.pages["example.com/loop"] = httpx2.Response(302, headers={"location": "/loop"})
+    with pytest.raises(FetchError, match="too slow"):
+        fetch_page("https://example.com/loop", httpx2.MockTransport(slow))
+    assert len(web.requests) == 3
+    # The last hop only had the 3 seconds left.
+    assert web.requests[-1].extensions["timeout"]["read"] == pytest.approx(3)
+
+
+def test_slow_body_hits_the_deadline(web: FakeWeb, monkeypatch: pytest.MonkeyPatch):
+    # Start, the hop's check, the request's timeout; then the body arrives late.
+    clock = itertools.chain([0.0, 1.0, 1.0], itertools.repeat(99.0))
+    monkeypatch.setattr(fetch.time, "monotonic", lambda: next(clock))
+    with pytest.raises(FetchError, match="too slow"):
+        web.get("https://example.com/")
+
+
+def test_malformed_host_name_does_not_resolve():
+    # A 64-character label can't be IDNA-encoded, so this fails before any lookup.
+    with pytest.raises(FetchError, match="doesn't resolve"):
+        fetch._checked_address("a" * 64 + ".example", 443, allow_private=False)
+
+
+def test_deeply_nested_json_ld_falls_back_to_the_text():
+    html = '<script type="application/ld+json">' + "[" * 100_000 + "]" * 100_000 + "</script><p>2 leeks</p>"
+    assert page_text(html) == "2 leeks"
+
+
+def test_text_is_capped():
+    assert len(page_text("<p>" + "x" * (fetch.MAX_TEXT + 10) + "</p>")) == fetch.MAX_TEXT

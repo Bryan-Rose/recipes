@@ -34,8 +34,6 @@ def _checked_address(host: str, port: int, allow_private: bool) -> str:
     except (socket.gaierror, UnicodeError) as exc:
         raise FetchError("that site's address doesn't resolve") from exc
     addresses = [str(info[4][0]).split("%")[0] for info in infos]
-    if not addresses:
-        raise FetchError("that site's address doesn't resolve")
     if not allow_private and not all(ipaddress.ip_address(a).is_global for a in addresses):
         raise FetchError("that isn't a public web address")
     return addresses[0]
@@ -44,6 +42,13 @@ def _checked_address(host: str, port: int, allow_private: bool) -> str:
 def fetch_page(url: str, transport: httpx2.BaseTransport | None = None, allow_private: bool = False) -> str:
     """The HTML at url, following up to MAX_REDIRECTS redirects, each checked the same way."""
     deadline = time.monotonic() + DEADLINE_SECONDS
+
+    def time_left() -> float:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            raise FetchError("that site is too slow")
+        return left
+
     headers = {"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml"}
     # A fresh client per fetch: pooled connections are keyed by address, not by host name.
     with httpx2.Client(transport=transport, timeout=5.0, follow_redirects=False, headers=headers) as client:
@@ -51,6 +56,8 @@ def fetch_page(url: str, transport: httpx2.BaseTransport | None = None, allow_pr
             target = httpx2.URL(url)
             if target.scheme not in ("http", "https") or not target.host:
                 raise FetchError("only http and https links work")
+            time_left()
+            # shortcut: the system resolver can't be given a timeout from here; a slow lookup only counts toward the deadline.
             address = _checked_address(target.host, target.port or (443 if target.scheme == "https" else 80), allow_private)
             try:
                 with client.stream(
@@ -58,6 +65,7 @@ def fetch_page(url: str, transport: httpx2.BaseTransport | None = None, allow_pr
                     target.copy_with(host=address),
                     headers={"Host": target.netloc.decode("ascii")},
                     extensions={"sni_hostname": target.host},
+                    timeout=min(5.0, time_left()),
                 ) as response:
                     if response.is_redirect:
                         url = str(target.join(response.headers["location"]))
@@ -71,8 +79,7 @@ def fetch_page(url: str, transport: httpx2.BaseTransport | None = None, allow_pr
                         body += chunk
                         if len(body) > MAX_BYTES:
                             raise FetchError("that page is too big")
-                        if time.monotonic() > deadline:
-                            raise FetchError("that site is too slow")
+                        time_left()
                     return body.decode(response.encoding or "utf-8", errors="replace")
             except httpx2.HTTPError as exc:
                 raise FetchError("couldn't connect to that site") from exc
@@ -129,7 +136,7 @@ def page_text(html: str) -> str:
     for block in page.json_ld:
         try:
             recipe = _find_recipe(json.loads(block))
-        except ValueError:
+        except ValueError, RecursionError:
             continue
         if recipe:
             # Reviews can be most of the block and say nothing about the recipe.
