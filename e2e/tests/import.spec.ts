@@ -36,3 +36,26 @@ test('import a pasted recipe, review it, and save with new lookups', async ({ pa
   await expect(page.getByText('Simmer.')).toBeVisible()
   await expect(page.getByText('Imported by the mock.')).toBeVisible()
 })
+
+test('import from photos of the pages', async ({ page }) => {
+  const name = `Photographed Stew ${unique()}`
+  await page.goto('/')
+  await signIn(page, COOK)
+  // Any image the browser can decode will do; the mock doesn't look at it.
+  const shot = await page.screenshot()
+  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByLabel(/Or photos of the pages/).setInputFiles([
+    { name: 'page1.png', mimeType: 'image/png', buffer: shot },
+    { name: 'page2.png', mimeType: 'image/png', buffer: shot },
+  ])
+  await expect(page.getByRole('img', { name: 'Page 2' })).toBeVisible()
+  await page.getByRole('button', { name: 'Read photos' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Review import' })).toBeVisible()
+  await expect(page.getByRole('complementary').getByRole('img')).toHaveCount(2)
+  await page.getByLabel('Name').fill(name)
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(page.getByText('Step from photo 2.')).toBeVisible()
+})

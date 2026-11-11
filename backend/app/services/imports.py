@@ -1,4 +1,4 @@
-"""Turns a recipe from outside (pasted text for now) into a RecipeDraft with the Claude API."""
+"""Turns a recipe from outside (pasted text or photos) into a RecipeDraft with the Claude API."""
 
 from anthropic import Anthropic, transform_schema
 from anthropic.types.beta import BetaMessage
@@ -28,7 +28,10 @@ singular name.
 - The app can't store ranges ("1-2 cups": use the larger), amounts it can't express exactly, ingredient groups \
 ("For the sauce:"), or notes on an ingredient line ("optional", "plus more to serve"). Make the nearest fit, and add \
 one line per thing you changed or left out to notes, so nothing is lost.
-- notes: any other useful text from the recipe (tips, storage, variations), then the lines above. null if none."""
+- notes: any other useful text from the recipe (tips, storage, variations), then the lines above. null if none.
+- Photos are pages of one recipe, in order. Ignore page numbers, running heads and anything that isn't this recipe. \
+If a page shows more than one recipe, take the one that continues across the photos (or the most complete one), and \
+say in notes which you took. Where the print is unreadable, leave a gap and say so in notes."""
 
 
 # shortcut: list prices in USD per million (input, output) tokens, copied by hand
@@ -79,14 +82,27 @@ class ReplyCutOff(Exception):
         self.usage = usage
 
 
-def parse_text(client: Anthropic, model: str, db: Session, text: str) -> tuple[RecipeDraft | None, ImportUsage]:
-    """The draft (None when Claude declined or couldn't finish one) and what the call cost."""
-    prompt = (
+def _lookups(db: Session) -> str:
+    return (
         f"<existing_measurements>\n{_names(db, Measurement)}\n</existing_measurements>\n"
         f"<existing_ingredients>\n{_names(db, Ingredient)}\n</existing_ingredients>\n"
-        f"<existing_preparations>\n{_names(db, Preparation)}\n</existing_preparations>\n\n"
-        f"<recipe>\n{text}\n</recipe>"
+        f"<existing_preparations>\n{_names(db, Preparation)}\n</existing_preparations>"
     )
+
+
+def parse_text(client: Anthropic, model: str, db: Session, text: str) -> tuple[RecipeDraft | None, ImportUsage]:
+    """The draft (None when Claude declined or couldn't finish one) and what the call cost."""
+    return _parse(client, model, f"{_lookups(db)}\n\n<recipe>\n{text}\n</recipe>")
+
+
+def parse_photos(client: Anthropic, model: str, db: Session, photos: list[str]) -> tuple[RecipeDraft | None, ImportUsage]:
+    """Like parse_text, from base64 JPEG pages in order."""
+    images = [{"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": photo}} for photo in photos]
+    request = f"{_lookups(db)}\n\nThe recipe is in the photos above."
+    return _parse(client, model, [*images, {"type": "text", "text": request}])
+
+
+def _parse(client: Anthropic, model: str, prompt: str | list) -> tuple[RecipeDraft | None, ImportUsage]:
     # create(), not parse(): parse() raises on a refusal's partial reply, and the usage
     # (what was billed) is needed either way.
     response = client.beta.messages.create(
