@@ -219,6 +219,7 @@ def test_photos_share_the_error_handling(client: TestClient, fake_api: FakeApi):
         [],
         [JPEG] * 5,
         ["not base64!"],
+        ["/9j/é"],  # non-ASCII
         [base64.b64encode(b"\x89PNG\r\n\x1a\n").decode()],  # base64, but not a JPEG
         ["/9j/" + "A" * 5_000_000],  # a JPEG header, but over the size limit
     ],
@@ -230,3 +231,9 @@ def test_photos_must_be_one_to_four_jpegs(client: TestClient, fake_api: FakeApi,
 
 def test_four_photos_are_allowed(client: TestClient, fake_api: FakeApi):
     assert client.post("/imports/photos", json={"photos": [JPEG] * 4}).status_code == 200
+
+
+@pytest.mark.parametrize("photo", ["not base64!", "/9j/é"])
+def test_bad_photo_says_what_is_expected(client: TestClient, fake_api: FakeApi, photo: str):
+    (error,) = client.post("/imports/photos", json={"photos": [photo]}).json()["detail"]
+    assert "must be a base64 JPEG" in error["msg"]

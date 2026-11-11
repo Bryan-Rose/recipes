@@ -148,7 +148,10 @@ export function ImportRecipe() {
             Read photos
           </button>
           {photos.length > 0 && (
-            <button type="button" className="ghost" disabled={busy} onClick={() => setPhotos([])}>
+            <button type="button" className="ghost" disabled={busy} onClick={() => {
+                setPhotos([])
+                setPhotoError(null)
+              }}>
               Clear photos
             </button>
           )}

@@ -1,5 +1,4 @@
 import base64
-import binascii
 from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, Field
@@ -51,7 +50,7 @@ class TextImport(BaseModel):
 def _jpeg(value: str) -> str:
     try:
         is_jpeg = base64.b64decode(value, validate=True).startswith(b"\xff\xd8\xff")
-    except binascii.Error:
+    except ValueError:  # binascii.Error, or non-ASCII text
         is_jpeg = False
     if not is_jpeg:
         raise ValueError("must be a base64 JPEG")

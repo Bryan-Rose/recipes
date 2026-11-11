@@ -285,4 +285,6 @@ it('keeps the photos that open and names the one that does not', async () => {
     'data:image/jpeg;base64,jpeg:p1.jpg',
     'data:image/jpeg;base64,jpeg:p3.jpg',
   ])
+  await user.click(screen.getByRole('button', { name: 'Clear photos' }))
+  expect(screen.queryByText(/Couldn’t open/)).not.toBeInTheDocument()
 })

@@ -59,3 +59,18 @@ test('import from photos of the pages', async ({ page }) => {
   await expect(page.getByRole('heading', { name })).toBeVisible()
   await expect(page.getByText('Step from photo 2.')).toBeVisible()
 })
+
+test('a file that is not an image is named, and the photos beside it are kept', async ({ page }) => {
+  await page.goto('/')
+  await signIn(page, COOK)
+  const shot = await page.screenshot()
+  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByLabel(/Or photos of the pages/).setInputFiles([
+    { name: 'page1.png', mimeType: 'image/png', buffer: shot },
+    { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('not a photo') },
+  ])
+
+  await expect(page.getByText('Couldn’t open notes.txt. Try a JPEG or PNG.')).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Page 1' })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Page 2' })).toHaveCount(0)
+})
