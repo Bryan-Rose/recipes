@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import Depends, FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
@@ -8,6 +10,13 @@ from app.config import get_settings
 from app.routers import auth, cookbooks, imports, lookups, recipes, users
 
 settings = get_settings()
+
+# uvicorn configures only its own loggers, so app.* INFO lines (import costs) would be dropped.
+_app_log = logging.getLogger("app")
+_app_log.setLevel(logging.INFO)
+_handler = logging.StreamHandler()
+_handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s: %(message)s"))
+_app_log.addHandler(_handler)
 
 # Interactive docs only in debug: they're unauthenticated, and behind the /api
 # prefix they break anyway (they fetch /openapi.json from the site root).

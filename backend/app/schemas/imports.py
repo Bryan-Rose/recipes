@@ -29,5 +29,18 @@ class RecipeDraft(BaseModel):
     steps: list[str]
 
 
+class ImportUsage(BaseModel):
+    """What one parse cost. cost_usd is None for a model missing from the price table."""
+
+    model: str
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float | None
+
+
+class RecipeImport(RecipeDraft):
+    usage: ImportUsage
+
+
 class TextImport(BaseModel):
     text: Annotated[Name, Field(max_length=20_000)]

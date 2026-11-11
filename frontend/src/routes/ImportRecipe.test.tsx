@@ -4,11 +4,11 @@ import { http, HttpResponse } from 'msw'
 import { beforeEach, expect, it } from 'vitest'
 
 import App from '../App'
-import type { RecipeCreate, RecipeDraft } from '../api/types'
+import type { RecipeCreate, RecipeImport } from '../api/types'
 import { renderWithProviders } from '../test/render'
 import { passwordOnly, server, signedIn } from '../test/server'
 
-const draft: RecipeDraft = {
+const draft: RecipeImport = {
   name: 'Leek soup',
   servings: 4,
   active_cook_time: 20,
@@ -20,6 +20,7 @@ const draft: RecipeDraft = {
   ],
   requirements: ['Large pot'],
   steps: ['Sweat the leeks.', 'Simmer.'],
+  usage: { model: 'claude-sonnet-5-5', input_tokens: 2400, output_tokens: 610, cost_usd: 0.0109 },
 }
 
 beforeEach(() => {
@@ -73,6 +74,7 @@ it('reviews the draft beside the source and creates new lookups once on save', a
   expect(await screen.findByRole('heading', { name: 'Review import' })).toBeInTheDocument()
   expect(sentText).toEqual({ text: 'Leek soup\n3 leeks, sliced' })
   expect(within(screen.getByRole('complementary')).getByText(/3 leeks, sliced/)).toBeInTheDocument()
+  expect(screen.getByText('Read by claude-sonnet-5-5: 2,400 tokens in, 610 out, costing $0.011.')).toBeInTheDocument()
   expect(screen.getByLabelText('Name')).toHaveValue('Leek soup')
   expect(screen.getAllByText('New: “leek”, added when you save.', { exact: false })).toHaveLength(2)
   expect(screen.getAllByLabelText('Measurement')[1]).toHaveDisplayValue('cup')
@@ -162,4 +164,15 @@ it('shows a lookup list that fails to load instead of spinning', async () => {
   await readRecipe()
 
   expect(await screen.findByText(/Couldn.t load lookups: Database is down/)).toBeInTheDocument()
+})
+
+it('says when the cost is unknown', async () => {
+  server.use(
+    http.post('/api/imports/text', () =>
+      HttpResponse.json({ ...draft, usage: { ...draft.usage, model: 'claude-future-9', cost_usd: null } }),
+    ),
+  )
+  await readRecipe()
+
+  expect(await screen.findByText(/Read by claude-future-9: .* costing an unknown amount/)).toBeInTheDocument()
 })

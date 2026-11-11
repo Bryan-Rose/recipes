@@ -646,6 +646,20 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * ImportUsage
+         * @description What one parse cost. cost_usd is None for a model missing from the price table.
+         */
+        ImportUsage: {
+            /** Model */
+            model: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cost Usd */
+            cost_usd: number | null;
+        };
         /** ImportedIngredient */
         ImportedIngredient: {
             /** Amount Numerator */
@@ -772,11 +786,8 @@ export interface components {
              */
             tag_ids: number[];
         };
-        /**
-         * RecipeDraft
-         * @description A parsed recipe for the user to review. Lookups are by name; nothing is saved.
-         */
-        RecipeDraft: {
+        /** RecipeImport */
+        RecipeImport: {
             /** Name */
             name: string;
             /** Servings */
@@ -793,6 +804,7 @@ export interface components {
             requirements: string[];
             /** Steps */
             steps: string[];
+            usage: components["schemas"]["ImportUsage"];
         };
         /** RecipeIngredientCreate */
         RecipeIngredientCreate: {
@@ -2299,7 +2311,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RecipeDraft"];
+                    "application/json": components["schemas"]["RecipeImport"];
                 };
             };
             /** @description Validation Error */

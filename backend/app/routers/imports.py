@@ -5,9 +5,11 @@ import anthropic
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.database import get_db
-from app.schemas.imports import RecipeDraft, TextImport
+from app.models.user import User
+from app.schemas.imports import RecipeImport, TextImport
 from app.services import imports as imports_service
 
 log = logging.getLogger(__name__)
@@ -28,19 +30,30 @@ def get_import_client(settings: Settings = Depends(get_settings)) -> anthropic.A
     return _client(settings.anthropic_api_key.get_secret_value().strip(), settings.anthropic_base_url)
 
 
-@router.post("/text", response_model=RecipeDraft)
+@router.post("/text", response_model=RecipeImport)
 def import_text(
     body: TextImport,
+    user: User = Depends(get_current_user),
     client: anthropic.Anthropic = Depends(get_import_client),
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ):
     try:
-        draft = imports_service.parse_text(client, settings.import_model, db, body.text)
+        draft, usage = imports_service.parse_text(client, settings.import_model, db, body.text)
     except anthropic.APIError as exc:
         # The SDK's message can name the account or key state, so log it rather than return it.
         log.warning("Recipe import failed: %s", exc)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The recipe reader isn't responding; try again") from exc
+    cost = "unknown" if usage.cost_usd is None else f"${usage.cost_usd:.4f}"
+    log.info(
+        "Recipe import by %s: %s, %d input + %d output tokens, cost %s, %s",
+        user.username,
+        usage.model,
+        usage.input_tokens,
+        usage.output_tokens,
+        cost,
+        "draft returned" if draft else "no draft",
+    )
     if draft is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Couldn't read a recipe from that")
-    return draft
+    return RecipeImport(**draft.model_dump(), usage=usage)

@@ -20,11 +20,16 @@ export function ImportRecipe() {
     const failed = lists.find((list) => list.error)?.error
     if (failed) return <ErrorState error={failed} what="lookups" />
     if (!ingredient || !measurement || !preparation) return <Loading what="lookups" />
+    const { model, input_tokens, output_tokens, cost_usd } = importText.data.usage
     return (
       <div className="detail-columns">
         <aside className="card editor-section">
           <h2 className="section-heading">Source</h2>
           <p className="recipe-notes">{importText.variables}</p>
+          <p className="muted">
+            Read by {model}: {input_tokens.toLocaleString()} tokens in, {output_tokens.toLocaleString()} out, costing{' '}
+            {cost_usd === null ? 'an unknown amount' : `$${cost_usd.toFixed(3)}`}.
+          </p>
         </aside>
         <CreateRecipeForm
           initial={fromImport(importText.data, { ingredient, measurement, preparation })}

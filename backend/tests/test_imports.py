@@ -1,4 +1,5 @@
 import json
+import logging
 
 import anthropic
 import httpx2
@@ -23,16 +24,16 @@ DRAFT = {
 }
 
 
-def message(text: str, stop_reason: str = "end_turn") -> dict:
+def message(text: str, stop_reason: str = "end_turn", model: str = "claude-sonnet-5-5", **usage) -> dict:
     return {
         "id": "msg_test",
         "type": "message",
         "role": "assistant",
-        "model": "claude-sonnet-5-5",
+        "model": model,
         "content": [{"type": "text", "text": text}],
         "stop_reason": stop_reason,
         "stop_sequence": None,
-        "usage": {"input_tokens": 10, "output_tokens": 10},
+        "usage": {"input_tokens": 2000, "output_tokens": 500, **usage},
     }
 
 
@@ -60,7 +61,9 @@ def fake_api(client: TestClient):
 def test_returns_the_parsed_draft(client: TestClient, fake_api: FakeApi):
     response = client.post("/imports/text", json={"text": "Pancakes\n1 1/2 cups flour"})
     assert response.status_code == 200
-    assert response.json() == DRAFT
+    # Sonnet 5.5: 2000 x $2/M + 500 x $10/M.
+    usage = {"model": "claude-sonnet-5-5", "input_tokens": 2000, "output_tokens": 500, "cost_usd": pytest.approx(0.009)}
+    assert response.json() == {**DRAFT, "usage": usage}
 
 
 def test_prompt_lists_existing_lookups_and_the_text(client: TestClient, fake_api: FakeApi, ingredient, measurement, preparation):
@@ -136,3 +139,30 @@ def test_asks_for_the_draft_schema(client: TestClient, fake_api: FakeApi):
     assert config["effort"] == "medium"
     assert config["format"]["type"] == "json_schema"
     assert set(config["format"]["schema"]["required"]) >= {"name", "ingredients", "steps"}
+
+
+def test_cost_is_logged_even_without_a_draft(client: TestClient, fake_api: FakeApi, caplog: pytest.LogCaptureFixture):
+    fake_api.body = message("", "refusal")
+    with caplog.at_level(logging.INFO, logger="app"):
+        client.post("/imports/text", json={"text": "Pancakes"})
+    assert "Recipe import by admin: claude-sonnet-5-5, 2000 input + 500 output tokens, cost $0.0090, no draft" in caplog.text
+
+
+def test_fallback_runs_are_priced_per_model(client: TestClient, fake_api: FakeApi):
+    iterations = [
+        {"type": "message", "model": None, "input_tokens": 1000, "output_tokens": 100},
+        {"type": "fallback_message", "model": "claude-opus-5-5", "input_tokens": 1000, "output_tokens": 400},
+    ]
+    fake_api.body = message(json.dumps(DRAFT), model="claude-opus-5-5", iterations=iterations)
+    usage = client.post("/imports/text", json={"text": "Pancakes"}).json()["usage"]
+    # (1000 x 2 + 100 x 10) + (1000 x 4 + 400 x 20), per million.
+    assert usage["cost_usd"] == pytest.approx(0.015)
+    assert usage["model"] == "claude-opus-5-5"
+
+
+def test_unpriced_model_has_no_cost(client: TestClient, fake_api: FakeApi, caplog: pytest.LogCaptureFixture):
+    fake_api.body = message(json.dumps(DRAFT), model="claude-future-9")
+    with caplog.at_level(logging.INFO, logger="app"):
+        usage = client.post("/imports/text", json={"text": "Pancakes"}).json()["usage"]
+    assert usage["cost_usd"] is None
+    assert "cost unknown" in caplog.text

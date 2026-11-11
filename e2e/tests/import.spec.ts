@@ -18,6 +18,8 @@ test('import a pasted recipe, review it, and save with new lookups', async ({ pa
 
   await expect(page.getByRole('heading', { name: 'Review import' })).toBeVisible()
   await expect(page.getByRole('complementary')).toContainText('Wash the nettles.')
+  // The mock reports 1 token each way.
+  await expect(page.getByText('Read by claude-sonnet-5-5: 1 tokens in, 1 out, costing $0.000.')).toBeVisible()
   await expect(page.getByLabel('Name')).toHaveValue(name)
   await expect(page.getByText(`New: “${ingredient}”, added when you save.`)).toBeVisible()
   await expect(page.getByText(`New: “${measurement}”, added when you save.`)).toBeVisible()

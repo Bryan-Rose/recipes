@@ -27,7 +27,9 @@ export type Recipe = Schemas['RecipeRead']
 export type RecipeSummary = Schemas['RecipeSummary']
 export type RecipeCreate = Schemas['RecipeCreate']
 export type RecipeUpdate = Schemas['RecipeUpdate']
-export type RecipeDraft = Schemas['RecipeDraft']
+export type RecipeImport = Schemas['RecipeImport']
+/** A parsed recipe without its cost; the API only sends it inside RecipeImport. */
+export type RecipeDraft = Omit<RecipeImport, 'usage'>
 
 export type Step = Schemas['StepRead']
 export type StepCreate = Schemas['StepCreate']
