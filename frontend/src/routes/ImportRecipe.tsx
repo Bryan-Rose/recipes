@@ -70,14 +70,12 @@ export function ImportRecipe() {
       return
     }
     setConverting(true)
-    try {
-      const added = await Promise.all(files.map(toJpeg))
-      setPhotos((current) => [...current, ...added])
-    } catch {
-      setPhotoError('Couldn’t open that photo. Try a JPEG or PNG.')
-    } finally {
-      setConverting(false)
-    }
+    // Keep the photos that convert, so one bad file doesn't mean picking the rest again.
+    const results = await Promise.allSettled(files.map(toJpeg))
+    setConverting(false)
+    setPhotos((current) => [...current, ...results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))])
+    const failed = files.filter((_, index) => results[index].status === 'rejected').map((file) => file.name)
+    if (failed.length > 0) setPhotoError(`Couldn’t open ${failed.join(', ')}. Try a JPEG or PNG.`)
   }
 
   const busy = importRecipe.isPending || converting
@@ -157,6 +155,7 @@ export function ImportRecipe() {
         </div>
       </form>
       {importRecipe.error && <p className="error-box">{describeError(importRecipe.error)}</p>}
+      {converting && <p className="muted">Preparing photos…</p>}
       {importRecipe.isPending && <p className="muted">Reading recipe… This can take up to a minute.</p>}
     </>
   )

@@ -275,11 +275,14 @@ it('takes at most four photos', async () => {
   expect(screen.getAllByRole('img')).toHaveLength(3)
 })
 
-it('says when a photo cannot be opened', async () => {
+it('keeps the photos that open and names the one that does not', async () => {
   const user = userEvent.setup()
   renderWithProviders(<App />, { route: '/recipes/import' })
-  await user.upload(await screen.findByLabelText(/Or photos of the pages/), photo('bad.heic'))
+  await user.upload(await screen.findByLabelText(/Or photos of the pages/), [photo('p1.jpg'), photo('bad.heic'), photo('p3.jpg')])
 
-  expect(await screen.findByText('Couldn’t open that photo. Try a JPEG or PNG.')).toBeInTheDocument()
-  expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  expect(await screen.findByText('Couldn’t open bad.heic. Try a JPEG or PNG.')).toBeInTheDocument()
+  expect(screen.getAllByRole('img').map((img) => img.getAttribute('src'))).toEqual([
+    'data:image/jpeg;base64,jpeg:p1.jpg',
+    'data:image/jpeg;base64,jpeg:p3.jpg',
+  ])
 })

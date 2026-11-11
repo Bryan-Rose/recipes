@@ -58,7 +58,8 @@ def _jpeg(value: str) -> str:
     return value
 
 
-# The Claude API takes images up to 5 MB; the browser sends ~1600px JPEGs, well under that.
+# The Claude API takes images up to 5 MB; capping the base64 text at 5 MB keeps each decoded
+# photo under 3.75 MB. The browser sends ~1600px JPEGs, well under that.
 JpegBase64 = Annotated[str, Field(max_length=5_000_000), AfterValidator(_jpeg)]
 
 
