@@ -115,6 +115,10 @@ def test_key_makes_a_client(client: TestClient):
     assert get_import_client(settings) is sdk  # reused, not rebuilt per request
 
 
+def test_text_may_be_exactly_the_limit(client: TestClient, fake_api: FakeApi):
+    assert client.post("/imports/text", json={"text": "x" * 20_000}).status_code == 200
+
+
 @pytest.mark.parametrize("text", ["", "   ", "x" * 20_001])
 def test_text_must_be_present_and_bounded(client: TestClient, fake_api: FakeApi, text: str):
     assert client.post("/imports/text", json={"text": text}).status_code == 422
@@ -153,11 +157,11 @@ def test_fallback_runs_are_priced_per_model(client: TestClient, fake_api: FakeAp
         {"type": "message", "model": None, "input_tokens": 1000, "output_tokens": 100},
         {"type": "fallback_message", "model": "claude-opus-5-5", "input_tokens": 1000, "output_tokens": 400},
     ]
-    fake_api.body = message(json.dumps(DRAFT), model="claude-opus-5-5", iterations=iterations)
+    # Top-level counts that differ from the runs' sums, to pin which source is reported.
+    fake_api.body = message(json.dumps(DRAFT), model="claude-opus-5-5", iterations=iterations, input_tokens=7, output_tokens=7)
     usage = client.post("/imports/text", json={"text": "Pancakes"}).json()["usage"]
     # (1000 x 2 + 100 x 10) + (1000 x 4 + 400 x 20), per million.
-    assert usage["cost_usd"] == pytest.approx(0.015)
-    assert usage["model"] == "claude-opus-5-5"
+    assert usage == {"model": "claude-opus-5-5", "input_tokens": 2000, "output_tokens": 500, "cost_usd": pytest.approx(0.015)}
 
 
 def test_unpriced_model_has_no_cost(client: TestClient, fake_api: FakeApi, caplog: pytest.LogCaptureFixture):

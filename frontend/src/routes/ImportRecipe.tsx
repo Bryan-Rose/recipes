@@ -58,6 +58,8 @@ export function ImportRecipe() {
           <textarea
             id="import-text"
             rows={16}
+            // TextImport.text's max_length in backend/app/schemas/imports.py.
+            maxLength={20_000}
             value={text}
             disabled={importText.isPending}
             placeholder="Paste a recipe: title, ingredients and method."

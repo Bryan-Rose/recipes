@@ -61,8 +61,8 @@ def usage_of(response: BetaMessage, requested: str) -> ImportUsage:
     costs = [(i * PRICES[m][0] + o * PRICES[m][1]) / 1_000_000 if m in PRICES else None for m, i, o in runs]
     return ImportUsage(
         model=response.model,
-        input_tokens=usage.input_tokens,
-        output_tokens=usage.output_tokens,
+        input_tokens=sum(i for _, i, _ in runs),
+        output_tokens=sum(o for _, _, o in runs),
         cost_usd=None if None in costs else sum(c for c in costs if c is not None),
     )
 

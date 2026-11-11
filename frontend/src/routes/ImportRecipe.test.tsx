@@ -176,3 +176,23 @@ it('says when the cost is unknown', async () => {
 
   expect(await screen.findByText(/Read by claude-future-9: .* costing an unknown amount/)).toBeInTheDocument()
 })
+
+it('shows a failed lookup create on save and lets you retry', async () => {
+  let recipePosts = 0
+  server.use(
+    http.post('/api/imports/text', () => HttpResponse.json(draft)),
+    http.post('/api/recipes/', () => {
+      recipePosts += 1
+      return HttpResponse.json({ id: 7 }, { status: 201 })
+    }),
+    http.post('/api/:kind/', () => HttpResponse.json({ detail: 'Database is down' }, { status: 500 })),
+  )
+  const user = await readRecipe()
+  await screen.findByRole('heading', { name: 'Review import' })
+
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+
+  expect(await screen.findByText('Database is down')).toBeInTheDocument()
+  expect(recipePosts).toBe(0)
+  expect(screen.getByRole('button', { name: 'Save recipe' })).toBeEnabled()
+})
