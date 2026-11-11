@@ -13,6 +13,11 @@ test('import a pasted recipe, review it, and save with new lookups', async ({ pa
   await page.goto('/')
   await signIn(page, COOK)
   await page.getByRole('button', { name: 'Import' }).click()
+  // A first read with a typo in the name, fixed after going back with Edit text.
+  await page.getByLabel('Recipe text').fill([`${name}x`, measurement, ingredient, 'Wash the nettles.', 'Simmer.'].join('\n'))
+  await page.getByRole('button', { name: 'Read recipe' }).click()
+  await expect(page.getByLabel('Name')).toHaveValue(`${name}x`)
+  await page.getByRole('button', { name: 'Edit text' }).click()
   await page.getByLabel('Recipe text').fill([name, measurement, ingredient, 'Wash the nettles.', 'Simmer.'].join('\n'))
   await page.getByRole('button', { name: 'Read recipe' }).click()
 

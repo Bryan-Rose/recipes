@@ -34,6 +34,10 @@ export function ImportRecipe() {
             Read by {model}: {input_tokens.toLocaleString()} tokens in, {output_tokens.toLocaleString()} out, costing{' '}
             {cost_usd === null ? 'an unknown amount' : `$${cost_usd.toFixed(3)}`}.
           </p>
+          {/* Back to the paste box with the text kept; changes made in the review are dropped. */}
+          <button type="button" className="ghost" onClick={() => importText.reset()}>
+            Edit text
+          </button>
         </aside>
         <CreateRecipeForm
           initial={fromImport(importText.data, { ingredient, measurement, preparation })}
