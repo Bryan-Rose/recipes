@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # Only for tests: e2e points this at a mock Messages API.
     anthropic_base_url: str | None = None
     import_model: str = "claude-sonnet-5-5"
+    # Only for tests: lets URL import fetch private addresses, where e2e serves its page.
+    import_fetch_private: bool = False
 
     @property
     def import_enabled(self) -> bool:

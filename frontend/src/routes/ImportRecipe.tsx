@@ -15,9 +15,10 @@ const MAX_PHOTOS = 4
 
 const jpegUrl = (photo: string) => `data:image/jpeg;base64,${photo}`
 
-/** Paste a recipe or photograph its pages, have Claude parse it, then review the draft beside the source before saving. */
+/** Paste a recipe, photograph its pages or link to it, have Claude parse it, then review the draft beside the source before saving. */
 export function ImportRecipe() {
   const [text, setText] = useState('')
+  const [url, setUrl] = useState('')
   const [photos, setPhotos] = useState<string[]>([])
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [converting, setConverting] = useState(false)
@@ -39,12 +40,17 @@ export function ImportRecipe() {
       <div className="detail-columns">
         <aside className="card editor-section">
           <h2 className="section-heading">Source</h2>
-          {'text' in source ? (
-            <p className="recipe-notes">{source.text}</p>
-          ) : (
+          {'text' in source && <p className="recipe-notes">{source.text}</p>}
+          {'photos' in source &&
             source.photos.map((photo, index) => (
               <img key={index} className="import-photo" src={jpegUrl(photo)} alt={`Page ${index + 1}`} />
-            ))
+            ))}
+          {'url' in source && (
+            <p className="recipe-notes">
+              <a href={source.url} target="_blank" rel="noreferrer">
+                {source.url}
+              </a>
+            </p>
           )}
           <p className="muted">
             Read by {model}: {input_tokens.toLocaleString()} tokens in, {output_tokens.toLocaleString()} out, costing{' '}
@@ -52,7 +58,7 @@ export function ImportRecipe() {
           </p>
           {/* Back to the source with it kept; changes made in the review are dropped. */}
           <button type="button" className="ghost" onClick={() => importRecipe.reset()}>
-            {'text' in source ? 'Edit text' : 'Change photos'}
+            {'text' in source ? 'Edit text' : 'photos' in source ? 'Change photos' : 'Edit link'}
           </button>
         </aside>
         <CreateRecipeForm
@@ -155,6 +161,33 @@ export function ImportRecipe() {
               Clear photos
             </button>
           )}
+        </div>
+      </form>
+      <form
+        className="card editor-section stack"
+        style={{ marginTop: '1rem' }}
+        onSubmit={(event) => {
+          event.preventDefault()
+          importRecipe.mutate({ url: url.trim() })
+        }}
+      >
+        <div className="field">
+          <label htmlFor="import-url">Or a link to the recipe</label>
+          <input
+            id="import-url"
+            type="url"
+            // UrlImport.url's max_length in backend/app/schemas/imports.py.
+            maxLength={2_000}
+            value={url}
+            disabled={busy}
+            placeholder="https://"
+            onChange={(event) => setUrl(event.target.value)}
+          />
+        </div>
+        <div className="editor-actions">
+          <button type="submit" className="primary" disabled={busy || url.trim() === ''}>
+            Read link
+          </button>
         </div>
       </form>
       {importRecipe.error && <p className="error-box">{describeError(importRecipe.error)}</p>}

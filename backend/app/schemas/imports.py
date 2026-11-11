@@ -1,7 +1,7 @@
 import base64
 from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field, HttpUrl
 
 from app.schemas.fields import Denominator, Name
 
@@ -66,3 +66,7 @@ class PhotoImport(BaseModel):
     """Pages of one recipe, in order."""
 
     photos: Annotated[list[JpegBase64], Field(min_length=1, max_length=4)]
+
+
+class UrlImport(BaseModel):
+    url: Annotated[HttpUrl, Field(max_length=2_000)]

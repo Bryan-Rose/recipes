@@ -9,7 +9,8 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings, get_settings
 from app.main import app as fastapi_app
-from app.routers.imports import get_import_client
+from app.routers.imports import get_fetch_transport, get_import_client
+from app.services import fetch
 
 DRAFT = {
     "name": "Pancakes",
@@ -148,7 +149,10 @@ def test_text_must_be_present_and_bounded(client: TestClient, fake_api: FakeApi,
     assert fake_api.requests == []
 
 
-@pytest.mark.parametrize(("path", "body"), [("/imports/text", {"text": "Pancakes"}), ("/imports/photos", {"photos": [JPEG]})])
+@pytest.mark.parametrize(
+    ("path", "body"),
+    [("/imports/text", {"text": "Pancakes"}), ("/imports/photos", {"photos": [JPEG]}), ("/imports/url", {"url": "https://example.com/"})],
+)
 def test_requires_login(client: TestClient, path: str, body: dict):
     client.cookies.clear()
     assert client.post(path, json=body).status_code == 401
@@ -237,3 +241,61 @@ def test_four_photos_are_allowed(client: TestClient, fake_api: FakeApi):
 def test_bad_photo_says_what_is_expected(client: TestClient, fake_api: FakeApi, photo: str):
     (error,) = client.post("/imports/photos", json={"photos": [photo]}).json()["detail"]
     assert "must be a base64 JPEG" in error["msg"]
+
+
+RECIPE_PAGE = '<html><script type="application/ld+json">{"@type": "Recipe", "name": "Web pancakes"}</script><p>Story</p></html>'
+
+
+@pytest.fixture()
+def recipe_site(monkeypatch: pytest.MonkeyPatch) -> list[httpx2.Request]:
+    """example.com, on a public address, serving RECIPE_PAGE at / and nothing else."""
+    requests: list[httpx2.Request] = []
+
+    def handle(request: httpx2.Request) -> httpx2.Response:
+        requests.append(request)
+        return httpx2.Response(200, html=RECIPE_PAGE) if request.url.path == "/" else httpx2.Response(404)
+
+    monkeypatch.setattr(fetch.socket, "getaddrinfo", lambda host, port, **_: [(2, 1, 6, "", ("93.184.215.14", port))])
+    fastapi_app.dependency_overrides[get_fetch_transport] = lambda: httpx2.MockTransport(handle)
+    return requests
+
+
+def test_url_sends_the_pages_recipe_to_claude(client: TestClient, fake_api: FakeApi, recipe_site):
+    response = client.post("/imports/url", json={"url": "https://example.com/"})
+    assert response.status_code == 200
+    assert response.json()["name"] == "Pancakes"
+    prompt = fake_api.requests[0]["messages"][0]["content"]
+    assert '"name": "Web pancakes"' in prompt
+    assert "Story" not in prompt
+
+
+def test_url_that_cannot_be_fetched_is_422_without_calling_claude(client: TestClient, fake_api: FakeApi, recipe_site):
+    response = client.post("/imports/url", json={"url": "https://example.com/gone"})
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Couldn't open that page: the site answered 404. Try pasting the recipe text."}
+    assert fake_api.requests == []
+
+
+def test_private_url_is_refused_unless_configured(client: TestClient, fake_api: FakeApi, recipe_site, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(fetch.socket, "getaddrinfo", lambda host, port, **_: [(2, 1, 6, "", ("10.0.0.5", port))])
+    assert "isn't a public web address" in client.post("/imports/url", json={"url": "https://example.com/"}).json()["detail"]
+    fastapi_app.dependency_overrides[get_settings] = lambda: Settings(anthropic_api_key="test", import_fetch_private=True)  # pyright: ignore[reportArgumentType]
+    assert client.post("/imports/url", json={"url": "https://example.com/"}).status_code == 200
+
+
+def test_url_import_off_fetches_nothing(client: TestClient, recipe_site):
+    fastapi_app.dependency_overrides[get_settings] = lambda: Settings(anthropic_api_key=None)
+    assert client.post("/imports/url", json={"url": "https://example.com/"}).status_code == 503
+    assert recipe_site == []
+
+
+@pytest.mark.parametrize("url", ["", "example.com", "javascript:alert(1)", "https://example.com/" + "x" * 2_000])
+def test_url_must_be_a_web_link(client: TestClient, fake_api: FakeApi, recipe_site, url: str):
+    assert client.post("/imports/url", json={"url": url}).status_code == 422
+    assert recipe_site == []
+
+
+def test_empty_page_is_422(client: TestClient, fake_api: FakeApi, monkeypatch: pytest.MonkeyPatch, recipe_site):
+    monkeypatch.setattr(fetch, "page_text", lambda html: "")
+    assert client.post("/imports/url", json={"url": "https://example.com/"}).json() == {"detail": "Couldn't read a recipe from that"}
+    assert fake_api.requests == []

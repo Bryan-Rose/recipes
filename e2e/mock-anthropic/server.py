@@ -3,14 +3,30 @@
 It "parses" the pasted recipe by line: name, measurement, ingredient, then one
 step per remaining line. So a test controls every name and can keep them unique.
 Photos can't be read that way, so they give a fixed recipe with one step per photo.
+
+It also serves a recipe web page for URL import: GET /page?text=... returns the
+text, one paragraph per line, with no schema.org data, so the backend sends
+Claude the page's text and the line parsing above applies.
 """
 
+import html
 import json
 import re
+from urllib.parse import parse_qs, urlparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
 class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        lines = parse_qs(urlparse(self.path).query)["text"][0].splitlines()
+        body = "".join(f"<p>{html.escape(line)}</p>" for line in lines)
+        data = f"<!doctype html><html><body>{body}</body></html>".encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         prompt = body["messages"][0]["content"]

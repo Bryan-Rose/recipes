@@ -55,14 +55,14 @@ function explainUnknownTags(error: unknown): never {
 export const useCreateRecipe = () =>
   useMutation({ mutationFn: (recipe: RecipeCreate) => api.post<Recipe>('/recipes/', recipe).catch(explainUnknownTags) })
 
-/** Pasted text, or base64 JPEG pages in order. */
-export type ImportSource = { text: string } | { photos: string[] }
+/** Pasted text, base64 JPEG pages in order, or a link to the recipe's page. */
+export type ImportSource = { text: string } | { photos: string[] } | { url: string }
 
 /** Parses a recipe into a draft for review, with what the parse cost; saves nothing. */
 export const useImportRecipe = () =>
   useMutation({
     mutationFn: (source: ImportSource) =>
-      api.post<RecipeImport>('text' in source ? '/imports/text' : '/imports/photos', source),
+      api.post<RecipeImport>(`/imports/${'text' in source ? 'text' : 'photos' in source ? 'photos' : 'url'}`, source),
   })
 
 export const useUpdateRecipe = (id: number) =>

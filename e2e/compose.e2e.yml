@@ -11,6 +11,8 @@ services:
       RECIPES_OIDC_DISPLAY_NAME: Mock IdP
       RECIPES_ANTHROPIC_API_KEY: e2e-key
       RECIPES_ANTHROPIC_BASE_URL: http://mock-anthropic:8080
+      # URL import fetches its page from the mock, on the private Docker network.
+      RECIPES_IMPORT_FETCH_PRIVATE: "true"
     volumes: !override
       - type: tmpfs
         target: /data
