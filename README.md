@@ -10,7 +10,7 @@ LLMs were used to generate the front end. The backend was written by hand, thoug
 ## Running
 
 The full stack runs with Docker Compose: nginx serves the frontend and proxies
-`/api` to the FastAPI backend, and the SQLite database lives in `./data`.
+`/api` to the FastAPI backend, and the SQLite database and uploaded images live in `./data`.
 
 ```bash
 cp .env.example .env              # optional: port, HTTPS cookies, OIDC SSO
@@ -21,7 +21,7 @@ docker compose exec backend python -m scripts.seed_lookups   # optional: starter
 
 Then open http://localhost:8080. That first admin adds everyone else from the
 **Users** page in the header. To update after pulling changes, run
-`docker compose up -d --build` again. Back up by copying `data/app.db`
+`docker compose up -d --build` again. Back up by copying the `data` folder
 (stop the stack first). If your user id isn't 1000, set `RECIPES_UID`/`RECIPES_GID`.
 
 
@@ -101,10 +101,12 @@ git pull
 docker compose up -d --build
 ```
 
-**Backups:** the whole database is `data/app.db`. Stop the backend for a consistent copy:
+**Backups:** everything the app stores is in `data/`: the database `app.db` and
+recipe images in `images/` (named by the database, so back them up together).
+Stop the backend for a consistent copy:
 
 ```bash
-docker compose stop backend && cp data/app.db "app-$(date +%F).db" && docker compose start backend
+docker compose stop backend && cp -a data "recipes-$(date +%F)" && docker compose start backend
 ```
 
 ## Development

@@ -433,6 +433,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/images/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Image */
+        get: operations["get_image_images__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recipes/": {
         parameters: {
             query?: never;
@@ -468,6 +485,24 @@ export interface paths {
         head?: never;
         /** Update Recipe */
         patch: operations["update_recipe_recipes__recipe_id__patch"];
+        trace?: never;
+    };
+    "/recipes/{recipe_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Recipe Image */
+        put: operations["put_recipe_image_recipes__recipe_id__image_put"];
+        post?: never;
+        /** Delete Recipe Image */
+        delete: operations["delete_recipe_image_recipes__recipe_id__image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/recipes/{recipe_id}/step-order": {
@@ -681,6 +716,16 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * ImageUpload
+         * @description One picture, resized by the browser: the full image and a thumbnail for lists.
+         */
+        ImageUpload: {
+            /** Full */
+            full: string;
+            /** Thumb */
+            thumb: string;
+        };
+        /**
          * ImportUsage
          * @description What one parse cost. cost_usd is None for a model missing from the price table.
          */
@@ -827,6 +872,7 @@ export interface components {
              * @default []
              */
             tag_ids: number[];
+            image?: components["schemas"]["ImageUpload"] | null;
         };
         /** RecipeImport */
         RecipeImport: {
@@ -949,6 +995,8 @@ export interface components {
              * @default []
              */
             tags: components["schemas"]["TagRead"][];
+            /** Image */
+            image?: string | null;
         };
         /**
          * RecipeSummary
@@ -979,6 +1027,8 @@ export interface components {
             ingredient_names: string[];
             /** Step Count */
             step_count: number;
+            /** Image */
+            image: string | null;
         };
         /** RecipeUpdate */
         RecipeUpdate: {
@@ -2441,6 +2491,37 @@ export interface operations {
             };
         };
     };
+    get_image_images__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_recipes_recipes__get: {
         parameters: {
             query?: never;
@@ -2577,6 +2658,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RecipeRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_recipe_image_recipes__recipe_id__image_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageUpload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_recipe_image_recipes__recipe_id__image_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

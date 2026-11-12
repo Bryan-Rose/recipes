@@ -185,6 +185,7 @@ describe('lookups', () => {
       cookbook: mastering,
       ingredient_names: [],
       step_count: 0,
+      image: null,
     }
     let count = 1
     server.use(

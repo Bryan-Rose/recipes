@@ -12,11 +12,13 @@ import {
 } from '../api/lookups'
 import { useCreateRecipe, useRecipes } from '../api/recipes'
 import { describeError } from '../api/errors'
-import type { RecipeCreate } from '../api/types'
+import type { ImageUpload, RecipeCreate } from '../api/types'
 import { emptyIngredient, emptyScalars, isComplete, isFilled, moveItem } from '../components/drafts'
 import type { IngredientDraft, LookupKind, RecipeInitial, RecipeScalars } from '../components/drafts'
+import { ImageField } from '../components/ImageField'
 import { IngredientFields } from '../components/IngredientFields'
 import { MoveButtons } from '../components/MoveButtons'
+import { jpegUrl } from '../components/photos'
 import { RecipeFields } from '../components/RecipeFields'
 
 /** Local rows need a stable key before the server has given them an id. */
@@ -52,6 +54,8 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
   const [steps, setSteps] = useState<Keyed<string>[]>(() => (initial?.steps ?? []).map(keyed))
   const [pendingError, setPendingError] = useState<unknown>(null)
   const [creatingPending, setCreatingPending] = useState(false)
+  const [image, setImage] = useState<ImageUpload | null>(null)
+  const [convertingImage, setConvertingImage] = useState(false)
 
   // Names are unique per cookbook, and among recipes without one.
   const duplicate = findByName(
@@ -66,7 +70,8 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
     !duplicate &&
     incompleteIngredients === 0 &&
     !createRecipe.isPending &&
-    !creatingPending
+    !creatingPending &&
+    !convertingImage
 
   /** The rows without `pending`, each pending name swapped for a row id; each new name is created once. */
   async function resolvePending(rows: IngredientDraft[]): Promise<IngredientDraft[]> {
@@ -115,6 +120,7 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
     const body: RecipeCreate = {
       ...scalars,
       name: scalars.name.trim(),
+      image,
       recipe_ingredients: recipeIngredients,
       requirements: requirements
         .map((row) => row.value.trim())
@@ -151,6 +157,13 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
             </p>
           )}
         </section>
+
+        <ImageField
+          src={image && jpegUrl(image.full)}
+          onPick={setImage}
+          onRemove={() => setImage(null)}
+          onConverting={setConvertingImage}
+        />
 
         <section className="card editor-section">
           <h2 className="section-heading">Ingredients</h2>

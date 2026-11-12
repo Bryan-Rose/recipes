@@ -1,5 +1,6 @@
 """Field types for values that cross the API boundary into or out of SQLite."""
 
+import base64
 from datetime import UTC, datetime
 from typing import Annotated, Literal, TypeVar
 
@@ -69,3 +70,19 @@ Omittable = Annotated[_T | SkipJsonSchema[None], BeforeValidator(_reject_null)]
 """An update field for a NOT NULL column: leave it out to keep the value, but an
 explicit null is a 422 rather than reaching the database as a 409. Defaults
 aren't validated, so `= None` still marks the field as unset."""
+
+
+def _jpeg(value: str) -> str:
+    try:
+        is_jpeg = base64.b64decode(value, validate=True).startswith(b"\xff\xd8\xff")
+    except ValueError:  # binascii.Error, or non-ASCII text
+        is_jpeg = False
+    if not is_jpeg:
+        raise ValueError("must be a base64 JPEG")
+    return value
+
+
+# The Claude API takes images up to 5 MB; capping the base64 text at 5 MB keeps each decoded
+# photo under 3.75 MB. The browser sends ~1600px JPEGs, well under that.
+JpegBase64 = Annotated[str, Field(max_length=5_000_000), AfterValidator(_jpeg)]
+"""A JPEG from the browser's toJpeg, base64 without the data: prefix: an import photo or a recipe image."""

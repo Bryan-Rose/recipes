@@ -7,7 +7,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth import get_current_user
 from app.config import get_settings
-from app.routers import auth, cookbooks, imports, lookups, recipes, users
+from app.routers import auth, cookbooks, images, imports, lookups, recipes, users
 
 settings = get_settings()
 
@@ -58,6 +58,7 @@ for lookup_router in lookups.routers:
     app.include_router(lookup_router, dependencies=signed_in)
 app.include_router(users.router, dependencies=signed_in)
 app.include_router(imports.router, dependencies=signed_in)
+app.include_router(images.router, dependencies=signed_in)
 
 app.include_router(recipes.recipe_router, dependencies=signed_in)
 app.include_router(recipes.step_router, dependencies=signed_in)

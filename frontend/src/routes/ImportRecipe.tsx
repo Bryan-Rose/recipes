@@ -7,13 +7,11 @@ import { useIngredients, useMeasurements, usePreparations } from '../api/lookups
 import { useImportRecipe } from '../api/recipes'
 import { fromImport } from '../components/drafts'
 import { ErrorState, Loading } from '../components/Feedback'
-import { toJpeg } from '../components/photos'
+import { jpegUrl, toJpeg } from '../components/photos'
 import { CreateRecipeForm } from './CreateRecipeForm'
 
 // PhotoImport.photos' max_length in backend/app/schemas/imports.py.
 const MAX_PHOTOS = 4
-
-const jpegUrl = (photo: string) => `data:image/jpeg;base64,${photo}`
 
 /** Paste a recipe, photograph its pages or link to it, have Claude parse it, then review the draft beside the source before saving. */
 export function ImportRecipe() {
@@ -77,7 +75,7 @@ export function ImportRecipe() {
     }
     setConverting(true)
     // Keep the photos that convert, so one bad file doesn't mean picking the rest again.
-    const results = await Promise.allSettled(files.map(toJpeg))
+    const results = await Promise.allSettled(files.map((file) => toJpeg(file)))
     setConverting(false)
     setPhotos((current) => [...current, ...results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))])
     const failed = files.filter((_, index) => results[index].status === 'rejected').map((file) => file.name)

@@ -27,6 +27,7 @@ function recipe(id: number, name: string, cookbook: Cookbook | null, page: numbe
     tags: [],
     ingredient_names: [],
     step_count: 0,
+    image: null,
   }
 }
 

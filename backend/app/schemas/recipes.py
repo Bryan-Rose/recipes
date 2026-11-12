@@ -3,7 +3,7 @@ from typing import Self
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.schemas.cookbook import CookbookRead
-from app.schemas.fields import DbId, Denominator, Minutes, Name, Omittable, PositiveInt, SourceUrl, UtcDatetime
+from app.schemas.fields import DbId, Denominator, JpegBase64, Minutes, Name, Omittable, PositiveInt, SourceUrl, UtcDatetime
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
@@ -87,6 +87,13 @@ class RequirementRead(BaseModel):
 ## Recipe
 
 
+class ImageUpload(BaseModel):
+    """One picture, resized by the browser: the full image and a thumbnail for lists."""
+
+    full: JpegBase64
+    thumb: JpegBase64
+
+
 class RecipeBase(BaseModel):
     name: Name
     cookbook_id: DbId | None = None
@@ -103,6 +110,7 @@ class RecipeCreate(RecipeBase):
     requirements: list[RequirementCreate] = []
     recipe_ingredients: list[RecipeIngredientCreate] = []
     tag_ids: list[DbId] = []
+    image: ImageUpload | None = None
 
     @model_validator(mode="after")
     def _page_needs_cookbook(self) -> Self:
@@ -137,6 +145,8 @@ class RecipeRead(RecipeBase):
     requirements: list[RequirementRead] = []
     recipe_ingredients: list[RecipeIngredientRead] = []
     tags: list[TagRead] = []
+    # The stem of the files GET /images/ serves: {image}.jpg and {image}-thumb.jpg.
+    image: str | None = None
 
 
 class RecipeSummary(BaseModel):
@@ -155,6 +165,7 @@ class RecipeSummary(BaseModel):
     tags: list[TagRead]
     ingredient_names: list[str]  # one per recipe ingredient, so its length is the ingredient count
     step_count: int
+    image: str | None
 
 
 ## Recipe

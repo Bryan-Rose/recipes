@@ -6,6 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401 — registers every model, same reason as models/__init__.py
 from app.auth import SESSION_COOKIE
+from app.config import get_settings
 from app.database import Base, get_db
 from app.main import app as fastapi_app
 from app.models.user import User
@@ -49,7 +50,12 @@ def current_user(db_session) -> User:
 
 
 @pytest.fixture()
-def client(db_session, current_user):
+def images_dir(tmp_path):
+    return tmp_path / "images"
+
+
+@pytest.fixture()
+def client(db_session, current_user, images_dir):
     """Signed in as current_user through a real session cookie; clear client.cookies for anonymous requests."""
 
     def override_get_db():
@@ -62,6 +68,9 @@ def client(db_session, current_user):
             raise
 
     fastapi_app.dependency_overrides[get_db] = override_get_db
+    # Uploaded images go to a per-test folder. Tests that override get_settings themselves don't upload.
+    settings = get_settings().model_copy(update={"images_dir": images_dir})
+    fastapi_app.dependency_overrides[get_settings] = lambda: settings
     auth_router._failed_logins.clear()
     with TestClient(fastapi_app) as test_client:
         test_client.cookies.set(SESSION_COOKIE, auth_service.create_session(db_session, current_user, days=1))

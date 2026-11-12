@@ -167,3 +167,9 @@ it('shows the tags by name, each linking to the list filtered by it', async () =
   expect(within(tags).getAllByRole('link').map((link) => link.textContent)).toEqual(['Breakfast', 'Sweet'])
   expect(within(tags).getByRole('link', { name: 'Breakfast' })).toHaveAttribute('href', '/?tag=4')
 })
+
+it('shows the photo when there is one', async () => {
+  signedIn()
+  show({ ...recipe, image: 'a'.repeat(32) })
+  expect(await screen.findByRole('img', { name: 'Pancakes' })).toHaveAttribute('src', `/api/images/${'a'.repeat(32)}.jpg`)
+})

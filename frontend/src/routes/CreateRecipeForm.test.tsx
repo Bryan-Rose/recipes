@@ -1,11 +1,19 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 
 import { renderWithProviders } from '../test/render'
 import { server } from '../test/server'
 import { CreateRecipeForm } from './CreateRecipeForm'
+
+// jsdom has no canvas; a photo "converts" to its file name, and bad.heic can't be decoded.
+vi.mock('../components/photos', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../components/photos')>()),
+  toImageUpload: async (file: File) =>
+    file.name === 'bad.heic' ? Promise.reject(new Error('decode')) : { full: `full-${file.name}`, thumb: `thumb-${file.name}` },
+}))
+const photo = (name: string) => new File(['x'], name, { type: 'image/jpeg' })
 
 it('saves steps in the order they were moved to', async () => {
   let sent: { steps: { text: string }[] } | undefined
@@ -243,4 +251,35 @@ it('blocks a duplicate name only within the same cookbook', async () => {
   expect(screen.getByRole('link', { name: 'A recipe called “Soup”' })).toHaveAttribute('href', '/recipes/7')
   expect(screen.getByText(/already exists in Joy/)).toBeInTheDocument()
   expect(save).toBeDisabled()
+})
+
+it('saves the picked photo with the recipe, and none once removed', async () => {
+  const sent: { image: unknown }[] = []
+  server.use(
+    http.get('/api/cookbooks/', () => HttpResponse.json([])),
+    http.post('/api/recipes/', async ({ request }) => {
+      sent.push((await request.json()) as { image: unknown })
+      return HttpResponse.json({ detail: 'stop here' }, { status: 409 })
+    }),
+  )
+  const user = userEvent.setup()
+  renderWithProviders(<CreateRecipeForm />)
+  await user.type(screen.getByLabelText('Name'), 'Soup')
+  expect(screen.getByText('No photo yet.')).toBeInTheDocument()
+
+  await user.upload(screen.getByLabelText('Add a photo'), photo('bad.heic'))
+  expect(await screen.findByText('Couldn’t open bad.heic. Try a JPEG or PNG.')).toBeInTheDocument()
+
+  await user.upload(screen.getByLabelText('Add a photo'), photo('soup.jpg'))
+  expect(await screen.findByRole('img', { name: 'Recipe photo' })).toHaveAttribute('src', 'data:image/jpeg;base64,full-soup.jpg')
+  expect(screen.queryByText(/Couldn’t open/)).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+  await waitFor(() => expect(sent).toHaveLength(1))
+  expect(sent[0].image).toEqual({ full: 'full-soup.jpg', thumb: 'thumb-soup.jpg' })
+
+  await user.click(screen.getByRole('button', { name: 'Remove photo' }))
+  expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+  await waitFor(() => expect(sent).toHaveLength(2))
+  expect(sent[1].image).toBeNull()
 })

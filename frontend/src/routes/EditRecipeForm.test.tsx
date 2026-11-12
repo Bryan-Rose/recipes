@@ -11,6 +11,14 @@ import { server, signedIn } from '../test/server'
 import { EditRecipeForm } from './EditRecipeForm'
 import { RecipeEdit } from './RecipeEdit'
 
+// jsdom has no canvas; a photo "converts" to its file name, and bad.heic can't be decoded.
+vi.mock('../components/photos', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../components/photos')>()),
+  toImageUpload: async (file: File) =>
+    file.name === 'bad.heic' ? Promise.reject(new Error('decode')) : { full: `full-${file.name}`, thumb: `thumb-${file.name}` },
+}))
+const photo = (name: string) => new File(['x'], name, { type: 'image/jpeg' })
+
 const recipe: Recipe = {
   id: 7,
   name: 'Soup',
@@ -780,5 +788,44 @@ describe('leaving the recipe editor', () => {
     await user.keyboard('{/Control}')
 
     expect(confirm).not.toHaveBeenCalled()
+  })
+})
+
+describe('photo', () => {
+  beforeEach(() => {
+    server.use(http.get('/api/cookbooks/', () => HttpResponse.json([])))
+  })
+
+  it('uploads a picked photo at once', async () => {
+    let sent: unknown
+    server.use(
+      http.put('/api/recipes/7/image', async ({ request }) => {
+        sent = await request.json()
+        return HttpResponse.json({ ...recipe, image: 'b'.repeat(32) })
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={recipe} />)
+
+    await user.upload(screen.getByLabelText('Add a photo'), photo('soup.jpg'))
+    await waitFor(() => expect(sent).toEqual({ full: 'full-soup.jpg', thumb: 'thumb-soup.jpg' }))
+  })
+
+  it('shows the current photo and removes it, showing a failure', async () => {
+    let removed = 0
+    server.use(
+      http.delete('/api/recipes/7/image', () => {
+        removed += 1
+        return failure()
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={{ ...recipe, image: 'a'.repeat(32) }} />)
+
+    expect(screen.getByRole('img', { name: 'Recipe photo' })).toHaveAttribute('src', `/api/images/${'a'.repeat(32)}.jpg`)
+    expect(screen.getByLabelText('Replace photo')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Remove photo' }))
+    expect(await screen.findByText(/Server unavailable/)).toBeInTheDocument()
+    expect(removed).toBe(1)
   })
 })

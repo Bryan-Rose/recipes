@@ -25,6 +25,7 @@ function recipe(id: number, name: string, extra: Partial<RecipeSummary>): Recipe
     tags: [],
     ingredient_names: [],
     step_count: 0,
+    image: null,
     ...extra,
   }
 }
@@ -36,7 +37,7 @@ const recipes = [
   recipe(1, 'Stew', { cookbook: mastering, tags: [dinner], ingredient_names: ['Beef', 'Red wine'], step_count: 3, active_cook_time: 30, inactive_cook_time: 120, created_at: '2026-03-01T00:00:00Z' }),
   recipe(2, 'Bread', { cookbook: baking, active_cook_time: 20, inactive_cook_time: 180, created_at: '2026-02-01T00:00:00Z' }),
   recipe(3, 'Omelette', { cookbook: mastering, tags: [quick, dinner], active_cook_time: 10, created_at: '2026-01-01T00:00:00Z' }),
-  recipe(4, 'Toast', { created_at: '2026-04-01T00:00:00Z' }),
+  recipe(4, 'Toast', { created_at: '2026-04-01T00:00:00Z', image: 'a'.repeat(32) }),
 ]
 
 beforeEach(() => {
@@ -136,5 +137,16 @@ describe('recipe list', () => {
     expect(screen.getByRole('combobox', { name: 'Tag' })).toHaveValue('')
     expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('name')
     expect(names()).toEqual(['Bread', 'Omelette', 'Stew', 'Toast'])
+  })
+
+  it('shows thumbnails, loaded lazily, only for recipes that have a photo', async () => {
+    const { container } = renderWithProviders(<App />)
+
+    expect(await screen.findByRole('link', { name: 'Toast' })).toBeInTheDocument()
+    // alt="" (decorative), so not in the accessibility tree.
+    const thumbs = container.querySelectorAll('img.recipe-card__thumb')
+    expect(thumbs).toHaveLength(1)
+    expect(thumbs[0]).toHaveAttribute('src', `/api/images/${'a'.repeat(32)}-thumb.jpg`)
+    expect(thumbs[0]).toHaveAttribute('loading', 'lazy')
   })
 })
