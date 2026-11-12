@@ -299,7 +299,7 @@ it('reads a recipe from a link and goes back to it', async () => {
   )
   const user = userEvent.setup()
   renderWithProviders(<App />, { route: '/recipes/import' })
-  await user.type(await screen.findByLabelText('Or a link to the recipe'), 'https://example.com/soup')
+  await user.type(await screen.findByLabelText('Or a link to the recipe'), '  https://example.com/soup ')
   await user.click(screen.getByRole('button', { name: 'Read link' }))
 
   await screen.findByRole('heading', { name: 'Review import' })
@@ -308,6 +308,7 @@ it('reads a recipe from a link and goes back to it', async () => {
     'href',
     'https://example.com/soup',
   )
+  expect(screen.getByLabelText('Source URL')).toHaveValue('https://example.com/soup')
 
   await user.click(screen.getByRole('button', { name: 'Edit link' }))
   expect(screen.getByLabelText('Or a link to the recipe')).toHaveValue('https://example.com/soup')

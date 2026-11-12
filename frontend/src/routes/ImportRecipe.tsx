@@ -62,7 +62,7 @@ export function ImportRecipe() {
           </button>
         </aside>
         <CreateRecipeForm
-          initial={fromImport(importRecipe.data, { ingredient, measurement, preparation })}
+          initial={fromImport(importRecipe.data, { ingredient, measurement, preparation }, 'url' in source ? source.url : null)}
           heading="Review import"
         />
       </div>
