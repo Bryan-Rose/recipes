@@ -53,6 +53,7 @@ uv run python -m scripts.seed_lookups       # add missing starter measurements/p
 uv run alembic revision --autogenerate -m "<what changed>"  # after changing a model; review the file
 uv run alembic upgrade head                 # apply migrations (init_db also does this)
 uv run python -m scripts.create_user <name> --admin [--sso-only]  # create a login (first admin)
+uv run python -m scripts.try_import (--text FILE | --photo FILE... | --url URL)  # one import against the real Claude API (costs money); prints draft, cost, time
 ```
 
 Full stack in containers (run from the repo root):
