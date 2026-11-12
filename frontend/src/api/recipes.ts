@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { ApiError, api } from './client'
 import type {
+  ImageUpload,
   Recipe,
   RecipeCreate,
   RecipeImport,
@@ -69,6 +70,16 @@ export const useUpdateRecipe = (id: number) =>
   useMutation({
     mutationFn: (patch: RecipeUpdate) => api.patch<Recipe>(`/recipes/${id}`, patch).catch(explainUnknownTags),
   })
+
+/** Where GET /images/ serves a recipe's image (the `image` field) or its thumbnail. */
+export const imageUrl = (image: string, size: 'full' | 'thumb' = 'full') =>
+  `/api/images/${image}${size === 'thumb' ? '-thumb' : ''}.jpg`
+
+export const useSetRecipeImage = (id: number) =>
+  useMutation({ mutationFn: (image: ImageUpload) => api.put<Recipe>(`/recipes/${id}/image`, image) })
+
+export const useRemoveRecipeImage = (id: number) =>
+  useMutation({ mutationFn: () => api.delete(`/recipes/${id}/image`) })
 
 export function useDeleteRecipe() {
   const queryClient = useQueryClient()

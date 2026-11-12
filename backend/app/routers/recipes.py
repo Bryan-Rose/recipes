@@ -3,10 +3,12 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
+from app.config import Settings, get_settings
 from app.database import get_db
 from app.models.user import User
 from app.schemas.fields import IdPath
 from app.schemas.recipes import (
+    ImageUpload,
     RecipeCreate,
     RecipeIngredientCreate,
     RecipeIngredientRead,
@@ -47,9 +49,14 @@ def get_recipe(recipe_id: IdPath, db: Session = Depends(get_db)):
 
 
 @recipe_router.post("/", response_model=RecipeRead, status_code=status.HTTP_201_CREATED)
-def create_recipe(recipe_in: RecipeCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def create_recipe(
+    recipe_in: RecipeCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
     try:
-        return recipes_service.create_recipe(db, recipe_in, user.id)
+        return recipes_service.create_recipe(db, recipe_in, user.id, settings.images_dir)
     except recipes_service.UnknownTagError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Unknown tag ids: {e.args[0]}")
 
@@ -72,11 +79,27 @@ def update_recipe(recipe_id: IdPath, recipe_in: RecipeUpdate, db: Session = Depe
 
 
 @recipe_router.delete("/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_recipe(recipe_id: IdPath, db: Session = Depends(get_db)):
+def delete_recipe(recipe_id: IdPath, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)):
     existing = recipes_service.get_recipe(db, recipe_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    recipes_service.delete_recipe(db, existing)
+    recipes_service.delete_recipe(db, existing, settings.images_dir)
+
+
+@recipe_router.put("/{recipe_id}/image", response_model=RecipeRead)
+def put_recipe_image(recipe_id: IdPath, image_in: ImageUpload, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)):
+    existing = recipes_service.get_recipe(db, recipe_id)
+    if existing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return recipes_service.set_image(db, existing, settings.images_dir, image_in)
+
+
+@recipe_router.delete("/{recipe_id}/image", status_code=status.HTTP_204_NO_CONTENT)
+def delete_recipe_image(recipe_id: IdPath, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)):
+    existing = recipes_service.get_recipe(db, recipe_id)
+    if existing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    recipes_service.set_image(db, existing, settings.images_dir, None)
 
 
 ## Recipes

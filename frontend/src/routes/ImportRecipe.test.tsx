@@ -9,7 +9,8 @@ import { renderWithProviders } from '../test/render'
 import { passwordOnly, server, signedIn } from '../test/server'
 
 // jsdom has no canvas; a photo "converts" to its file name, and bad.heic can't be decoded.
-vi.mock('../components/photos', () => ({
+vi.mock('../components/photos', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../components/photos')>()),
   toJpeg: async (file: File) => (file.name === 'bad.heic' ? Promise.reject(new Error('decode')) : `jpeg:${file.name}`),
 }))
 const photo = (name: string) => new File(['x'], name, { type: 'image/jpeg' })
@@ -143,6 +144,7 @@ it('warns when a recipe with that name exists', async () => {
           tags: [],
           ingredient_names: [],
           step_count: 0,
+          image: null,
         },
       ]),
     ),

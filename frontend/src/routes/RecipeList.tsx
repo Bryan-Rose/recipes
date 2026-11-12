@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router'
 
 import { useAuthConfig } from '../api/auth'
-import { useRecipes } from '../api/recipes'
+import { imageUrl, useRecipes } from '../api/recipes'
 import type { RecipeSummary } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
 import { formatMinutes } from '../components/minutes'
@@ -136,6 +136,8 @@ export function RecipeList() {
             const total = totalMinutes(recipe)
             return (
               <li key={recipe.id} className="card recipe-card">
+                {/* Decorative: the title beside it names the recipe. Cards without one just start at the title. */}
+                {recipe.image && <img className="recipe-card__thumb" src={imageUrl(recipe.image, 'thumb')} alt="" loading="lazy" />}
                 {/* The title link stretches over the card; the cookbook and author links sit above it. */}
                 <Link to={`/recipes/${recipe.id}`} className="recipe-card__title">
                   {recipe.name}

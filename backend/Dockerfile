@@ -10,7 +10,8 @@ COPY . .
 RUN uv sync --locked --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH" \
-    RECIPES_DATABASE_URL="sqlite:////data/app.db"
+    RECIPES_DATABASE_URL="sqlite:////data/app.db" \
+    RECIPES_IMAGES_DIR="/data/images"
 
 # Run unprivileged. compose.yml bind-mounts ./data over /data and may override the uid.
 RUN useradd --system --uid 1000 recipes && mkdir /data && chown recipes /data

@@ -2,13 +2,16 @@ import { useEffect, useId, useState } from 'react'
 import { Link, useBlocker, useNavigate } from 'react-router'
 
 import {
+  imageUrl,
   useCreateRecipeIngredient,
   useCreateRequirement,
   useCreateStep,
   useDeleteRecipeIngredient,
   useDeleteRequirement,
   useDeleteStep,
+  useRemoveRecipeImage,
   useReorderSteps,
+  useSetRecipeImage,
   useUpdateRecipe,
   useUpdateRecipeIngredient,
   useUpdateRequirement,
@@ -18,6 +21,7 @@ import { describeError } from '../api/errors'
 import type { Recipe } from '../api/types'
 import { emptyIngredient, isComplete, moveItem } from '../components/drafts'
 import type { IngredientDraft, RecipeScalars } from '../components/drafts'
+import { ImageField } from '../components/ImageField'
 import { IngredientFields } from '../components/IngredientFields'
 import { MoveButtons } from '../components/MoveButtons'
 import { RecipeFields } from '../components/RecipeFields'
@@ -43,6 +47,9 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
   const updateStep = useUpdateStep(recipe.id)
   const deleteStep = useDeleteStep(recipe.id)
   const reorderSteps = useReorderSteps(recipe.id)
+  const setImage = useSetRecipeImage(recipe.id)
+  const removeImage = useRemoveRecipeImage(recipe.id)
+  const imageError = setImage.error ?? removeImage.error
 
   const [scalars, setScalars] = useState<RecipeScalars>(() => toScalars(recipe))
   // Trimmed as on save, so a saved padded name doesn't stay "unsaved".
@@ -77,8 +84,8 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
       </div>
 
       <p className="muted" style={{ marginTop: '-0.75rem', marginBottom: '1.5rem' }}>
-        Edited equipment and steps save when you leave the field. The details and ingredients need their Save
-        buttons, and new rows need Add.
+        A photo saves as soon as you pick it. Edited equipment and steps save when you leave the field. The details
+        and ingredients need their Save buttons, and new rows need Add.
       </p>
 
       <div className="stack">
@@ -96,6 +103,21 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
             {isDirty && <span className="muted">Unsaved changes</span>}
           </div>
         </form>
+
+        <ImageField
+          src={recipe.image ? imageUrl(recipe.image) : null}
+          busy={setImage.isPending || removeImage.isPending}
+          error={imageError && describeError(imageError)}
+          // mutate(), not mutateAsync(): a failure shows through the error above.
+          onPick={(image) => {
+            removeImage.reset()
+            setImage.mutate(image)
+          }}
+          onRemove={() => {
+            setImage.reset()
+            removeImage.mutate()
+          }}
+        />
 
         <IngredientsSection recipe={recipe} onUnsavedChange={reportUnsaved('ingredients')} />
         <TextChildSection

@@ -1,11 +1,13 @@
 from collections.abc import Sequence
 from fractions import Fraction
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.recipe import Recipe, RecipeIngredient, Requirement, Step, Tag
 from app.schemas.recipes import (
+    ImageUpload,
     RecipeCreate,
     RecipeIngredientCreate,
     RecipeIngredientUpdate,
@@ -16,6 +18,7 @@ from app.schemas.recipes import (
     StepOrder,
     StepUpdate,
 )
+from app.services import images
 
 _RECIPE_LOAD_OPTIONS = [
     selectinload(Recipe.steps),
@@ -27,7 +30,7 @@ _RECIPE_LOAD_OPTIONS = [
     selectinload(Recipe.recipe_ingredients).selectinload(RecipeIngredient.measurement),
 ]
 
-_EXCLUDE_NESTED = ["steps", "requirements", "recipe_ingredients", "tag_ids"]
+_EXCLUDE_NESTED = ["steps", "requirements", "recipe_ingredients", "tag_ids", "image"]
 
 
 class UnknownTagError(Exception):
@@ -57,6 +60,15 @@ def _reduce(ri: RecipeIngredient) -> RecipeIngredient:
     return ri
 
 
+def _commit(db: Session, images_dir: Path, new_image: str | None) -> None:
+    """Commits, deleting the image files just written if the row that names them wasn't saved."""
+    try:
+        db.commit()
+    except Exception:
+        images.delete(images_dir, new_image)
+        raise
+
+
 ## Recipe
 
 
@@ -74,15 +86,16 @@ def get_recipes(db: Session) -> Sequence[Recipe]:
     return db.execute(select(Recipe).options(*options)).scalars().all()
 
 
-def create_recipe(db: Session, recipe_in: RecipeCreate, created_user_id: int) -> Recipe:
+def create_recipe(db: Session, recipe_in: RecipeCreate, created_user_id: int, images_dir: Path) -> Recipe:
     db_model = Recipe(**recipe_in.model_dump(exclude={*_EXCLUDE_NESTED}))
     db_model.created_user_id = created_user_id
     db_model.steps = [Step(**step.model_dump()) for step in recipe_in.steps]
     db_model.requirements = [Requirement(**req.model_dump()) for req in recipe_in.requirements]
     db_model.recipe_ingredients = [_reduce(RecipeIngredient(**ing.model_dump())) for ing in recipe_in.recipe_ingredients]
     db_model.tags = _get_tags(db, recipe_in.tag_ids)
+    db_model.image = images.save(images_dir, recipe_in.image) if recipe_in.image else None
     db.add(db_model)
-    db.commit()
+    _commit(db, images_dir, db_model.image)
     db.refresh(db_model)
     return db_model
 
@@ -105,9 +118,21 @@ def update_recipe(db: Session, recipe: Recipe, recipe_in: RecipeUpdate) -> Recip
     return recipe
 
 
-def delete_recipe(db: Session, recipe: Recipe) -> None:
+def delete_recipe(db: Session, recipe: Recipe, images_dir: Path) -> None:
+    image = recipe.image
     db.delete(recipe)
     db.commit()
+    images.delete(images_dir, image)
+
+
+def set_image(db: Session, recipe: Recipe, images_dir: Path, upload: ImageUpload | None) -> Recipe:
+    """Replaces or (with None) removes the recipe's image; the old files go once the change is saved."""
+    old = recipe.image
+    recipe.image = images.save(images_dir, upload) if upload else None
+    _commit(db, images_dir, recipe.image)
+    images.delete(images_dir, old)
+    db.refresh(recipe)
+    return recipe
 
 
 ## Recipe

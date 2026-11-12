@@ -1,5 +1,6 @@
 import secrets
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,6 +14,8 @@ class Settings(BaseSettings):
     app_name: str = "Recipes"
     debug: bool = False
     database_url: str = "sqlite:///./app.db"
+    # Uploaded images. Docker keeps them next to the database in /data.
+    images_dir: Path = Path("images")
 
     # Signs the short-lived cookie that carries OIDC state through the IdP
     # round trip. A random default only breaks logins that span a restart.

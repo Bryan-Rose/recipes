@@ -38,6 +38,8 @@ schema = (
 )
 
 RECIPE_BODY_OPERATIONS = {("POST", "/recipes/"), ("PATCH", "/recipes/{recipe_id}")}
+# OpenAPI can't say "a base64 JPEG" either, so a schema-valid image string is rightly a 422.
+IMAGE_BODY_OPERATIONS = {("POST", "/recipes/"), ("PUT", "/recipes/{recipe_id}/image")}
 
 
 @schema.parametrize()
@@ -54,7 +56,8 @@ def test_api(case, client: TestClient, db_session: Session, current_user: User):
 
     # OpenAPI can't express "cookbook_page needs a cookbook_id", so a schema-valid
     # recipe body can rightly get a 422 there. All other checks still apply.
-    cross_field = [positive_data_acceptance] if (case.method.upper(), case.operation.path) in RECIPE_BODY_OPERATIONS else []
+    operation = (case.method.upper(), case.operation.path)
+    cross_field = [positive_data_acceptance] if operation in RECIPE_BODY_OPERATIONS | IMAGE_BODY_OPERATIONS else []
 
     case.call_and_validate(
         cookies={SESSION_COOKIE: client.cookies[SESSION_COOKIE]},

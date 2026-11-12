@@ -443,3 +443,45 @@ test('recipe names are unique per cookbook', async ({ page, baseURL }) => {
   await expect(bookRow.getByText(`Rename one first: ${name}`)).toBeVisible()
   await api.dispose()
 })
+
+// A 2×1 PNG: the browser converts it to the JPEGs the API stores.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8AAQv8BD/kD/YURmXYAAAAASUVORK5CYII=', 'base64')
+
+/** The image has loaded, so the authenticated GET through nginx served a real picture. */
+async function expectLoaded(image: ReturnType<Page['locator']>) {
+  await expect(image).toBeVisible()
+  await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0)
+}
+
+test('a recipe photo shows on the recipe and in the list, and can be replaced and removed', async ({ page }) => {
+  const name = `E2E Photo ${unique()}`
+
+  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByLabel('Name').fill(name)
+  await page.getByLabel('Add a photo').setInputFiles({ name: 'dish.png', mimeType: 'image/png', buffer: PNG })
+  await expect(page.getByRole('img', { name: 'Recipe photo' })).toBeVisible()
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  const cover = page.getByRole('img', { name })
+  await expectLoaded(cover)
+  const firstSrc = await cover.getAttribute('src')
+
+  await page.getByRole('link', { name: '← All recipes' }).click()
+  const card = page.getByRole('listitem').filter({ has: page.getByRole('link', { name, exact: true }) })
+  await expectLoaded(card.locator('img.recipe-card__thumb'))
+
+  await card.getByRole('link', { name, exact: true }).click()
+  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByLabel('Replace photo').setInputFiles({ name: 'better.png', mimeType: 'image/png', buffer: PNG })
+  await expect(page.getByRole('img', { name: 'Recipe photo' })).not.toHaveAttribute('src', firstSrc!)
+  await page.getByRole('button', { name: 'Remove photo' }).click()
+  await expect(page.getByText('No photo yet.')).toBeVisible()
+
+  // The old files are gone, not just unlinked.
+  expect((await page.request.get(firstSrc!)).status()).toBe(404)
+
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(page.getByRole('img')).toHaveCount(0)
+})

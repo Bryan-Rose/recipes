@@ -1,7 +1,7 @@
 # Full stack: http://localhost:8080 (change with RECIPES_PORT in .env).
 #   docker compose up -d --build
 #   docker compose exec backend python -m scripts.create_user <you> --admin
-# The database lives in ./data on the host (bind mount).
+# The database and uploaded images live in ./data on the host (bind mount).
 services:
   backend:
     build: ./backend

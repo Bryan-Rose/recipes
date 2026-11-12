@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
-import { useDeleteRecipe, useRecipe } from '../api/recipes'
+import { imageUrl, useDeleteRecipe, useRecipe } from '../api/recipes'
 import { describeError } from '../api/errors'
 import type { RecipeIngredient } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
@@ -74,6 +74,8 @@ export function RecipeDetail() {
           </button>
         </div>
       </div>
+
+      {recipe.image && <img className="recipe-cover" src={imageUrl(recipe.image)} alt={recipe.name} />}
 
       {recipe.tags.length > 0 && (
         <ul className="tag-list" aria-label="Tags" style={{ marginBottom: '1rem' }}>
