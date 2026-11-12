@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { COOK, apiAs, signIn, unique } from './helpers'
+import { COOK, PNG, apiAs, expectLoaded, signIn, unique } from './helpers'
 
 test('browse from a recipe card to its cookbook and author', async ({ page, baseURL }) => {
   const suffix = unique()
@@ -57,5 +57,37 @@ test('browse from a recipe card to its cookbook and author', async ({ page, base
   // The header's index lists it too.
   await page.getByRole('banner').getByRole('link', { name: 'Cookbooks' }).click()
   await expect(page.getByRole('listitem').filter({ hasText: book.name })).toContainText(`by ${author.name} · 2 recipes`)
+  await api.dispose()
+})
+
+test('a cookbook cover is added in Lookups, shows on the cookbook index, and goes with the cookbook', async ({
+  page,
+  baseURL,
+}) => {
+  const suffix = unique()
+  const api = await apiAs(baseURL!, COOK)
+  const author = await (await api.post('/api/authors/', { data: { name: `E2E Cover Author ${suffix}` } })).json()
+  const book = await (
+    await api.post('/api/cookbooks/', { data: { name: `E2E Cover Book ${suffix}`, author_id: author.id } })
+  ).json()
+
+  await page.goto('/')
+  await signIn(page, COOK)
+  await page.getByRole('link', { name: 'Lookups' }).click()
+  await page.getByRole('navigation', { name: 'Lookup types' }).getByRole('link', { name: 'Cookbooks' }).click()
+  const row = page.getByRole('listitem', { name: book.name, exact: true })
+  await row.getByRole('button', { name: 'Edit' }).click()
+  await row.getByLabel('Add a photo').setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: PNG })
+  await expectLoaded(row.getByRole('img', { name: 'Cookbook cover' }))
+
+  await page.getByRole('banner').getByRole('link', { name: 'Cookbooks' }).click()
+  const item = page.getByRole('listitem').filter({ has: page.getByRole('link', { name: book.name, exact: true }) })
+  const thumb = item.locator('img.browse-item__cover')
+  await expectLoaded(thumb)
+  const src = (await thumb.getAttribute('src'))!
+
+  // Deleting the cookbook deletes its files, not just the row.
+  expect((await api.delete(`/api/cookbooks/${book.id}`)).status()).toBe(204)
+  expect((await api.get(src)).status()).toBe(404)
   await api.dispose()
 })

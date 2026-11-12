@@ -39,7 +39,11 @@ schema = (
 
 RECIPE_BODY_OPERATIONS = {("POST", "/recipes/"), ("PATCH", "/recipes/{recipe_id}")}
 # OpenAPI can't say "a base64 JPEG" either, so a schema-valid image string is rightly a 422.
-IMAGE_BODY_OPERATIONS = {("POST", "/recipes/"), ("PUT", "/recipes/{recipe_id}/image")}
+IMAGE_BODY_OPERATIONS = {
+    ("POST", "/recipes/"),
+    ("PUT", "/recipes/{recipe_id}/image"),
+    ("PUT", "/cookbooks/{cookbook_id}/image"),
+}
 
 
 @schema.parametrize()

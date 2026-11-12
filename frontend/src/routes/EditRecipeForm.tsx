@@ -106,6 +106,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
 
         <ImageField
           src={recipe.image ? imageUrl(recipe.image) : null}
+          alt="Recipe photo"
           busy={setImage.isPending || removeImage.isPending}
           error={imageError && describeError(imageError)}
           // mutate(), not mutateAsync(): a failure shows through the error above.

@@ -9,8 +9,8 @@ import { renderWithProviders } from '../test/render'
 import { server, signedIn } from '../test/server'
 
 const author = { id: 1, name: 'Julia Child' }
-const mastering: Cookbook = { id: 5, name: 'Mastering', created_at: '2026-01-01T00:00:00Z', author, recipe_count: 2 }
-const baking: Cookbook = { id: 6, name: 'Baking', created_at: '2026-01-01T00:00:00Z', author, recipe_count: 1 }
+const mastering: Cookbook = { id: 5, name: 'Mastering', created_at: '2026-01-01T00:00:00Z', author, recipe_count: 2, image: null }
+const baking: Cookbook = { id: 6, name: 'Baking', created_at: '2026-01-01T00:00:00Z', author, recipe_count: 1, image: null }
 
 function recipe(id: number, name: string, extra: Partial<RecipeSummary>): RecipeSummary {
   return {

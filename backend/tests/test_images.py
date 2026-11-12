@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.schemas.cookbook import CookbookRead
 from app.schemas.recipes import RecipeRead
 
 FULL = b"\xff\xd8\xff full picture"
@@ -117,3 +118,37 @@ def test_images_need_login(client: TestClient, recipe: RecipeRead):
     assert client.get(f"/images/{name}.jpg").status_code == 401
     assert client.put(f"/recipes/{recipe.id}/image", json=upload()).status_code == 401
     assert client.delete(f"/recipes/{recipe.id}/image").status_code == 401
+
+
+## Cookbook covers, through the same service as recipe images
+
+
+def test_cookbook_cover_replace_remove_and_delete(client: TestClient, cookbook: CookbookRead, images_dir: Path):
+    first = client.put(f"/cookbooks/{cookbook.id}/image", json=upload()).json()["image"]
+    assert files(images_dir) == {f"{first}.jpg", f"{first}-thumb.jpg"}
+    assert client.get("/cookbooks/").json()[0]["image"] == first
+    assert client.get(f"/images/{first}-thumb.jpg").content == THUMB
+
+    second = client.put(f"/cookbooks/{cookbook.id}/image", json=upload()).json()["image"]
+    assert files(images_dir) == {f"{second}.jpg", f"{second}-thumb.jpg"}
+
+    assert client.delete(f"/cookbooks/{cookbook.id}/image").status_code == 204
+    assert files(images_dir) == set()
+    assert client.get(f"/cookbooks/{cookbook.id}").json()["image"] is None
+
+    client.put(f"/cookbooks/{cookbook.id}/image", json=upload())
+    assert client.delete(f"/cookbooks/{cookbook.id}").status_code == 204
+    assert files(images_dir) == set()
+
+
+def test_cookbook_cover_rejects_non_jpeg(client: TestClient, cookbook: CookbookRead, images_dir: Path):
+    assert client.put(f"/cookbooks/{cookbook.id}/image", json=upload(full=b"GIF89a")).status_code == 422
+    assert files(images_dir) == set()
+
+
+def test_cookbook_cover_404_and_login(client: TestClient, cookbook: CookbookRead):
+    assert client.put("/cookbooks/999/image", json=upload()).status_code == 404
+    assert client.delete("/cookbooks/999/image").status_code == 404
+    client.cookies.clear()
+    assert client.put(f"/cookbooks/{cookbook.id}/image", json=upload()).status_code == 401
+    assert client.delete(f"/cookbooks/{cookbook.id}/image").status_code == 401

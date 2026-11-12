@@ -22,3 +22,12 @@ export async function apiAs(baseURL: string, user: { username: string; password:
   expect(response.status()).toBe(204)
   return api
 }
+
+// A 2×1 PNG: the browser converts it to the JPEGs the API stores.
+export const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8AAQv8BD/kD/YURmXYAAAAASUVORK5CYII=', 'base64')
+
+/** The image has loaded, so the authenticated GET through nginx served a real picture. */
+export async function expectLoaded(image: ReturnType<Page['locator']>) {
+  await expect(image).toBeVisible()
+  await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0)
+}

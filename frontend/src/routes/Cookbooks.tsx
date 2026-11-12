@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router'
 
 import { useAuthors, useCookbooks } from '../api/lookups'
-import { useRecipes } from '../api/recipes'
+import { imageUrl, useRecipes } from '../api/recipes'
 import type { Cookbook, RecipeSummary } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
 
@@ -26,6 +26,10 @@ export function CookbookIndex() {
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((cookbook) => (
               <li key={cookbook.id} className="card browse-item">
+                {/* Decorative: the name beside it says which book. */}
+                {cookbook.image && (
+                  <img className="browse-item__cover" src={imageUrl(cookbook.image, 'thumb')} alt="" loading="lazy" />
+                )}
                 <Link to={`/cookbooks/${cookbook.id}`}>{cookbook.name}</Link>{' '}
                 <span className="muted">
                   by <Link to={`/authors/${cookbook.author.id}`}>{cookbook.author.name}</Link> ·{' '}

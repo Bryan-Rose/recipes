@@ -10,8 +10,14 @@ import { server, signedIn } from '../test/server'
 
 const julia = { id: 1, name: 'Julia Child' }
 const jacques = { id: 2, name: 'Jacques Pépin' }
-const mastering: Cookbook = { id: 5, name: 'Mastering', created_at: '2026-01-01T00:00:00', author: julia, recipe_count: 3 }
+const mastering: Cookbook = { id: 5, name: 'Mastering', created_at: '2026-01-01T00:00:00', author: julia, recipe_count: 3, image: null }
 const empty: Cookbook = { ...mastering, id: 6, name: 'Empty Book', recipe_count: 0 }
+
+// jsdom has no canvas; a photo "converts" to its file name.
+vi.mock('../components/photos', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../components/photos')>()),
+  toImageUpload: async (file: File) => ({ full: `full-${file.name}`, thumb: `thumb-${file.name}` }),
+}))
 
 function mockConfirm(answer: boolean) {
   const spy = vi.spyOn(window, 'confirm').mockReturnValue(answer)
@@ -159,6 +165,36 @@ describe('lookups', () => {
     await user.click(row.getByRole('button', { name: 'Save' }))
 
     await expect.poll(() => patched).toEqual({ name: 'Mastering Vol. 1', author_id: jacques.id })
+  })
+
+  it('uploads, shows and removes a cookbook cover', async () => {
+    const cover = 'c'.repeat(32)
+    let current: Cookbook = mastering
+    let sent: unknown
+    server.use(
+      http.get('/api/cookbooks/', () => HttpResponse.json([current])),
+      http.get('/api/authors/', () => HttpResponse.json([julia])),
+      http.put('/api/cookbooks/5/image', async ({ request }) => {
+        sent = await request.json()
+        current = { ...mastering, image: cover }
+        return HttpResponse.json(current)
+      }),
+      http.delete('/api/cookbooks/5/image', () => {
+        current = mastering
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const user = userEvent.setup()
+    show('/lookups/cookbooks')
+
+    const row = within(await screen.findByRole('listitem', { name: 'Mastering' }))
+    await user.click(row.getByRole('button', { name: 'Edit' }))
+    await user.upload(row.getByLabelText('Add a photo'), new File(['x'], 'book.jpg', { type: 'image/jpeg' }))
+
+    expect(await row.findByRole('img', { name: 'Cookbook cover' })).toHaveAttribute('src', `/api/images/${cover}.jpg`)
+    expect(sent).toEqual({ full: 'full-book.jpg', thumb: 'thumb-book.jpg' })
+    await user.click(row.getByRole('button', { name: 'Remove photo' }))
+    expect(await row.findByText('No photo yet.')).toBeInTheDocument()
   })
 
   it('refreshes a cached recipe count after a recipe is deleted', async () => {

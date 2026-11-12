@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { COOK, apiAs, signIn, unique } from './helpers'
+import { COOK, PNG, apiAs, expectLoaded, signIn, unique } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -443,15 +443,6 @@ test('recipe names are unique per cookbook', async ({ page, baseURL }) => {
   await expect(bookRow.getByText(`Rename one first: ${name}`)).toBeVisible()
   await api.dispose()
 })
-
-// A 2×1 PNG: the browser converts it to the JPEGs the API stores.
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8AAQv8BD/kD/YURmXYAAAAASUVORK5CYII=', 'base64')
-
-/** The image has loaded, so the authenticated GET through nginx served a real picture. */
-async function expectLoaded(image: ReturnType<Page['locator']>) {
-  await expect(image).toBeVisible()
-  await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0)
-}
 
 test('a recipe photo shows on the recipe and in the list, and can be replaced and removed', async ({ page }) => {
   const name = `E2E Photo ${unique()}`

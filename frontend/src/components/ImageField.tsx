@@ -3,9 +3,10 @@ import { useId, useState } from 'react'
 import type { ImageUpload } from '../api/types'
 import { toImageUpload } from './photos'
 
-/** A recipe's one image: shows it, and picks a replacement (converted to JPEGs here) or removes it. */
+/** A recipe's or cookbook's one image: shows it, and picks a replacement (converted to JPEGs here) or removes it. */
 export function ImageField({
   src,
+  alt,
   busy = false,
   error,
   onPick,
@@ -13,6 +14,7 @@ export function ImageField({
   onConverting,
 }: {
   src: string | null
+  alt: string
   busy?: boolean
   error?: string | null
   onPick: (image: ImageUpload) => void
@@ -41,7 +43,7 @@ export function ImageField({
   return (
     <section className="card editor-section">
       <h2 className="section-heading">Photo</h2>
-      {src ? <img className="recipe-cover" src={src} alt="Recipe photo" /> : <p className="empty-hint">No photo yet.</p>}
+      {src ? <img className="recipe-cover" src={src} alt={alt} /> : <p className="empty-hint">No photo yet.</p>}
       <div className="row">
         <div className="field">
           <label htmlFor={id}>{src ? 'Replace photo' : 'Add a photo'}</label>

@@ -10,7 +10,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { ApiError, api } from './client'
-import type { Author, Cookbook, CookbookUpdate, Ingredient, Lookup, Measurement, Preparation, Tag } from './types'
+import type { Author, Cookbook, CookbookUpdate, ImageUpload, Ingredient, Lookup, Measurement, Preparation, Tag } from './types'
 
 /**
  * `name` is unique on all of these tables, and POSTing a duplicate returns 409.
@@ -93,3 +93,9 @@ export function useUpdateCookbook() {
 export function useDeleteCookbook() {
   return useMutation({ mutationFn: (id: number) => api.delete(`/cookbooks/${id}`) })
 }
+
+export const useSetCookbookImage = (id: number) =>
+  useMutation({ mutationFn: (image: ImageUpload) => api.put<Cookbook>(`/cookbooks/${id}/image`, image) })
+
+export const useRemoveCookbookImage = (id: number) =>
+  useMutation({ mutationFn: () => api.delete(`/cookbooks/${id}/image`) })
