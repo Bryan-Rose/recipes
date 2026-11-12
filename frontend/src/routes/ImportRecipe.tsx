@@ -62,7 +62,8 @@ export function ImportRecipe() {
           </button>
         </aside>
         <CreateRecipeForm
-          initial={fromImport(importRecipe.data, { ingredient, measurement, preparation }, 'url' in source ? source.url : null)}
+          // Normalized (lowercase scheme, encoded spaces) like the backend's fetch, since saving rejects "HTTPS:" and spaces.
+          initial={fromImport(importRecipe.data, { ingredient, measurement, preparation }, 'url' in source ? (URL.parse(source.url)?.href ?? null) : null)}
           heading="Review import"
         />
       </div>

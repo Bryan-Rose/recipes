@@ -314,6 +314,17 @@ it('reads a recipe from a link and goes back to it', async () => {
   expect(screen.getByLabelText('Or a link to the recipe')).toHaveValue('https://example.com/soup')
 })
 
+it('prefills the source URL in the form saving accepts', async () => {
+  server.use(http.post('/api/imports/url', () => HttpResponse.json(draft)))
+  const user = userEvent.setup()
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  await user.type(await screen.findByLabelText('Or a link to the recipe'), 'HTTPS://Example.com/leek soup')
+  await user.click(screen.getByRole('button', { name: 'Read link' }))
+
+  await screen.findByRole('heading', { name: 'Review import' })
+  expect(screen.getByLabelText('Source URL')).toHaveValue('https://example.com/leek%20soup')
+})
+
 it('says why a link could not be read', async () => {
   const detail = "Couldn't open that page: the site answered 403. Try pasting the recipe text."
   server.use(http.post('/api/imports/url', () => HttpResponse.json({ detail }, { status: 422 })))
