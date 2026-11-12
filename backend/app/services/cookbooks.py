@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.cookbook import Cookbook
+from app.models.recipe import Recipe
 from app.schemas.cookbook import CookbookCreate, CookbookUpdate
 
 
@@ -29,6 +30,14 @@ def update_cookbook(db: Session, cookbook: Cookbook, cookbook_in: CookbookUpdate
     db.commit()
     db.refresh(cookbook)
     return cookbook
+
+
+def unlink_clashes(db: Session, cookbook: Cookbook) -> Sequence[str]:
+    """Names of this cookbook's recipes that a recipe without a cookbook already uses, sorted."""
+    loose = select(Recipe.name).where(Recipe.cookbook_id.is_(None))
+    # The NOCASE column collation applies to IN, matching the unique index.
+    clashes = select(Recipe.name).where(Recipe.cookbook_id == cookbook.id, Recipe.name.in_(loose)).order_by(Recipe.name)
+    return db.scalars(clashes).all()
 
 
 def delete_cookbook(db: Session, cookbook: Cookbook) -> None:

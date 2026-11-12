@@ -327,3 +327,31 @@ def test_case_only_duplicates_stop_the_migration(alembic_config: Config):
         assert MigrationContext.configure(connection).get_current_revision() == "f88b533c9cdd"
         assert connection.execute(text("SELECT count(*) FROM ingredients")).scalar() == 3
     engine.dispose()
+
+
+def test_recipe_names_become_unique_per_cookbook(alembic_config: Config):
+    command.upgrade(alembic_config, "fa0638d0971c")
+    engine = create_engine(alembic_config.attributes["url"])
+    insert = "INSERT INTO recipes (name, created_user_id, cookbook_id) VALUES ('{}', 1, {})"
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
+        connection.execute(text("INSERT INTO authors (id, name) VALUES (1, 'a')"))
+        connection.execute(text("INSERT INTO cookbooks (id, name, author_id) VALUES (1, 'c1', 1), (2, 'c2', 1)"))
+        connection.execute(text(insert.format("Pie", 1)))
+        connection.execute(text(insert.format("Tart", "NULL")))
+
+    command.upgrade(alembic_config, "46ca2fd01026")
+    with engine.begin() as connection:
+        assert connection.execute(text("SELECT name, cookbook_id FROM recipes ORDER BY id")).all() == [("Pie", 1), ("Tart", None)]
+        connection.execute(text(insert.format("pie", 2)))
+        connection.execute(text(insert.format("Pie", "NULL")))
+    for name, cookbook in (("PIE", 1), ("tart", "NULL")):
+        with pytest.raises(IntegrityError), engine.begin() as connection:
+            connection.execute(text(insert.format(name, cookbook)))
+
+    with engine.begin() as connection:
+        connection.execute(text("DELETE FROM recipes WHERE id > 2"))
+    command.downgrade(alembic_config, "fa0638d0971c")
+    with pytest.raises(IntegrityError), engine.begin() as connection:
+        connection.execute(text(insert.format("PIE", 2)))  # unique app-wide again
+    engine.dispose()

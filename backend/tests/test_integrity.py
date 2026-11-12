@@ -40,6 +40,30 @@ def test_recipe_names_ignore_case(client: TestClient):
     assert client.patch(f"/recipes/{other['id']}", json={"name": "TIAN"}).json()["name"] == "TIAN"
 
 
+def test_recipe_names_are_unique_per_cookbook(client: TestClient, author: AuthorRead, cookbook: CookbookRead):
+    other = client.post("/cookbooks/", json={"name": "Other", "author_id": author.id}).json()
+    loose = client.post("/recipes/", json={"name": "Pancakes"}).json()
+
+    assert client.post("/recipes/", json={"name": "pancakes", "cookbook_id": cookbook.id}).status_code == 201
+    assert client.post("/recipes/", json={"name": "Pancakes", "cookbook_id": other["id"]}).status_code == 201
+    assert client.post("/recipes/", json={"name": "PANCAKES", "cookbook_id": cookbook.id}).status_code == 409
+    assert client.post("/recipes/", json={"name": "Pancakes"}).status_code == 409
+    assert client.patch(f"/recipes/{loose['id']}", json={"cookbook_id": cookbook.id}).status_code == 409
+    assert len(client.get("/recipes/").json()) == 3
+
+
+def test_delete_cookbook_blocked_by_recipe_name_clash(client: TestClient, cookbook: CookbookRead):
+    client.post("/recipes/", json={"name": "Pancakes"})
+    client.post("/recipes/", json={"name": "Waffles", "cookbook_id": cookbook.id})
+    client.post("/recipes/", json={"name": "pancakes", "cookbook_id": cookbook.id})
+
+    response = client.delete(f"/cookbooks/{cookbook.id}")
+
+    assert response.status_code == 409
+    assert response.json()["detail"].endswith("Rename one first: pancakes")
+    assert client.get(f"/cookbooks/{cookbook.id}").status_code == 200
+
+
 ## Deleting rows that are still referenced
 
 

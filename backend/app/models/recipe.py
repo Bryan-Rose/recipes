@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Table, Text, text
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -26,9 +26,14 @@ recipe_tags = Table(
 
 class Recipe(Base):
     __tablename__ = "recipes"
+    # Names are unique per cookbook. SQLite treats NULLs as distinct, so recipes without a cookbook need their own index.
+    __table_args__ = (
+        Index("uq_recipes_name_cookbook_id", "name", "cookbook_id", unique=True),
+        Index("uq_recipes_name_no_cookbook", "name", unique=True, sqlite_where=text("cookbook_id IS NULL")),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String(collation="NOCASE"), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(collation="NOCASE"), nullable=False)
     cookbook_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("cookbooks.id"), nullable=True)
     cookbook_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
     active_cook_time: Mapped[int | None] = mapped_column(Integer, nullable=True)  # minutes

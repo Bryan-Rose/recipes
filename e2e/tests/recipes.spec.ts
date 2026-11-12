@@ -403,3 +403,43 @@ test('an ingredient "to taste" shows no amount and ignores scaling', async ({ pa
   await page.getByLabel('Servings', { exact: true }).fill('8')
   await expect(line).toHaveText(`sea salt-${id}, to taste`)
 })
+
+test('recipe names are unique per cookbook', async ({ page, baseURL }) => {
+  const suffix = unique()
+  const name = `E2E Pancakes ${suffix}`
+  const api = await apiAs(baseURL!, COOK)
+  const author = await (await api.post('/api/authors/', { data: { name: `E2E Same Author ${suffix}` } })).json()
+  const [first, second] = await Promise.all(
+    ['First', 'Second'].map(async (which) =>
+      (await api.post('/api/cookbooks/', { data: { name: `E2E ${which} Book ${suffix}`, author_id: author.id } })).json(),
+    ),
+  )
+  await api.post('/api/recipes/', { data: { name } })
+  await api.post('/api/recipes/', { data: { name, cookbook_id: first.id } })
+
+  // The name is taken without a cookbook and in the first one, but free in the second.
+  await page.goto('/recipes/new')
+  await page.getByLabel('Name').fill(name.toLowerCase())
+  const save = page.getByRole('button', { name: 'Save recipe' })
+  await expect(page.getByText('already exists without a cookbook')).toBeVisible()
+  await expect(save).toBeDisabled()
+  await page.getByLabel('Cookbook').selectOption(String(first.id))
+  await expect(page.getByText(`already exists in ${first.name}`)).toBeVisible()
+  await page.getByLabel('Cookbook').selectOption(String(second.id))
+  await save.click()
+  await expect(page.getByRole('heading', { name: name.toLowerCase() })).toBeVisible()
+
+  // The list tells the three apart by cookbook.
+  await page.goto(`/?q=${encodeURIComponent(name)}`)
+  const cards = page.getByRole('list', { name: 'Recipes' }).getByRole('listitem').filter({ hasText: name })
+  await expect(cards).toHaveCount(3)
+  for (const book of [first, second]) await expect(cards.filter({ hasText: book.name })).toHaveCount(1)
+
+  // Deleting the first cookbook would leave two cookbook-less recipes with the name, so it's refused.
+  await page.goto('/lookups/cookbooks')
+  const bookRow = page.getByRole('listitem', { name: first.name, exact: true })
+  page.once('dialog', (dialog) => void dialog.accept())
+  await bookRow.getByRole('button', { name: 'Delete' }).click()
+  await expect(bookRow.getByText(`Rename one first: ${name}`)).toBeVisible()
+  await api.dispose()
+})
