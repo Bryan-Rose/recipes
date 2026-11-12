@@ -53,7 +53,11 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
   const [pendingError, setPendingError] = useState<unknown>(null)
   const [creatingPending, setCreatingPending] = useState(false)
 
-  const duplicate = findByName(recipes, scalars.name)
+  // Names are unique per cookbook, and among recipes without one.
+  const duplicate = findByName(
+    recipes?.filter((recipe) => recipe.cookbook_id === scalars.cookbook_id),
+    scalars.name,
+  )
   const incompleteIngredients = ingredients.filter((row) => !isFilled(row.value)).length
   const canSave =
     scalars.name.trim() !== '' &&
@@ -141,8 +145,9 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
           <RecipeFields value={scalars} onChange={setScalars} />
           {duplicate && (
             <p className="error-box" style={{ marginTop: '1rem' }}>
-              <Link to={`/recipes/${duplicate.id}`}>A recipe called “{duplicate.name}”</Link> already exists. Recipe
-              names must be unique, so rename this one to save it.
+              <Link to={`/recipes/${duplicate.id}`}>A recipe called “{duplicate.name}”</Link> already exists{' '}
+              {duplicate.cookbook ? `in ${duplicate.cookbook.name}` : 'without a cookbook'}. Rename this one or pick
+              another cookbook to save it.
             </p>
           )}
         </section>

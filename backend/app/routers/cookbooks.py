@@ -40,4 +40,8 @@ def delete_cookbook(cookbook_id: IdPath, db: Session = Depends(get_db)):
     existing = cookbooks_service.get_cookbook(db, cookbook_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    # Its recipes lose their cookbook, which would break the unique name rule for recipes without one.
+    if clashes := cookbooks_service.unlink_clashes(db, existing):
+        detail = f"Its recipes would share a name with ones that have no cookbook. Rename one first: {', '.join(clashes)}"
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
     cookbooks_service.delete_cookbook(db, existing)

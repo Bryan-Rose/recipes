@@ -222,3 +222,25 @@ it('keeps an amount typed while a new ingredient is being saved', async () => {
   await waitFor(() => expect(screen.getByLabelText('Ingredient', { exact: true })).toHaveDisplayValue('sugar'))
   expect(screen.getByLabelText('Amount')).toHaveValue(12) // the new row starts at 1
 })
+
+it('blocks a duplicate name only within the same cookbook', async () => {
+  const joy = { id: 2, name: 'Joy', author: { id: 1, name: 'Irma' } }
+  server.use(
+    http.get('/api/cookbooks/', () => HttpResponse.json([joy])),
+    http.get('/api/recipes/', () =>
+      HttpResponse.json([{ id: 7, name: 'Soup', cookbook_id: 2, cookbook: joy, tags: [], ingredient_names: [] }]),
+    ),
+  )
+  const user = userEvent.setup()
+  renderWithProviders(<CreateRecipeForm />)
+
+  await user.type(screen.getByLabelText('Name'), 'soup')
+  const save = screen.getByRole('button', { name: 'Save recipe' })
+  await waitFor(() => expect(save).toBeEnabled())
+  expect(screen.queryByText(/already exists/)).not.toBeInTheDocument()
+
+  await user.selectOptions(screen.getByLabelText('Cookbook'), await screen.findByRole('option', { name: /Joy/ }))
+  expect(screen.getByRole('link', { name: 'A recipe called “Soup”' })).toHaveAttribute('href', '/recipes/7')
+  expect(screen.getByText(/already exists in Joy/)).toBeInTheDocument()
+  expect(save).toBeDisabled()
+})
