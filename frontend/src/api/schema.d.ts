@@ -160,6 +160,24 @@ export interface paths {
         patch: operations["update_cookbook_cookbooks__cookbook_id__patch"];
         trace?: never;
     };
+    "/cookbooks/{cookbook_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Cookbook Image */
+        put: operations["put_cookbook_image_cookbooks__cookbook_id__image_put"];
+        post?: never;
+        /** Delete Cookbook Image */
+        delete: operations["delete_cookbook_image_cookbooks__cookbook_id__image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/authors/": {
         parameters: {
             query?: never;
@@ -709,6 +727,8 @@ export interface components {
             author: components["schemas"]["AuthorRead"];
             /** Recipe Count */
             recipe_count: number;
+            /** Image */
+            image: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1492,6 +1512,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CookbookWithCount"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_cookbook_image_cookbooks__cookbook_id__image_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cookbook_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageUpload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CookbookWithCount"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_cookbook_image_cookbooks__cookbook_id__image_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cookbook_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

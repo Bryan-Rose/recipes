@@ -160,6 +160,7 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
 
         <ImageField
           src={image && jpegUrl(image.full)}
+          alt="Recipe photo"
           onPick={setImage}
           onRemove={() => setImage(null)}
           onConverting={setConvertingImage}

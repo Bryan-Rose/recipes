@@ -102,7 +102,7 @@ docker compose up -d --build
 ```
 
 **Backups:** everything the app stores is in `data/`: the database `app.db` and
-recipe images in `images/` (named by the database, so back them up together).
+recipe and cookbook images in `images/` (named by the database, so back them up together).
 Stop the backend for a consistent copy:
 
 ```bash

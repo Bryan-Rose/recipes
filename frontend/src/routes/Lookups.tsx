@@ -11,10 +11,14 @@ import {
   useAuthors,
   useCookbooks,
   useDeleteCookbook,
+  useRemoveCookbookImage,
+  useSetCookbookImage,
   useUpdateCookbook,
 } from '../api/lookups'
+import { imageUrl } from '../api/recipes'
 import type { Cookbook, Lookup } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
+import { ImageField } from '../components/ImageField'
 
 /** The name-only lookups; cookbooks also carry an author, so they get their own list. */
 const KINDS = {
@@ -130,26 +134,46 @@ function CookbookForm({ cookbook, close }: { cookbook: Cookbook; close: () => vo
   const { data: authorList } = useAuthors()
   const [authorId, setAuthorId] = useState(cookbook.author.id)
   const selectId = useId()
+  const setImage = useSetCookbookImage(cookbook.id)
+  const removeImage = useRemoveCookbookImage(cookbook.id)
+  const imageError = setImage.error ?? removeImage.error
 
   return (
-    <NameForm
-      initial={cookbook.name}
-      saving={update.isPending}
-      error={update.error}
-      onSave={(name) => update.mutate({ id: cookbook.id, name, author_id: authorId }, { onSuccess: close })}
-      onCancel={close}
-    >
-      <div className="field">
-        <label htmlFor={selectId}>Author</label>
-        <select id={selectId} value={authorId} onChange={(e) => setAuthorId(Number(e.target.value))}>
-          {(authorList ?? [cookbook.author]).map((author) => (
-            <option key={author.id} value={author.id}>
-              {author.name}
-            </option>
-          ))}
-        </select>
-      </div>
-    </NameForm>
+    <>
+      <NameForm
+        initial={cookbook.name}
+        saving={update.isPending}
+        error={update.error}
+        onSave={(name) => update.mutate({ id: cookbook.id, name, author_id: authorId }, { onSuccess: close })}
+        onCancel={close}
+      >
+        <div className="field">
+          <label htmlFor={selectId}>Author</label>
+          <select id={selectId} value={authorId} onChange={(e) => setAuthorId(Number(e.target.value))}>
+            {(authorList ?? [cookbook.author]).map((author) => (
+              <option key={author.id} value={author.id}>
+                {author.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </NameForm>
+      {/* Saves as soon as it's picked, like a recipe's photo; the name and author still need Save. */}
+      <ImageField
+        src={cookbook.image ? imageUrl(cookbook.image) : null}
+        alt="Cookbook cover"
+        busy={setImage.isPending || removeImage.isPending}
+        error={imageError && describeError(imageError)}
+        onPick={(image) => {
+          removeImage.reset()
+          setImage.mutate(image)
+        }}
+        onRemove={() => {
+          setImage.reset()
+          removeImage.mutate()
+        }}
+      />
+    </>
   )
 }
 

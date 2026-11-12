@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.config import Settings, get_settings
 from app.database import get_db
 from app.schemas.cookbook import CookbookCreate, CookbookUpdate, CookbookWithCount
 from app.schemas.fields import IdPath
+from app.schemas.recipes import ImageUpload
 from app.services import cookbooks as cookbooks_service
 
 router = APIRouter(prefix="/cookbooks", tags=["cookbooks"])
@@ -36,7 +38,7 @@ def update_cookbook(cookbook_id: IdPath, cookbook_in: CookbookUpdate, db: Sessio
 
 
 @router.delete("/{cookbook_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_cookbook(cookbook_id: IdPath, db: Session = Depends(get_db)):
+def delete_cookbook(cookbook_id: IdPath, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)):
     existing = cookbooks_service.get_cookbook(db, cookbook_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
@@ -44,4 +46,22 @@ def delete_cookbook(cookbook_id: IdPath, db: Session = Depends(get_db)):
     if clashes := cookbooks_service.unlink_clashes(db, existing):
         detail = f"Its recipes would share a name with ones that have no cookbook. Rename one first: {', '.join(clashes)}"
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
-    cookbooks_service.delete_cookbook(db, existing)
+    cookbooks_service.delete_cookbook(db, existing, settings.images_dir)
+
+
+@router.put("/{cookbook_id}/image", response_model=CookbookWithCount)
+def put_cookbook_image(
+    cookbook_id: IdPath, image_in: ImageUpload, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
+):
+    existing = cookbooks_service.get_cookbook(db, cookbook_id)
+    if existing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return cookbooks_service.set_image(db, existing, settings.images_dir, image_in)
+
+
+@router.delete("/{cookbook_id}/image", status_code=status.HTTP_204_NO_CONTENT)
+def delete_cookbook_image(cookbook_id: IdPath, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)):
+    existing = cookbooks_service.get_cookbook(db, cookbook_id)
+    if existing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    cookbooks_service.set_image(db, existing, settings.images_dir, None)

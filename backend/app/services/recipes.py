@@ -60,15 +60,6 @@ def _reduce(ri: RecipeIngredient) -> RecipeIngredient:
     return ri
 
 
-def _commit(db: Session, images_dir: Path, new_image: str | None) -> None:
-    """Commits, deleting the image files just written if the row that names them wasn't saved."""
-    try:
-        db.commit()
-    except Exception:
-        images.delete(images_dir, new_image)
-        raise
-
-
 ## Recipe
 
 
@@ -95,7 +86,7 @@ def create_recipe(db: Session, recipe_in: RecipeCreate, created_user_id: int, im
     db_model.tags = _get_tags(db, recipe_in.tag_ids)
     db_model.image = images.save(images_dir, recipe_in.image) if recipe_in.image else None
     db.add(db_model)
-    _commit(db, images_dir, db_model.image)
+    images.commit(db, images_dir, db_model.image)
     db.refresh(db_model)
     return db_model
 
@@ -126,12 +117,7 @@ def delete_recipe(db: Session, recipe: Recipe, images_dir: Path) -> None:
 
 
 def set_image(db: Session, recipe: Recipe, images_dir: Path, upload: ImageUpload | None) -> Recipe:
-    """Replaces or (with None) removes the recipe's image; the old files go once the change is saved."""
-    old = recipe.image
-    recipe.image = images.save(images_dir, upload) if upload else None
-    _commit(db, images_dir, recipe.image)
-    images.delete(images_dir, old)
-    db.refresh(recipe)
+    images.replace(db, recipe, images_dir, upload)
     return recipe
 
 

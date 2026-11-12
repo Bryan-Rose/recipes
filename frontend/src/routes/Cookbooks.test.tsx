@@ -10,9 +10,9 @@ import { server, signedIn } from '../test/server'
 
 const julia = { id: 1, name: 'Julia Child' }
 const jacques = { id: 2, name: 'Jacques Pépin' }
-const mastering: Cookbook = { id: 5, name: 'Mastering', created_at: '2026-01-01T00:00:00Z', author: julia, recipe_count: 3 }
-const french: Cookbook = { id: 6, name: 'French Chef', created_at: '2026-01-01T00:00:00Z', author: julia, recipe_count: 0 }
-const fast: Cookbook = { id: 7, name: 'Fast Food My Way', created_at: '2026-01-01T00:00:00Z', author: jacques, recipe_count: 0 }
+const mastering: Cookbook = { id: 5, name: 'Mastering', created_at: '2026-01-01T00:00:00Z', author: julia, recipe_count: 3, image: null }
+const french: Cookbook = { id: 6, name: 'French Chef', created_at: '2026-01-01T00:00:00Z', author: julia, recipe_count: 0, image: null }
+const fast: Cookbook = { id: 7, name: 'Fast Food My Way', created_at: '2026-01-01T00:00:00Z', author: jacques, recipe_count: 0, image: null }
 
 function recipe(id: number, name: string, cookbook: Cookbook | null, page: number | null): RecipeSummary {
   return {
@@ -70,6 +70,18 @@ describe('browsing by cookbook', () => {
       'French Chef by Julia Child · 0 recipes',
       'Mastering by Julia Child · 3 recipes',
     ])
+  })
+
+  it('shows a cover thumbnail for cookbooks that have one', async () => {
+    const cover = 'c'.repeat(32)
+    server.use(http.get('/api/cookbooks/', () => HttpResponse.json([{ ...mastering, image: cover }, french])))
+    renderWithProviders(<App />, { route: '/cookbooks' })
+
+    const list = await screen.findByRole('list', { name: 'Cookbooks' })
+    // Decorative, so it has no accessible name and only presentation role.
+    const images = list.querySelectorAll('img')
+    expect([...images].map((img) => img.getAttribute('src'))).toEqual([`/api/images/${cover}-thumb.jpg`])
+    expect(images[0]).toHaveAttribute('alt', '')
   })
 
   it('says so when there are no cookbooks', async () => {

@@ -30,3 +30,5 @@ class CookbookWithCount(CookbookRead):
     """What the cookbook routes return; recipes nest the plain CookbookRead."""
 
     recipe_count: int
+    # The cover's file stem for GET /images/, as on RecipeRead.
+    image: str | None
