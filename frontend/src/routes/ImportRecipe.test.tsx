@@ -314,7 +314,7 @@ it('reads a recipe from a link and goes back to it', async () => {
   expect(screen.getByLabelText('Or a link to the recipe')).toHaveValue('https://example.com/soup')
 })
 
-it('prefills the source URL in the form saving accepts', async () => {
+it('normalizes the prefilled source URL, and leaves it empty when too long to save', async () => {
   server.use(http.post('/api/imports/url', () => HttpResponse.json(draft)))
   const user = userEvent.setup()
   renderWithProviders(<App />, { route: '/recipes/import' })
@@ -323,6 +323,16 @@ it('prefills the source URL in the form saving accepts', async () => {
 
   await screen.findByRole('heading', { name: 'Review import' })
   expect(screen.getByLabelText('Source URL')).toHaveValue('https://example.com/leek%20soup')
+
+  // 700 spaces become 2100 characters of %20, past SourceUrl's 2048.
+  await user.click(screen.getByRole('button', { name: 'Edit link' }))
+  const link = screen.getByLabelText('Or a link to the recipe')
+  await user.clear(link)
+  await user.click(link)
+  await user.paste(`https://example.com/${' '.repeat(700)}soup`)
+  await user.click(screen.getByRole('button', { name: 'Read link' }))
+  await screen.findByRole('heading', { name: 'Review import' })
+  expect(screen.getByLabelText('Source URL')).toHaveValue('')
 })
 
 it('says why a link could not be read', async () => {

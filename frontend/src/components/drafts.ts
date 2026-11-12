@@ -96,6 +96,8 @@ export function fromImport(
 ): RecipeInitial {
   // The schema only says these are integers, but the API 422s below its minimums (servings 1, times 0); leave it blank instead.
   const atLeast = (min: number, value: number | null) => (value !== null && value >= min ? value : null)
+  // Normalized like the backend's fetch, since saving rejects "HTTPS:", spaces and more than SourceUrl's 2048 characters.
+  const href = sourceUrl === null ? null : URL.parse(sourceUrl)?.href
   return {
     scalars: {
       ...emptyScalars,
@@ -104,7 +106,7 @@ export function fromImport(
       active_cook_time: atLeast(0, draft.active_cook_time),
       inactive_cook_time: atLeast(0, draft.inactive_cook_time),
       notes: draft.notes?.trim() || null,
-      source_url: sourceUrl,
+      source_url: href && href.length <= 2048 ? href : null,
     },
     ingredients: draft.ingredients.map((line) => {
       const pending: Partial<Record<LookupKind, string>> = {}
