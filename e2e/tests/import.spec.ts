@@ -93,6 +93,7 @@ test('import from a link to the recipe page', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name })).toBeVisible()
   await expect(page.getByText('Slice the leeks.')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'mock-anthropic' })).toHaveAttribute('href', url)
 })
 
 test("a link that can't be opened says why", async ({ page }) => {
