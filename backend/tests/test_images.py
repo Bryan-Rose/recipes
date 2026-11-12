@@ -64,6 +64,20 @@ def test_failed_replace_keeps_old_files(
     assert files(images_dir) == {f"{old}.jpg", f"{old}-thumb.jpg"}
 
 
+def test_failed_thumbnail_write_leaves_no_files(client: TestClient, recipe: RecipeRead, images_dir: Path, monkeypatch: pytest.MonkeyPatch):
+    write_bytes = Path.write_bytes
+
+    def fail_on_thumb(path: Path, data: bytes) -> int:
+        if path.name.endswith("-thumb.jpg"):
+            raise OSError("disk full")
+        return write_bytes(path, data)
+
+    monkeypatch.setattr(Path, "write_bytes", fail_on_thumb)
+    with pytest.raises(OSError):
+        client.put(f"/recipes/{recipe.id}/image", json=upload())
+    assert files(images_dir) == set()
+
+
 @pytest.mark.parametrize(
     "body",
     [

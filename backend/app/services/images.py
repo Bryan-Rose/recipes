@@ -18,8 +18,12 @@ def save(directory: Path, upload: ImageUpload) -> str:
     """Writes both files and returns the name to store in the database."""
     directory.mkdir(parents=True, exist_ok=True)
     name = secrets.token_hex(16)
-    for suffix, data in zip(SUFFIXES, (upload.full, upload.thumb), strict=True):
-        (directory / f"{name}{suffix}.jpg").write_bytes(base64.b64decode(data))
+    try:
+        for suffix, data in zip(SUFFIXES, (upload.full, upload.thumb), strict=True):
+            (directory / f"{name}{suffix}.jpg").write_bytes(base64.b64decode(data))
+    except Exception:
+        delete(directory, name)  # e.g. disk full on the thumbnail: no row will name the full file
+        raise
     return name
 
 
