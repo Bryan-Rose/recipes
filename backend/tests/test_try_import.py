@@ -3,13 +3,15 @@ from pathlib import Path
 
 import httpx2
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.database import Base
 from app.models.ingredient import Ingredient
+from app.services import fetch
 from scripts.try_import import main
-from tests.test_imports import DRAFT, FakeApi, message
+from tests.test_imports import DRAFT, RECIPE_PAGE, FakeApi, message
 
 KEY = "sk-ant-secret-key"
 
@@ -69,3 +71,40 @@ def test_needs_a_key(fake, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("RECIPES_ANTHROPIC_API_KEY", "")
     with pytest.raises(SystemExit, match="RECIPES_ANTHROPIC_API_KEY"):
         main(["--url", "https://example.com/"])
+
+
+@pytest.fixture()
+def site(monkeypatch: pytest.MonkeyPatch) -> httpx2.MockTransport:
+    """example.com on a public address: RECIPE_PAGE at /, a blank page at /blank, 404 elsewhere."""
+    pages = {"/": RECIPE_PAGE, "/blank": "<html></html>"}
+    monkeypatch.setattr(fetch.socket, "getaddrinfo", lambda host, port, **_: [(2, 1, 6, "", ("93.184.215.14", port))])
+    return httpx2.MockTransport(
+        lambda request: httpx2.Response(200, html=pages[request.url.path]) if request.url.path in pages else httpx2.Response(404)
+    )
+
+
+def test_url_sends_the_pages_recipe(fake, site, capsys: pytest.CaptureFixture[str]):
+    api, http = fake
+
+    main(["--url", "https://example.com/"], http, site)
+
+    assert '"name": "Web pancakes"' in api.requests[0]["messages"][0]["content"]
+    assert "cost $0.0090" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("path", "error"), [("/gone", "Couldn't open that page: the site answered 404"), ("/blank", "No text on that page")]
+)
+def test_url_problems_exit_without_calling_claude(fake, site, path: str, error: str):
+    api, http = fake
+    with pytest.raises(SystemExit, match=error):
+        main(["--url", f"https://example.com{path}"], http, site)
+    assert api.requests == []
+
+
+def test_photos_get_the_apps_checks(fake, tmp_path: Path):
+    api, http = fake
+    (tmp_path / "page.png").write_bytes(b"\x89PNG")
+    with pytest.raises(ValidationError, match="must be a base64 JPEG"):
+        main(["--photo", "page.png"], http)
+    assert api.requests == []

@@ -24,10 +24,13 @@ from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401 — registers every model on Base.metadata
 from app.config import Settings
+from app.schemas.imports import PhotoImport
 from app.services import fetch, imports
 
 
-def main(argv: list[str] | None = None, http_client: httpx2.Client | None = None) -> None:
+def main(
+    argv: list[str] | None = None, http_client: httpx2.Client | None = None, fetch_transport: httpx2.BaseTransport | None = None
+) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--text", type=Path, metavar="FILE")
@@ -53,10 +56,13 @@ def main(argv: list[str] | None = None, http_client: httpx2.Client | None = None
             if args.text:
                 draft, usage = imports.parse_text(client, settings.import_model, db, args.text.read_text())
             elif args.photo:
-                photos = [base64.b64encode(photo.read_bytes()).decode() for photo in args.photo]
+                # The app's own checks: JPEG, size and page count.
+                photos = PhotoImport(photos=[base64.b64encode(photo.read_bytes()).decode() for photo in args.photo]).photos
                 draft, usage = imports.parse_photos(client, settings.import_model, db, photos)
             else:
-                page = fetch.page_text(fetch.fetch_page(args.url, allow_private=settings.import_fetch_private))
+                page = fetch.page_text(fetch.fetch_page(args.url, fetch_transport, allow_private=settings.import_fetch_private))
+                if not page:
+                    raise SystemExit("No text on that page; nothing sent to Claude.")
                 draft, usage = imports.parse_text(client, settings.import_model, db, page)
         except imports.ReplyCutOff as exc:
             draft, usage = None, exc.usage
