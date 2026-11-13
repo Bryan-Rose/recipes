@@ -20,12 +20,16 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 
+# A URL import fetches the page, parses it, then fetches its picture, all under nginx's
+# 120s proxy_read_timeout: 15 + 95 + 8 leaves 2s spare (tests/test_imports.py checks it).
+CLAUDE_TIMEOUT_SECONDS = 95.0
+
 
 @lru_cache
 def _client(api_key: str, base_url: str | None) -> anthropic.Anthropic:
     # One attempt under nginx's 120s read timeout: the reply isn't streamed, so a retry
     # after a timeout would start (and bill) the whole parse again. The user can retry.
-    return anthropic.Anthropic(api_key=api_key, base_url=base_url, timeout=110.0, max_retries=0)
+    return anthropic.Anthropic(api_key=api_key, base_url=base_url, timeout=CLAUDE_TIMEOUT_SECONDS, max_retries=0)
 
 
 def get_import_client(settings: Settings = Depends(get_settings)) -> anthropic.Anthropic:

@@ -1,6 +1,8 @@
 import base64
 import json
 import logging
+import re
+from pathlib import Path
 
 import anthropic
 import httpx2
@@ -9,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings, get_settings
 from app.main import app as fastapi_app
-from app.routers.imports import get_fetch_transport, get_import_client
+from app.routers.imports import CLAUDE_TIMEOUT_SECONDS, get_fetch_transport, get_import_client
 from app.services import fetch
 
 DRAFT = {
@@ -137,6 +139,15 @@ def test_key_makes_a_client(client: TestClient):
     assert str(sdk.base_url).startswith("http://mock:9000")
     assert sdk.max_retries == 0
     assert get_import_client(settings) is sdk  # reused, not rebuilt per request
+
+
+def test_url_import_fits_in_nginx_read_timeout():
+    # Otherwise the browser gets a 504 for a parse that finishes, and is billed, anyway.
+    conf = (Path(__file__).parents[2] / "frontend" / "nginx.conf").read_text()
+    match = re.search(r"proxy_read_timeout (\d+)s;", conf)
+    assert match is not None
+    total = fetch.DEADLINE_SECONDS + CLAUDE_TIMEOUT_SECONDS + fetch.IMAGE_DEADLINE_SECONDS
+    assert total < int(match[1])
 
 
 def test_text_may_be_exactly_the_limit(client: TestClient, fake_api: FakeApi):
