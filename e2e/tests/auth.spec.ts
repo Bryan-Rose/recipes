@@ -117,7 +117,9 @@ test('too many logins from one address are refused at the proxy, others still ge
   const allowed = 31
   const statuses: number[] = []
   for (let i = 0; i <= allowed; i++) {
-    const response = await page.request.post('/api/auth/login', {
+    // Spellings of the same endpoint count together.
+    const path = ['/api/auth/login', '/api/auth/%6Cogin', '/api/x/../auth/login'][i % 3]
+    const response = await page.request.post(path, {
       headers: flooder,
       data: { username: `nobody-${unique()}`, password: 'wrong-password' },
     })

@@ -5,9 +5,10 @@ export const COOK = { username: 'cook', password: 'cook-password', fullName: 'Ho
 export const ADMIN = { username: 'admin', password: 'admin-password', fullName: 'Admin' }
 
 /**
- * A made-up client address (the 198.18.0.0/15 benchmarking range), which nginx trusts from the
- * private e2e network: each test signs in from its own, so the suite's many sign-ins stay under
- * the per-address login limit in frontend/nginx.conf.
+ * A made-up client address in 198.18.0.0/16 (benchmarking), which nginx trusts from the private e2e
+ * network. Each test's page and apiAs clients sign in from their own, so the suite's many sign-ins
+ * stay under the per-address login limit in frontend/nginx.conf; the few other contexts share the
+ * runner's address.
  */
 const clientAddress = () => `198.18.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`
 
