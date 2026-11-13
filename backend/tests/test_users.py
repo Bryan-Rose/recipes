@@ -1,5 +1,9 @@
+import hashlib
 import io
 import sys
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from fastapi.testclient import TestClient
@@ -212,3 +216,23 @@ def test_update_user_rejects_null(client: TestClient, user: UserRead, field: str
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"][-1] == field
+
+
+def test_scrypt_runs_at_most_four_at_once(monkeypatch: pytest.MonkeyPatch):
+    running = peak = 0
+    lock = threading.Lock()
+
+    def slow_scrypt(*args, **kwargs) -> bytes:
+        nonlocal running, peak
+        with lock:
+            running += 1
+            peak = max(peak, running)
+        time.sleep(0.05)
+        with lock:
+            running -= 1
+        return b"x"
+
+    monkeypatch.setattr(hashlib, "scrypt", slow_scrypt)
+    with ThreadPoolExecutor(16) as pool:
+        list(pool.map(lambda _: verify_password("pw", "scrypt$00$00"), range(16)))
+    assert peak == 4
