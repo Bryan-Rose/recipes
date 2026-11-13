@@ -20,7 +20,8 @@ MAX_BYTES = 2_000_000
 MAX_IMAGE_BYTES = 5_000_000
 MAX_REDIRECTS = 5
 DEADLINE_SECONDS = 15
-# The picture is optional, so it gets less of the time nginx allows the whole import.
+# The picture is optional, so it gets less of the time nginx allows the whole import
+# (budget in routers/imports.py).
 IMAGE_DEADLINE_SECONDS = 8
 # Recipe blogs can run long; this keeps a parse near $0.03 at Sonnet 5.5 prices.
 MAX_TEXT = 60_000
