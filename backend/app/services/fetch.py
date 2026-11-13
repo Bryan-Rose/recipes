@@ -9,9 +9,10 @@ answer can't change between the check and the request.
 import ipaddress
 import json
 import socket
+import threading
 import time
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future
 from html.parser import HTMLParser
 from typing import Any
 
@@ -39,10 +40,16 @@ class FetchError(Exception):
 
 def _checked_address(host: str, port: int, allow_private: bool, seconds: float) -> str:
     # The system resolver takes no timeout, so wait on it in a thread; one that hangs is
-    # left to finish when the resolver gives up.
-    pool = ThreadPoolExecutor(max_workers=1)
-    lookup = pool.submit(socket.getaddrinfo, host, port, type=socket.SOCK_STREAM)
-    pool.shutdown(wait=False)
+    # left to finish when the resolver gives up. It's a daemon so it can't hold up shutdown.
+    lookup: Future[list[Any]] = Future()
+
+    def resolve() -> None:
+        try:
+            lookup.set_result(socket.getaddrinfo(host, port, type=socket.SOCK_STREAM))
+        except Exception as exc:  # noqa: BLE001 -- handed to the caller, which re-raises it
+            lookup.set_exception(exc)
+
+    threading.Thread(target=resolve, daemon=True).start()
     try:
         infos = lookup.result(timeout=seconds)
     except TimeoutError as exc:
