@@ -163,8 +163,10 @@ def test_malformed_host_name_does_not_resolve():
 
 def test_slow_lookup_hits_the_deadline(web: FakeWeb, monkeypatch: pytest.MonkeyPatch):
     answered = threading.Event()
+    daemon = []
 
     def stuck(*args, **kwargs) -> list:
+        daemon.append(threading.current_thread().daemon)
         answered.wait(5)
         return web.resolve(*args, **kwargs)
 
@@ -174,6 +176,8 @@ def test_slow_lookup_hits_the_deadline(web: FakeWeb, monkeypatch: pytest.MonkeyP
             fetch._checked_address("example.com", 443, allow_private=False, seconds=0.05)
     finally:
         answered.set()
+    # A non-daemon thread would keep the process alive at exit until the lookup ends.
+    assert daemon == [True]
 
 
 def test_deeply_nested_json_ld_falls_back_to_the_text():
