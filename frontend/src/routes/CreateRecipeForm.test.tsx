@@ -1,7 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { expect, it, vi } from 'vitest'
+import { Link, Route, Routes } from 'react-router'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import { renderWithProviders } from '../test/render'
 import { server } from '../test/server'
@@ -282,4 +283,110 @@ it('saves the picked photo with the recipe, and none once removed', async () => 
   await user.click(screen.getByRole('button', { name: 'Save recipe' }))
   await waitFor(() => expect(sent).toHaveLength(2))
   expect(sent[1].image).toBeNull()
+})
+
+describe('leaving unsaved work', () => {
+  function show() {
+    server.use(http.get('/api/cookbooks/', () => HttpResponse.json([])))
+    renderWithProviders(
+      <>
+        <Link to="/cookbooks">Nav cookbooks</Link>
+        <Routes>
+          <Route path="/recipes/new" element={<CreateRecipeForm />} />
+          <Route path="/recipes/:id" element={<p>Recipe page</p>} />
+          <Route path="/cookbooks" element={<p>Cookbooks page</p>} />
+          <Route path="/" element={<p>Home page</p>} />
+        </Routes>
+      </>,
+      { route: '/recipes/new' },
+    )
+    return userEvent.setup()
+  }
+
+  function mockConfirm(answer: boolean) {
+    const spy = vi.spyOn(window, 'confirm').mockReturnValue(answer)
+    onTestFinished(() => spy.mockRestore())
+    return spy
+  }
+
+  type User = ReturnType<typeof userEvent.setup>
+  const edits: [string, (user: User) => Promise<void>][] = [
+    ['a name', (user) => user.type(screen.getByLabelText('Name'), 'Soup')],
+    ['an ingredient row', (user) => user.click(screen.getByRole('button', { name: '+ Add ingredient' }))],
+    ['an equipment row', (user) => user.click(screen.getByRole('button', { name: '+ Add item' }))],
+    ['a step', (user) => user.click(screen.getByRole('button', { name: '+ Add step' }))],
+    [
+      'a photo',
+      async (user) => {
+        await user.upload(screen.getByLabelText('Add a photo'), photo('soup.jpg'))
+        await screen.findByRole('img', { name: 'Recipe photo' })
+      },
+    ],
+  ]
+  const exits = [
+    ['Nav cookbooks', 'link'],
+    ['← All recipes', 'link'],
+    ['Cancel', 'button'],
+  ] as const
+
+  it.each(edits.flatMap(([what, edit]) => exits.map(([name, role]) => [what, name, role, edit] as const)))(
+    'stays with %s on %s when discarding is cancelled',
+    async (_what, name, role, edit) => {
+      const confirm = mockConfirm(false)
+      const user = show()
+
+      await edit(user)
+      await user.click(screen.getByRole(role, { name }))
+
+      expect(confirm).toHaveBeenCalledWith('Discard unsaved changes?')
+      expect(screen.getByRole('heading', { name: 'New recipe' })).toBeInTheDocument()
+    },
+  )
+
+  it.each(exits)('leaves on %s once discarding is confirmed', async (name, role) => {
+    mockConfirm(true)
+    const user = show()
+
+    await user.type(screen.getByLabelText('Name'), 'Soup')
+    await user.click(screen.getByRole(role, { name }))
+
+    expect(await screen.findByText(/Cookbooks page|Home page/)).toBeInTheDocument()
+  })
+
+  it.each(exits)('leaves on %s without asking when nothing was entered', async (name, role) => {
+    const confirm = mockConfirm(false)
+    const user = show()
+
+    // Typed and then deleted again: back to the start, nothing to lose.
+    await user.type(screen.getByLabelText('Name'), 'S{Backspace}')
+    await user.click(screen.getByRole(role, { name }))
+
+    expect(await screen.findByText(/Cookbooks page|Home page/)).toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('opens the saved recipe without asking', async () => {
+    const confirm = mockConfirm(false)
+    server.use(http.post('/api/recipes/', () => HttpResponse.json({ id: 9 }, { status: 201 })))
+    const user = show()
+
+    await user.type(screen.getByLabelText('Name'), 'Soup')
+    await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+
+    expect(await screen.findByText('Recipe page')).toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('warns on closing or reloading the tab only while something was entered', async () => {
+    const unload = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    const user = show()
+
+    expect(unload()).toBe(false)
+    await user.type(screen.getByLabelText('Name'), 'Soup')
+    expect(unload()).toBe(true)
+  })
 })
