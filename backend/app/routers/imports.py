@@ -1,3 +1,4 @@
+import base64
 import logging
 from collections.abc import Callable
 from functools import lru_cache
@@ -99,7 +100,7 @@ def import_url(
     transport: httpx2.BaseTransport | None = Depends(get_fetch_transport),
 ):
     try:
-        html = fetch.fetch_page(str(body.url), transport, allow_private=settings.import_fetch_private)
+        html, page_url = fetch.fetch_page(str(body.url), transport, allow_private=settings.import_fetch_private)
     except fetch.FetchError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Couldn't open that page: {exc}. Try pasting the recipe text."
@@ -107,4 +108,12 @@ def import_url(
     text = fetch.page_text(html)
     if not text:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Couldn't read a recipe from that")
-    return _run(user, lambda: imports_service.parse_text(client, settings.import_model, db, text))
+    result = _run(user, lambda: imports_service.parse_text(client, settings.import_model, db, text))
+    # Only after a draft: no picture is worth fetching for a failed parse.
+    if image_url := fetch.page_image(html, page_url):
+        try:
+            result.image = base64.b64encode(fetch.fetch_image(image_url, transport, allow_private=settings.import_fetch_private)).decode()
+        except fetch.FetchError as exc:
+            # The recipe is what matters; the user can add a photo themselves.
+            log.info("Recipe import left out the page's image %s: %s", image_url, exc)
+    return result

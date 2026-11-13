@@ -8,6 +8,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
+import { base64Blob, toImageUpload } from '../components/photos'
 import { ApiError, api } from './client'
 import type {
   ImageUpload,
@@ -59,11 +60,20 @@ export const useCreateRecipe = () =>
 /** Pasted text, base64 JPEG pages in order, or a link to the recipe's page. */
 export type ImportSource = { text: string } | { photos: string[] } | { url: string }
 
+/** A parsed draft with the page's picture, if any, already made into a recipe image. */
+export type ImportedRecipe = Omit<RecipeImport, 'image'> & { image: ImageUpload | null }
+
 /** Parses a recipe into a draft for review, with what the parse cost; saves nothing. */
 export const useImportRecipe = () =>
   useMutation({
-    mutationFn: (source: ImportSource) =>
-      api.post<RecipeImport>(`/imports/${'text' in source ? 'text' : 'photos' in source ? 'photos' : 'url'}`, source),
+    mutationFn: async (source: ImportSource): Promise<ImportedRecipe> => {
+      const { image, ...draft } = await api.post<RecipeImport>(
+        `/imports/${'text' in source ? 'text' : 'photos' in source ? 'photos' : 'url'}`,
+        source,
+      )
+      // A picture the browser can't decode is left out: the recipe is what was asked for.
+      return { ...draft, image: image ? await toImageUpload(base64Blob(image)).catch(() => null) : null }
+    },
   })
 
 export const useUpdateRecipe = (id: number) =>

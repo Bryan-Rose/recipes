@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { COOK, signIn, unique } from './helpers'
+import { COOK, expectLoaded, signIn, unique } from './helpers'
 
 // The e2e stack points the backend at e2e/mock-anthropic, which reads the pasted
 // text line by line: name, measurement, ingredient, then one step per line.
@@ -54,10 +54,15 @@ test('import from photos of the pages', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Review import' })).toBeVisible()
   await expect(page.getByRole('complementary').getByRole('img')).toHaveCount(2)
   await page.getByLabel('Name').fill(name)
+  // No recipe image unless a page is picked as one.
+  await expect(page.getByText('No photo yet.')).toBeVisible()
+  await page.getByRole('button', { name: 'Use page 2' }).click()
+  await expect(page.getByRole('img', { name: 'Recipe photo' })).toBeVisible()
   await page.getByRole('button', { name: 'Save recipe' }).click()
 
   await expect(page.getByRole('heading', { name })).toBeVisible()
   await expect(page.getByText('Step from photo 2.')).toBeVisible()
+  await expectLoaded(page.getByRole('img', { name }))
 })
 
 test('a file that is not an image is named, and the photos beside it are kept', async ({ page }) => {
@@ -89,10 +94,13 @@ test('import from a link to the recipe page', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'Review import' })).toBeVisible()
   await expect(page.getByRole('complementary').getByRole('link')).toHaveAttribute('href', url)
+  // The page's og:image, fetched by the backend and converted here.
+  await expect(page.getByRole('img', { name: 'Recipe photo' })).toBeVisible()
   await page.getByRole('button', { name: 'Save recipe' }).click()
 
   await expect(page.getByRole('heading', { name })).toBeVisible()
   await expect(page.getByText('Slice the leeks.')).toBeVisible()
+  await expectLoaded(page.getByRole('img', { name }))
   await expect(page.getByRole('link', { name: 'mock-anthropic' })).toHaveAttribute('href', url)
 })
 
@@ -104,4 +112,22 @@ test("a link that can't be opened says why", async ({ page }) => {
   await page.getByRole('button', { name: 'Read link' }).click()
 
   await expect(page.getByText("Couldn't open that page: that site's address doesn't resolve. Try pasting the recipe text.")).toBeVisible()
+})
+
+test("a link's picture can be dropped before saving", async ({ page }) => {
+  const id = unique()
+  const name = `Pictureless Soup ${id}`
+  const text = [name, 'whole', `leek-${id}`, 'Slice the leeks.'].join('\n')
+  await page.goto('/')
+  await signIn(page, COOK)
+  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByLabel('Or a link to the recipe').fill(`http://mock-anthropic:8080/page?text=${encodeURIComponent(text)}`)
+  await page.getByRole('button', { name: 'Read link' }).click()
+
+  await expect(page.getByRole('img', { name: 'Recipe photo' })).toBeVisible()
+  await page.getByRole('button', { name: 'Remove photo' }).click()
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(page.getByRole('img', { name })).toHaveCount(0)
 })

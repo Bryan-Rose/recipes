@@ -69,7 +69,7 @@ def test_returns_the_parsed_draft(client: TestClient, fake_api: FakeApi):
     assert response.status_code == 200
     # Sonnet 5.5: 2000 x $2/M + 500 x $10/M.
     usage = {"model": "claude-sonnet-5-5", "input_tokens": 2000, "output_tokens": 500, "cost_usd": pytest.approx(0.009)}
-    assert response.json() == {**DRAFT, "usage": usage}
+    assert response.json() == {**DRAFT, "usage": usage, "image": None}
 
 
 def test_prompt_lists_existing_lookups_and_the_text(client: TestClient, fake_api: FakeApi, ingredient, measurement, preparation):
@@ -244,15 +244,18 @@ def test_bad_photo_says_what_is_expected(client: TestClient, fake_api: FakeApi, 
 
 
 RECIPE_PAGE = '<html><script type="application/ld+json">{"@type": "Recipe", "name": "Web pancakes"}</script><p>Story</p></html>'
+PICTURE = b"\x89PNG pancakes"
 
 
 @pytest.fixture()
 def recipe_site(monkeypatch: pytest.MonkeyPatch) -> list[httpx2.Request]:
-    """example.com, on a public address, serving RECIPE_PAGE at / and nothing else."""
+    """example.com, on a public address, serving RECIPE_PAGE at /, PICTURE at /pancakes.png, and nothing else."""
     requests: list[httpx2.Request] = []
 
     def handle(request: httpx2.Request) -> httpx2.Response:
         requests.append(request)
+        if request.url.path == "/pancakes.png":
+            return httpx2.Response(200, content=PICTURE, headers={"content-type": "image/png"})
         return httpx2.Response(200, html=RECIPE_PAGE) if request.url.path == "/" else httpx2.Response(404)
 
     monkeypatch.setattr(fetch.socket, "getaddrinfo", lambda host, port, **_: [(2, 1, 6, "", ("93.184.215.14", port))])
@@ -267,6 +270,38 @@ def test_url_sends_the_pages_recipe_to_claude(client: TestClient, fake_api: Fake
     prompt = fake_api.requests[0]["messages"][0]["content"]
     assert '"name": "Web pancakes"' in prompt
     assert "Story" not in prompt
+
+
+@pytest.mark.parametrize(
+    ("og_image", "expected"),
+    [("/pancakes.png", base64.b64encode(PICTURE).decode()), ("/gone.png", None), ("/", None), (None, None)],
+)
+def test_url_import_sends_the_pages_picture(
+    client: TestClient, fake_api: FakeApi, recipe_site, monkeypatch: pytest.MonkeyPatch, og_image: str | None, expected: str | None
+):
+    """The picture is fetched when the page names one, and left out (not a failure) when it isn't an image."""
+    page = RECIPE_PAGE if og_image is None else f'<meta property="og:image" content="{og_image}">{RECIPE_PAGE}'
+    monkeypatch.setattr(f"{__name__}.RECIPE_PAGE", page)
+    response = client.post("/imports/url", json={"url": "https://example.com/"})
+    assert response.status_code == 200
+    assert response.json()["image"] == expected
+    assert len(recipe_site) == (1 if og_image is None else 2)
+
+
+def test_url_import_skips_a_picture_on_a_private_address(
+    client: TestClient, fake_api: FakeApi, recipe_site, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(f"{__name__}.RECIPE_PAGE", f'<meta property="og:image" content="http://internal/x.png">{RECIPE_PAGE}')
+    public = fetch.socket.getaddrinfo
+    monkeypatch.setattr(
+        fetch.socket,
+        "getaddrinfo",
+        lambda host, port, **kw: [(2, 1, 6, "", ("10.0.0.5", port))] if host == "internal" else public(host, port, **kw),
+    )
+    response = client.post("/imports/url", json={"url": "https://example.com/"})
+    assert response.status_code == 200
+    assert response.json()["image"] is None
+    assert [r.headers["host"] for r in recipe_site] == ["example.com"]
 
 
 def test_url_that_cannot_be_fetched_is_422_without_calling_claude(client: TestClient, fake_api: FakeApi, recipe_site):

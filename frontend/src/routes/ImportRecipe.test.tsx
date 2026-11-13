@@ -9,9 +9,16 @@ import { renderWithProviders } from '../test/render'
 import { passwordOnly, server, signedIn } from '../test/server'
 
 // jsdom has no canvas; a photo "converts" to its file name, and bad.heic can't be decoded.
+// Base64 is passed through as the bytes (photos.test.ts covers the decoding); a recipe image
+// converts to those bytes as text, and "bad" can't be decoded.
 vi.mock('../components/photos', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../components/photos')>()),
   toJpeg: async (file: File) => (file.name === 'bad.heic' ? Promise.reject(new Error('decode')) : `jpeg:${file.name}`),
+  base64Blob: (data: string) => new Blob([data]),
+  toImageUpload: async (blob: Blob) => {
+    const bytes = await blob.text()
+    return bytes === 'bad' ? Promise.reject(new Error('decode')) : { full: `full:${bytes}`, thumb: `thumb:${bytes}` }
+  },
 }))
 const photo = (name: string) => new File(['x'], name, { type: 'image/jpeg' })
 
@@ -346,4 +353,82 @@ it('says why a link could not be read', async () => {
   await user.click(screen.getByRole('button', { name: 'Read link' }))
 
   expect(await screen.findByText(detail)).toBeInTheDocument()
+})
+
+/** Stubs the save, which lands on recipe 7, and returns what it was sent once it has landed. */
+function stubSave() {
+  const saved: RecipeCreate[] = []
+  const landed = async () => {
+    // Waiting for the landing keeps its request from leaking into the next test.
+    await screen.findByText(/Couldn.t load this recipe/)
+    return saved
+  }
+  server.use(
+    http.post('/api/recipes/', async ({ request }) => {
+      saved.push((await request.json()) as RecipeCreate)
+      return HttpResponse.json({ id: 7 }, { status: 201 })
+    }),
+    http.get('/api/recipes/7', () => HttpResponse.json({ detail: 'not under test' }, { status: 404 })),
+  )
+  return landed
+}
+
+// No ingredients, so saving creates no lookups.
+const plain: RecipeImport = { ...draft, ingredients: [] }
+
+it("starts a link's review with the page's picture, which can be dropped", async () => {
+  server.use(http.post('/api/imports/url', () => HttpResponse.json({ ...plain, image: 'soup' })))
+  const saved = stubSave()
+  const user = userEvent.setup()
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  await user.type(await screen.findByLabelText('Or a link to the recipe'), 'https://example.com/soup')
+  await user.click(screen.getByRole('button', { name: 'Read link' }))
+
+  expect(await screen.findByRole('img', { name: 'Recipe photo' })).toHaveAttribute('src', 'data:image/jpeg;base64,full:soup')
+  await user.click(screen.getByRole('button', { name: 'Remove photo' }))
+  expect(screen.queryByRole('img', { name: 'Recipe photo' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+  expect((await saved())[0].image).toBeNull()
+})
+
+it("saves the page's picture as the recipe image", async () => {
+  server.use(http.post('/api/imports/url', () => HttpResponse.json({ ...plain, image: 'soup' })))
+  const saved = stubSave()
+  const user = userEvent.setup()
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  await user.type(await screen.findByLabelText('Or a link to the recipe'), 'https://example.com/soup')
+  await user.click(screen.getByRole('button', { name: 'Read link' }))
+  await screen.findByRole('img', { name: 'Recipe photo' })
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+  expect((await saved())[0].image).toEqual({ full: 'full:soup', thumb: 'thumb:soup' })
+})
+
+it("reviews a link without a picture when the browser can't decode it", async () => {
+  server.use(http.post('/api/imports/url', () => HttpResponse.json({ ...plain, image: 'bad' })))
+  const user = userEvent.setup()
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  await user.type(await screen.findByLabelText('Or a link to the recipe'), 'https://example.com/soup')
+  await user.click(screen.getByRole('button', { name: 'Read link' }))
+
+  await screen.findByRole('heading', { name: 'Review import' })
+  expect(screen.getByText('No photo yet.')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Use page/ })).not.toBeInTheDocument()
+})
+
+it('can use one of the page photos as the recipe image, or none', async () => {
+  server.use(http.post('/api/imports/photos', () => HttpResponse.json(plain)))
+  const saved = stubSave()
+  const user = userEvent.setup()
+  renderWithProviders(<App />, { route: '/recipes/import' })
+  await user.upload(await screen.findByLabelText(/Or photos of the pages/), [photo('p1.jpg'), photo('p2.jpg')])
+  await screen.findByRole('img', { name: 'Page 2' })
+  await user.click(screen.getByRole('button', { name: 'Read photos' }))
+
+  await screen.findByRole('heading', { name: 'Review import' })
+  // None until one is picked: the pages are rarely a picture of the dish.
+  expect(screen.getByText('No photo yet.')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Use page 2' }))
+  expect(await screen.findByRole('img', { name: 'Recipe photo' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+  expect((await saved())[0].image).toEqual({ full: 'full:jpeg:p2.jpg', thumb: 'thumb:jpeg:p2.jpg' })
 })

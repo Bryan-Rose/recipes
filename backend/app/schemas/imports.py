@@ -40,6 +40,11 @@ class ImportUsage(BaseModel):
 
 class RecipeImport(RecipeDraft):
     usage: ImportUsage
+    image: str | None = Field(
+        default=None,
+        description="URL import only: the page's picture, base64, in whatever image format the site sent. None when it has none, "
+        "or it couldn't be fetched.",
+    )
 
 
 class TextImport(BaseModel):
