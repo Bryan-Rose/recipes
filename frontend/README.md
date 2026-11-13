@@ -32,8 +32,8 @@ npm run check:api  # fail if schema.d.ts is stale (part of `make check`)
 
 **The dev server proxies `/api/*` to `localhost:8000`** (see `vite.config.ts`). The
 backend has no CORS middleware, so this is what keeps every request same-origin
-from the browser's point of view. A real deployment needs either CORS on the API
-or a reverse proxy in front of both.
+from the browser's point of view. In production, nginx proxies `/api/` the same
+way (`nginx.conf`).
 
 **Types are generated, not hand-written.** `npm run gen:api` reads the API's
 OpenAPI schema (imported in-process) and writes `src/api/schema.d.ts`.
@@ -78,4 +78,4 @@ form saves each child as you change it, rather than diffing the whole tree.
   by cookbook and tag and sorts client-side, keeping that view in the URL
   (`?q=&cookbook=&tag=&sort=`).
 - **Session-cookie auth.** `App.tsx` shows `LoginPage` until `/auth/me` succeeds. Any 401 marks the user
-  signed out (see `main.tsx`). SSO is a full-page navigation to `/api/auth/oidc/login`, not a fetch.
+  signed out (see `queryClient.ts`). SSO is a full-page navigation to `/api/auth/oidc/login`, not a fetch.
