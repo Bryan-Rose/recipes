@@ -146,6 +146,19 @@ def test_lockout_ends_after_the_window(client: TestClient, cook: User):
     assert _login(client).status_code == 204
 
 
+@pytest.mark.parametrize(("username", "password"), [("x" * 151, "wrong"), ("cook", "x" * 4097)], ids=["username", "password"])
+def test_over_long_login_is_rejected_unrecorded(client: TestClient, cook: User, username: str, password: str):
+    assert _login(client, username, password).status_code == 422
+    assert auth_router._failed_logins == {}
+
+
+def test_password_longer_than_the_new_password_cap_still_logs_in(client: TestClient, db_session: Session, cook: User):
+    cook.hashed_password = hash_password("x" * 2000)  # set before passwords were capped at 1024
+    db_session.commit()
+
+    assert _login(client, "cook", "x" * 2000).status_code == 204
+
+
 def test_successful_login_resets_failures(client: TestClient, cook: User):
     _fail_logins(client, 9)
     assert _login(client).status_code == 204
@@ -225,12 +238,18 @@ def test_change_password_requires_current_password(client: TestClient, cook: Use
     assert response.status_code == 403
 
 
-def test_change_password_rejects_short_password(client: TestClient, cook: User):
+@pytest.mark.parametrize(
+    ("current", "new"),
+    [("correct horse", "short"), ("correct horse", "x" * 1025), ("x" * 4097, "battery staple")],
+    ids=["short new", "long new", "long current"],
+)
+def test_change_password_rejects_bad_lengths(client: TestClient, cook: User, current: str, new: str):
     _login(client)
 
-    response = client.post("/auth/password", json={"current_password": "correct horse", "new_password": "short"})
+    response = client.post("/auth/password", json={"current_password": current, "new_password": new})
 
     assert response.status_code == 422
+    assert _login(client).status_code == 204  # password unchanged
 
 
 def test_change_password_signs_out_other_sessions(client: TestClient, cook: User):

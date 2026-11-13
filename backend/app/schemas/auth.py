@@ -1,16 +1,18 @@
-from pydantic import BaseModel, SecretStr
+from typing import Annotated
 
-from app.schemas.fields import NewPassword
+from pydantic import BaseModel, Field, SecretStr
+
+from app.schemas.fields import MAX_LOGIN_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, NewPassword
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: SecretStr
+    username: Annotated[str, Field(max_length=MAX_USERNAME_LENGTH)]
+    password: Annotated[SecretStr, Field(max_length=MAX_LOGIN_PASSWORD_LENGTH)]
 
 
 class PasswordChange(BaseModel):
     # Required when the user already has a password; OIDC-only users may set one without it.
-    current_password: SecretStr | None = None
+    current_password: Annotated[SecretStr, Field(max_length=MAX_LOGIN_PASSWORD_LENGTH)] | None = None
     new_password: NewPassword
 
 
