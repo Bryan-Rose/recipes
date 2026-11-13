@@ -1,6 +1,7 @@
 import itertools
 import json
 import socket
+import threading
 
 import httpx2
 import pytest
@@ -157,7 +158,22 @@ def test_slow_body_hits_the_deadline(web: FakeWeb, monkeypatch: pytest.MonkeyPat
 def test_malformed_host_name_does_not_resolve():
     # A 64-character label can't be IDNA-encoded, so this fails before any lookup.
     with pytest.raises(FetchError, match="doesn't resolve"):
-        fetch._checked_address("a" * 64 + ".example", 443, allow_private=False)
+        fetch._checked_address("a" * 64 + ".example", 443, allow_private=False, seconds=5)
+
+
+def test_slow_lookup_hits_the_deadline(web: FakeWeb, monkeypatch: pytest.MonkeyPatch):
+    answered = threading.Event()
+
+    def stuck(*args, **kwargs) -> list:
+        answered.wait(5)
+        return web.resolve(*args, **kwargs)
+
+    monkeypatch.setattr(fetch.socket, "getaddrinfo", stuck)
+    try:
+        with pytest.raises(FetchError, match="too slow"):
+            fetch._checked_address("example.com", 443, allow_private=False, seconds=0.05)
+    finally:
+        answered.set()
 
 
 def test_deeply_nested_json_ld_falls_back_to_the_text():

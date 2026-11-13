@@ -11,6 +11,7 @@ import json
 import socket
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from html.parser import HTMLParser
 from typing import Any
 
@@ -20,6 +21,9 @@ MAX_BYTES = 2_000_000
 MAX_IMAGE_BYTES = 5_000_000
 MAX_REDIRECTS = 5
 DEADLINE_SECONDS = 15
+# Each socket read gets this long, fixed when the request opens, so a read that starts just
+# before a deadline can end up to this far past it (budget in routers/imports.py).
+READ_TIMEOUT_SECONDS = 5.0
 # The picture is optional, so it gets less of the time nginx allows the whole import
 # (budget in routers/imports.py).
 IMAGE_DEADLINE_SECONDS = 8
@@ -33,9 +37,16 @@ class FetchError(Exception):
     """Why the page couldn't be fetched, worded for the user."""
 
 
-def _checked_address(host: str, port: int, allow_private: bool) -> str:
+def _checked_address(host: str, port: int, allow_private: bool, seconds: float) -> str:
+    # The system resolver takes no timeout, so wait on it in a thread; one that hangs is
+    # left to finish when the resolver gives up.
+    pool = ThreadPoolExecutor(max_workers=1)
+    lookup = pool.submit(socket.getaddrinfo, host, port, type=socket.SOCK_STREAM)
+    pool.shutdown(wait=False)
     try:
-        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        infos = lookup.result(timeout=seconds)
+    except TimeoutError as exc:
+        raise FetchError("that site is too slow") from exc
     except (socket.gaierror, UnicodeError) as exc:
         raise FetchError("that site's address doesn't resolve") from exc
     addresses = [str(info[4][0]).split("%")[0] for info in infos]
@@ -95,7 +106,7 @@ def _get(
 
     headers = {"User-Agent": USER_AGENT, "Accept": accept}
     # A fresh client per fetch: pooled connections are keyed by address, not by host name.
-    with httpx2.Client(transport=transport, timeout=5.0, follow_redirects=False, headers=headers) as client:
+    with httpx2.Client(transport=transport, timeout=READ_TIMEOUT_SECONDS, follow_redirects=False, headers=headers) as client:
         for _ in range(MAX_REDIRECTS + 1):
             try:
                 target = httpx2.URL(url)
@@ -103,16 +114,15 @@ def _get(
                 raise FetchError("that link isn't a valid address") from exc
             if target.scheme not in ("http", "https") or not target.host:
                 raise FetchError("only http and https links work")
-            time_left()
-            # shortcut: the system resolver can't be given a timeout from here; a slow lookup only counts toward the deadline.
-            address = _checked_address(target.host, target.port or (443 if target.scheme == "https" else 80), allow_private)
+            port = target.port or (443 if target.scheme == "https" else 80)
+            address = _checked_address(target.host, port, allow_private, time_left())
             try:
                 with client.stream(
                     "GET",
                     target.copy_with(host=address),
                     headers={"Host": target.netloc.decode("ascii")},
                     extensions={"sni_hostname": target.host},
-                    timeout=min(5.0, time_left()),
+                    timeout=min(READ_TIMEOUT_SECONDS, time_left()),
                 ) as response:
                     if response.is_redirect:
                         url = str(target.join(response.headers["location"]))
