@@ -17,6 +17,7 @@ export type AuthConfig = Schemas['AuthConfig']
 
 export type Author = Schemas['AuthorRead']
 export type Cookbook = Schemas['CookbookWithCount']
+export type CookbookCreate = Schemas['CookbookCreate']
 export type CookbookUpdate = Schemas['CookbookUpdate']
 export type Ingredient = Schemas['IngredientRead']
 export type Measurement = Schemas['MeasurementRead']
