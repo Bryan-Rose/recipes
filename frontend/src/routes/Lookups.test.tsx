@@ -318,4 +318,22 @@ describe('lookups', () => {
 
     expect(await form.findByText('That author already has a cookbook with this name.')).toBeInTheDocument()
   })
+
+  it('keeps the API text for a cookbook whose author is gone', async () => {
+    const detail = "Still in use, or refers to something that doesn't exist"
+    server.use(
+      http.get('/api/cookbooks/', () => HttpResponse.json([])),
+      http.get('/api/authors/', () => HttpResponse.json([julia])),
+      http.post('/api/cookbooks/', () => HttpResponse.json({ detail }, { status: 409 })),
+    )
+    const user = userEvent.setup()
+    show('/lookups/cookbooks')
+
+    const form = within(await screen.findByRole('form', { name: 'Add a cookbook' }))
+    await user.type(form.getByLabelText('Name'), 'Mastering')
+    await user.selectOptions(form.getByLabelText('Author'), await form.findByRole('option', { name: julia.name }))
+    await user.click(form.getByRole('button', { name: 'Add cookbook' }))
+
+    expect(await form.findByText(detail)).toBeInTheDocument()
+  })
 })

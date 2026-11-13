@@ -94,4 +94,7 @@ def test_cookbook_names_unique_per_author(client: TestClient, cookbook: Cookbook
 
     assert client.post("/cookbooks/", json=clash).status_code == 409
     assert client.post("/cookbooks/", json={**clash, "author_id": other["id"]}).status_code == 201
+    # Moving onto another author's same-named book, or renaming onto a sibling's name, clashes too.
     assert client.patch(f"/cookbooks/{cookbook.id}", json={"author_id": other["id"]}).status_code == 409
+    sibling = client.post("/cookbooks/", json={"name": "Sibling", "author_id": cookbook.author.id}).json()
+    assert client.patch(f"/cookbooks/{sibling['id']}", json={"name": cookbook.name}).status_code == 409

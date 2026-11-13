@@ -83,8 +83,12 @@ export function useCookbooks() {
   return useQuery({ queryKey: ['cookbooks'], queryFn: () => api.get<Cookbook[]>('/cookbooks/') })
 }
 
-/** Names are unique per author, so a 409 is always that clash. */
-const cookbookClash = explainConflict('That author already has a cookbook with this name.')
+/** Explains the unique-name 409; a 409 for a missing author (deleted elsewhere) keeps the API's text. */
+const cookbookClash = (error: unknown) => {
+  if (error instanceof ApiError && error.message === 'Already exists')
+    throw new Error('That author already has a cookbook with this name.', { cause: error })
+  throw error
+}
 
 export function useCreateCookbook() {
   return useMutation({
