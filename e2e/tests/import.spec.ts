@@ -37,6 +37,37 @@ test('import a pasted recipe, review it, and save with new lookups', async ({ pa
   await expect(page.getByText('Imported by the mock.')).toBeVisible()
 })
 
+test('an edited import review asks before it is left, and saves without asking', async ({ page }) => {
+  const name = `Guarded Soup ${unique()}`
+  await page.goto('/')
+  await signIn(page, COOK)
+  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByLabel('Recipe text').fill(['Draft', 'cup', 'water', 'Boil.'].join('\n'))
+  await page.getByRole('button', { name: 'Read recipe' }).click()
+  await page.getByLabel('Name').fill(name)
+
+  const messages: string[] = []
+  page.on('dialog', (dialog) => {
+    messages.push(dialog.message())
+    void dialog.dismiss()
+  })
+  const leaves = [
+    () => page.getByRole('link', { name: 'Cookbooks' }).click(),
+    () => page.getByRole('button', { name: 'Edit text' }).click(),
+    () => page.evaluate(() => history.back()),
+  ]
+  for (const [i, leave] of leaves.entries()) {
+    await leave()
+    await expect.poll(() => messages).toEqual(Array(i + 1).fill('Discard unsaved changes?'))
+  }
+  await expect(page.getByRole('heading', { name: 'Review import' })).toBeVisible()
+  await expect(page.getByLabel('Name')).toHaveValue(name)
+
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  expect(messages).toHaveLength(leaves.length)
+})
+
 test('import from photos of the pages', async ({ page }) => {
   const name = `Photographed Stew ${unique()}`
   await page.goto('/')

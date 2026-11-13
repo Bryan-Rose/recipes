@@ -8,6 +8,7 @@ import { useImportRecipe } from '../api/recipes'
 import { fromImport } from '../components/drafts'
 import { ErrorState, Loading } from '../components/Feedback'
 import { jpegUrl, toJpeg } from '../components/photos'
+import { DISCARD_PROMPT } from '../components/useLeaveGuard'
 import { CreateRecipeForm } from './CreateRecipeForm'
 
 // PhotoImport.photos' max_length in backend/app/schemas/imports.py.
@@ -20,6 +21,7 @@ export function ImportRecipe() {
   const [photos, setPhotos] = useState<string[]>([])
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [converting, setConverting] = useState(false)
+  const [reviewUnsaved, setReviewUnsaved] = useState(false)
   const importRecipe = useImportRecipe()
   const lists = [useIngredients(), useMeasurements(), usePreparations()]
   const [ingredient, measurement, preparation] = lists.map((list) => list.data)
@@ -54,8 +56,14 @@ export function ImportRecipe() {
             Read by {model}: {input_tokens.toLocaleString()} tokens in, {output_tokens.toLocaleString()} out, costing{' '}
             {cost_usd === null ? 'an unknown amount' : `$${cost_usd.toFixed(3)}`}.
           </p>
-          {/* Back to the source with it kept; changes made in the review are dropped. */}
-          <button type="button" className="ghost" onClick={() => importRecipe.reset()}>
+          {/* Back to the source with it kept; changes made in the review are dropped, after asking. */}
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              if (!reviewUnsaved || confirm(DISCARD_PROMPT)) importRecipe.reset()
+            }}
+          >
             {'text' in source ? 'Edit text' : 'photos' in source ? 'Change photos' : 'Edit link'}
           </button>
         </aside>
@@ -66,6 +74,7 @@ export function ImportRecipe() {
           }}
           heading="Review import"
           photoChoices={'photos' in source ? source.photos : []}
+          onUnsavedChange={setReviewUnsaved}
         />
       </div>
     )

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { Link, useBlocker, useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 
 import {
   imageUrl,
@@ -25,6 +25,7 @@ import { ImageField } from '../components/ImageField'
 import { IngredientFields } from '../components/IngredientFields'
 import { MoveButtons } from '../components/MoveButtons'
 import { RecipeFields } from '../components/RecipeFields'
+import { useLeaveGuard, useWarnOnUnload } from '../components/useLeaveGuard'
 
 /**
  * Editing an existing recipe. `RecipeUpdate` only accepts scalar fields, so
@@ -151,29 +152,6 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
       </div>
     </>
   )
-}
-
-/** Asks before any navigation, in-app or closing/reloading the tab, while `unsaved`. */
-function useLeaveGuard(unsaved: boolean) {
-  const blocker = useBlocker(unsaved)
-
-  useEffect(() => {
-    if (blocker.state !== 'blocked') return
-    if (confirm('Discard unsaved changes?')) blocker.proceed()
-    else blocker.reset()
-  }, [blocker])
-
-  useWarnOnUnload(unsaved)
-}
-
-/** Asks before closing or reloading the tab while `unsaved`. */
-function useWarnOnUnload(unsaved: boolean) {
-  useEffect(() => {
-    if (!unsaved) return
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [unsaved])
 }
 
 function toScalars(recipe: Recipe): RecipeScalars {

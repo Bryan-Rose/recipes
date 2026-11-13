@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { beforeEach, expect, it, onTestFinished, vi } from 'vitest'
 
 import App from '../App'
 import type { RecipeCreate, RecipeImport } from '../api/types'
@@ -240,10 +240,35 @@ it('goes back to the pasted text from the review', async () => {
   const user = await readRecipe('Leek soup')
   await screen.findByRole('heading', { name: 'Review import' })
 
+  const confirm = vi.spyOn(window, 'confirm')
+  onTestFinished(() => confirm.mockRestore())
   await user.click(screen.getByRole('button', { name: 'Edit text' }))
 
   expect(screen.getByLabelText('Recipe text')).toHaveValue('Leek soup')
   expect(screen.queryByRole('heading', { name: 'Review import' })).not.toBeInTheDocument()
+  // An untouched review holds nothing to lose.
+  expect(confirm).not.toHaveBeenCalled()
+})
+
+it('asks before dropping edits made in the review', async () => {
+  server.use(http.post('/api/imports/text', () => HttpResponse.json(draft)))
+  const user = await readRecipe('Leek soup')
+  await user.type(await screen.findByLabelText('Name'), ' for two')
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+  onTestFinished(() => confirm.mockRestore())
+
+  await user.click(screen.getByRole('button', { name: 'Edit text' }))
+  expect(confirm).toHaveBeenCalledWith('Discard unsaved changes?')
+  expect(screen.getByLabelText('Name')).toHaveValue('Leek soup for two')
+
+  // A header link asks the same way.
+  await user.click(screen.getByRole('link', { name: 'Recipes' }))
+  expect(confirm).toHaveBeenCalledTimes(2)
+  expect(screen.getByLabelText('Name')).toHaveValue('Leek soup for two')
+
+  confirm.mockReturnValue(true)
+  await user.click(screen.getByRole('button', { name: 'Edit text' }))
+  expect(screen.getByLabelText('Recipe text')).toHaveValue('Leek soup')
 })
 
 it('reads photos of the pages in order and goes back to them', async () => {

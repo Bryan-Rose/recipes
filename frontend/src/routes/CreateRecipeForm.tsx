@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import {
@@ -20,6 +20,7 @@ import { IngredientFields } from '../components/IngredientFields'
 import { MoveButtons } from '../components/MoveButtons'
 import { base64Blob, jpegUrl, toImageUpload } from '../components/photos'
 import { RecipeFields } from '../components/RecipeFields'
+import { useLeaveGuard } from '../components/useLeaveGuard'
 
 /** Local rows need a stable key before the server has given them an id. */
 interface Keyed<T> {
@@ -42,11 +43,14 @@ export function CreateRecipeForm({
   initial,
   heading = 'New recipe',
   photoChoices = [],
+  onUnsavedChange,
 }: {
   initial?: RecipeInitial
   heading?: string
   /** Base64 JPEGs (an import's page photos) the user can pick as the recipe's image. */
   photoChoices?: string[]
+  /** Told whether the form differs from `initial`, for a caller that can discard it without navigating. */
+  onUnsavedChange?: (unsaved: boolean) => void
 }) {
   const navigate = useNavigate()
   const createRecipe = useCreateRecipe()
@@ -65,6 +69,12 @@ export function CreateRecipeForm({
   const [creatingPending, setCreatingPending] = useState(false)
   const [image, setImage] = useState<ImageUpload | null>(initial?.image ?? null)
   const [convertingImage, setConvertingImage] = useState(false)
+
+  // The image is compared by reference, so a large base64 JPEG isn't stringified on every render.
+  const [start] = useState(() => ({ content: contentOf(scalars, ingredients, requirements, steps), image }))
+  const unsaved = contentOf(scalars, ingredients, requirements, steps) !== start.content || image !== start.image
+  const allowLeave = useLeaveGuard(unsaved)
+  useEffect(() => onUnsavedChange?.(unsaved), [onUnsavedChange, unsaved])
 
   // Names are unique per cookbook, and among recipes without one.
   const duplicate = findByName(
@@ -151,7 +161,12 @@ export function CreateRecipeForm({
     }
 
     // mutate(), not mutateAsync(): a failure shows through createRecipe.error.
-    createRecipe.mutate(body, { onSuccess: (created) => void navigate(`/recipes/${created.id}`) })
+    createRecipe.mutate(body, {
+      onSuccess: (created) => {
+        allowLeave()
+        void navigate(`/recipes/${created.id}`)
+      },
+    })
   }
 
   return (
@@ -332,4 +347,8 @@ export function CreateRecipeForm({
       </div>
     </form>
   )
+}
+
+function contentOf(scalars: RecipeScalars, ...rows: Keyed<unknown>[][]) {
+  return JSON.stringify([scalars, ...rows.map((list) => list.map((row) => row.value))])
 }
