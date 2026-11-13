@@ -166,7 +166,6 @@ def test_slow_lookup_hits_the_deadline(web: FakeWeb, monkeypatch: pytest.MonkeyP
     daemon = []
 
     def stuck(*args, **kwargs) -> list:
-        __import__("time").sleep(0.3)
         daemon.append(threading.current_thread().daemon)
         started.set()
         answered.wait(5)
