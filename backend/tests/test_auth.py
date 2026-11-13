@@ -146,6 +146,15 @@ def test_lockout_ends_after_the_window(client: TestClient, cook: User):
     assert _login(client).status_code == 204
 
 
+def test_tracked_usernames_are_capped(client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(auth_router, "_MAX_TRACKED_USERNAMES", 3)
+    for username in ["a", "b", "a", "c", "d"]:  # "a" failed again, so "b" is the least recent when "d" arrives
+        _fail_logins(client, 1, username)
+
+    assert list(auth_router._failed_logins) == ["a", "c", "d"]
+    assert len(auth_router._failed_logins["a"]) == 2
+
+
 @pytest.mark.parametrize(("username", "password"), [("x" * 151, "wrong"), ("cook", "x" * 4097)], ids=["username", "password"])
 def test_over_long_login_is_rejected_unrecorded(client: TestClient, cook: User, username: str, password: str):
     assert _login(client, username, password).status_code == 422

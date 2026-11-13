@@ -26,6 +26,7 @@ _oauth = OAuth()
 # shortcut: in-process, so it resets on restart and isn't shared between workers; fine for one uvicorn process.
 _MAX_FAILURES = 10
 _FAILURE_WINDOW = 15 * 60
+_MAX_TRACKED_USERNAMES = 10_000
 _failed_logins: dict[str, list[float]] = {}
 
 
@@ -66,10 +67,11 @@ def login(body: LoginRequest, response: Response, db: Session = Depends(get_db),
         )
     user = auth_service.authenticate(db, body.username, body.password.get_secret_value())
     if user is None:
-        # Drop expired entries now and then, so made-up usernames don't pile up.
-        if len(_failed_logins) > 10_000:
-            for name in [n for n, stamps in _failed_logins.items() if now - stamps[-1] >= _FAILURE_WINDOW]:
-                del _failed_logins[name]
+        # Re-insert at the end, so the dict stays ordered by latest failure, and cap its size by
+        # evicting the least recently failed username: a flood of made-up names can't grow it.
+        _failed_logins.pop(body.username, None)
+        if len(_failed_logins) >= _MAX_TRACKED_USERNAMES:
+            del _failed_logins[next(iter(_failed_logins))]
         _failed_logins[body.username] = [*recent, now]
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
     _failed_logins.pop(body.username, None)
