@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+import threading
 from collections.abc import Sequence
 
 from sqlalchemy import select
@@ -8,10 +9,19 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 
+# Each scrypt call allocates 16 MB; cap how many run at once so a flood of logins waits
+# instead of exhausting memory.
+_scrypt_slots = threading.BoundedSemaphore(4)
+
+
+def _scrypt(password: str, salt: bytes) -> bytes:
+    with _scrypt_slots:
+        return hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
+
 
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
-    digest = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
+    digest = _scrypt(password, salt)
     return f"scrypt${salt.hex()}${digest.hex()}"
 
 
@@ -19,7 +29,7 @@ def verify_password(password: str, hashed: str | None) -> bool:
     if hashed is None or hashed.count("$") != 2:
         return False
     _, salt, digest = hashed.split("$")
-    candidate = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2**14, r=8, p=1)
+    candidate = _scrypt(password, bytes.fromhex(salt))
     return secrets.compare_digest(candidate.hex(), digest)
 
 
