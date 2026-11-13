@@ -12,7 +12,8 @@ def get_item[M](db: Session, model: type[M], item_id: int) -> M | None:
 
 
 def get_items[M](db: Session, model: type[M]) -> Sequence[M]:
-    return db.execute(select(model)).scalars().all()
+    # NOCASE names, so the order ignores case.
+    return db.execute(select(model).order_by(model.name)).scalars().all()  # pyright: ignore[reportAttributeAccessIssue]  every lookup has a name
 
 
 def create_item[M](db: Session, model: type[M], item_in: BaseModel) -> M:

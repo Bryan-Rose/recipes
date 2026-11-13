@@ -22,21 +22,19 @@ export function CookbookIndex() {
         </p>
       ) : (
         <ul className="stack browse-list" aria-label="Cookbooks">
-          {[...cookbooks]
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((cookbook) => (
-              <li key={cookbook.id} className="card browse-item">
-                {/* Decorative: the name beside it says which book. */}
-                {cookbook.image && (
-                  <img className="browse-item__cover" src={imageUrl(cookbook.image, 'thumb')} alt="" loading="lazy" />
-                )}
-                <Link to={`/cookbooks/${cookbook.id}`}>{cookbook.name}</Link>{' '}
-                <span className="muted">
-                  by <Link to={`/authors/${cookbook.author.id}`}>{cookbook.author.name}</Link> ·{' '}
-                  {plural(cookbook.recipe_count)}
-                </span>
-              </li>
-            ))}
+          {cookbooks.map((cookbook) => (
+            <li key={cookbook.id} className="card browse-item">
+              {/* Decorative: the name beside it says which book. */}
+              {cookbook.image && (
+                <img className="browse-item__cover" src={imageUrl(cookbook.image, 'thumb')} alt="" loading="lazy" />
+              )}
+              <Link to={`/cookbooks/${cookbook.id}`}>{cookbook.name}</Link>{' '}
+              <span className="muted">
+                by <Link to={`/authors/${cookbook.author.id}`}>{cookbook.author.name}</Link> ·{' '}
+                {plural(cookbook.recipe_count)}
+              </span>
+            </li>
+          ))}
         </ul>
       )}
     </>
@@ -78,7 +76,7 @@ export function AuthorPage() {
 
   const author = authors.data.find((item) => item.id === id)
   if (!author) return <Missing what="author" />
-  const theirs = cookbooks.data.filter((cookbook) => cookbook.author.id === id).sort((a, b) => a.name.localeCompare(b.name))
+  const theirs = cookbooks.data.filter((cookbook) => cookbook.author.id === id)
 
   return (
     <>

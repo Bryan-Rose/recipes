@@ -90,3 +90,22 @@ test('a cook adds a cookbook with a new author, then files a recipe in it', asyn
   await expect(page.getByRole('heading', { name: recipeName })).toBeVisible()
   await expect(page.getByRole('link', { name: bookName })).toBeVisible()
 })
+
+test('lookups are listed by name, ignoring case', async ({ page, baseURL }) => {
+  const suffix = unique()
+  const api = await apiAs(baseURL!, COOK)
+  const names = ['banana', 'Cherry', 'apple'].map((fruit) => `E2E Sort ${suffix} ${fruit}`)
+  const ids = []
+  for (const name of names) ids.push((await (await api.post('/api/ingredients/', { data: { name } })).json()).id)
+
+  await page.goto('/')
+  await signIn(page, COOK)
+  await page.goto('/lookups/ingredients')
+  const rows = page.getByRole('listitem').filter({ hasText: `E2E Sort ${suffix}` })
+  await expect(rows).toHaveCount(3)
+  const shown = await rows.evaluateAll((items) => items.map((item) => item.getAttribute('aria-label')))
+  expect(shown).toEqual([names[2], names[0], names[1]])
+
+  for (const id of ids) await api.delete(`/api/ingredients/${id}`)
+  await api.dispose()
+})
