@@ -53,6 +53,13 @@ def test_create_user_rejects_short_password(client: TestClient, password: str):
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize(("username", "password"), [("x" * 151, "correct horse"), ("julia", "x" * 1025)], ids=["username", "password"])
+def test_create_user_rejects_what_login_would_refuse(client: TestClient, username: str, password: str):
+    response = client.post("/users/", json={"username": username, "full_name": "Julia Child", "password": password})
+
+    assert response.status_code == 422
+
+
 def test_update_user_rejects_short_password(client: TestClient, user: UserRead):
     assert client.patch(f"/users/{user.id}", json={"password": "short"}).status_code == 422
 

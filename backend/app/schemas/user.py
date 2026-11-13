@@ -1,10 +1,12 @@
-from pydantic import BaseModel, ConfigDict, StrictBool
+from typing import Annotated
 
-from app.schemas.fields import Name, NewPassword, Omittable, UtcDatetime
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
+
+from app.schemas.fields import MAX_USERNAME_LENGTH, Name, NewPassword, Omittable, UtcDatetime
 
 
 class UserBase(BaseModel):
-    username: Name
+    username: Annotated[Name, Field(max_length=MAX_USERNAME_LENGTH)]  # longer couldn't log in
     full_name: Name
 
 

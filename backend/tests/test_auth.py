@@ -146,6 +146,12 @@ def test_lockout_ends_after_the_window(client: TestClient, cook: User):
     assert _login(client).status_code == 204
 
 
+@pytest.mark.parametrize(("username", "password"), [("x" * 151, "wrong"), ("cook", "x" * 1025)], ids=["username", "password"])
+def test_over_long_login_is_rejected_unrecorded(client: TestClient, cook: User, username: str, password: str):
+    assert _login(client, username, password).status_code == 422
+    assert auth_router._failed_logins == {}
+
+
 def test_successful_login_resets_failures(client: TestClient, cook: User):
     _fail_logins(client, 9)
     assert _login(client).status_code == 204
