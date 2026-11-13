@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 
-import { ADMIN, apiAs, unique } from './helpers'
+import { ADMIN, apiAs, test, unique } from './helpers'
 
 /** Runs the real OIDC flow: app -> mock IdP login form -> callback -> app. */
 async function signInWithSso(page: Page, subject: string, claims: Record<string, string>) {

@@ -57,6 +57,12 @@ Caddy passes that through, but `encode` also gives zstd to browsers that support
 The recipe list (`GET /api/recipes/`) carries every recipe, so compression matters
 on slow connections.
 
+**Login rate limit.** nginx allows each client address about 10 password logins a
+minute after a burst of 30, and answers 429 beyond that (`frontend/nginx.conf`). It
+takes the address from the last `X-Forwarded-For` entry when the request comes from
+a private address (Caddy on the host or in Docker), so keep a proxy in front: with
+`RECIPES_BIND=0.0.0.0`, clients on the LAN could set that header themselves.
+
 **Caddy in Docker** (the production setup). `compose.server.example.yml` is the
 server's compose file. The frontend runs as container `whattoeat` on Caddy's
 external `rproxy` network, with no host port. Copy it to the git-ignored

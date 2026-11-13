@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 
-import { ADMIN, COOK, apiAs, signIn, unique } from './helpers'
+import { ADMIN, COOK, apiAs, signIn, test, unique } from './helpers'
 
 test('signed-out visitors get the login page, with password and SSO options', async ({ page }) => {
   await page.goto('/')
@@ -108,4 +108,35 @@ test('a session revoked elsewhere sends the browser back to login', async ({ pag
   await page.getByRole('link', { name: 'Recipes' }).first().click()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+})
+
+test('too many logins from one address are refused at the proxy, others still get in', async ({ page }) => {
+  // A documentation address via X-Forwarded-For (trusted from the private e2e network), so other tests keep their quota.
+  const flooder = { 'X-Forwarded-For': '203.0.113.7' }
+  // The burst of 30 in frontend/nginx.conf, plus the request that starts it.
+  const allowed = 31
+  const statuses: number[] = []
+  for (let i = 0; i <= allowed; i++) {
+    // Spellings of the same endpoint count together.
+    const path = ['/api/auth/login', '/api/auth/%6Cogin', '/api/x/../auth/login'][i % 3]
+    const response = await page.request.post(path, {
+      headers: flooder,
+      data: { username: `nobody-${unique()}`, password: 'wrong-password' },
+    })
+    statuses.push(response.status())
+  }
+  expect(statuses.slice(0, allowed)).toEqual(Array(allowed).fill(401))
+  expect(statuses[allowed]).toBe(429)
+
+  // The login page shows the proxy's message, even for the right password.
+  await page.setExtraHTTPHeaders(flooder)
+  await page.goto('/')
+  await page.getByLabel('Username').fill(COOK.username)
+  await page.getByLabel('Password').fill(COOK.password)
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByText('Too many sign-in attempts. Try again later.')).toBeVisible()
+
+  // Another address isn't affected.
+  const other = await page.request.post('/api/auth/login', { headers: { 'X-Forwarded-For': '203.0.113.8' }, data: COOK })
+  expect(other.status()).toBe(204)
 })
