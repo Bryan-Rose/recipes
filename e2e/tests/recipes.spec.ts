@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 
-import { COOK, PNG, apiAs, expectLoaded, signIn, unique } from './helpers'
+import { COOK, PNG, apiAs, expectLoaded, signIn, test, unique } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')

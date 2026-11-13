@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 
-import { COOK, expectLoaded, signIn, unique } from './helpers'
+import { COOK, expectLoaded, signIn, test, unique } from './helpers'
 
 // The e2e stack points the backend at e2e/mock-anthropic, which reads the pasted
 // text line by line: name, measurement, ingredient, then one step per line.

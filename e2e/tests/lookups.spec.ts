@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 
-import { COOK, apiAs, signIn, unique } from './helpers'
+import { COOK, apiAs, signIn, test, unique } from './helpers'
 
 test('a cook renames an author, deletes the cookbook in use, then the author', async ({ page, baseURL }) => {
   const suffix = unique()

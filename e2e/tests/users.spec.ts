@@ -1,6 +1,6 @@
-import { expect, request, test } from '@playwright/test'
+import { expect, request } from '@playwright/test'
 
-import { ADMIN, COOK, signIn, unique } from './helpers'
+import { ADMIN, COOK, signIn, test, unique } from './helpers'
 
 /** The status the login API answers for these credentials. */
 async function loginStatus(baseURL: string, user: { username: string; password: string }) {

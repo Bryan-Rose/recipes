@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 
-import { COOK, apiAs, unique } from './helpers'
+import { COOK, apiAs, test, unique } from './helpers'
 
 test('the SPA shell is revalidated on every load, so a deploy never strands old asset links', async ({ request }) => {
   for (const path of ['/', '/index.html', '/recipes/1']) {

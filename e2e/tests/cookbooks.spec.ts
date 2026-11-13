@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 
-import { COOK, PNG, apiAs, expectLoaded, signIn, unique } from './helpers'
+import { COOK, PNG, apiAs, expectLoaded, signIn, test, unique } from './helpers'
 
 test('browse from a recipe card to its cookbook and author', async ({ page, baseURL }) => {
   const suffix = unique()

@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 
-import { ADMIN, apiAs, signIn, unique } from './helpers'
+import { ADMIN, apiAs, signIn, test, unique } from './helpers'
 
 test('a user changes their own password and their other sessions end', async ({ page, browser, baseURL }) => {
   // A throwaway user, so the seeded logins keep their passwords.
