@@ -12,7 +12,7 @@ test('import a pasted recipe, review it, and save with new lookups', async ({ pa
 
   await page.goto('/')
   await signIn(page, COOK)
-  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByRole('link', { name: 'Import', exact: true }).click()
   // A first read with a typo in the name, fixed after going back with Edit text.
   await page.getByLabel('Recipe text').fill([`${name}x`, measurement, ingredient, 'Wash the nettles.', 'Simmer.'].join('\n'))
   await page.getByRole('button', { name: 'Read recipe' }).click()
@@ -41,7 +41,7 @@ test('an edited import review asks before it is left, and saves without asking',
   const name = `Guarded Soup ${unique()}`
   await page.goto('/')
   await signIn(page, COOK)
-  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByRole('link', { name: 'Import', exact: true }).click()
   await page.getByLabel('Recipe text').fill(['Draft', 'cup', 'water', 'Boil.'].join('\n'))
   await page.getByRole('button', { name: 'Read recipe' }).click()
   await page.getByLabel('Name').fill(name)
@@ -74,7 +74,7 @@ test('import from photos of the pages', async ({ page }) => {
   await signIn(page, COOK)
   // Any image the browser can decode will do; the mock doesn't look at it.
   const shot = await page.screenshot()
-  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByRole('link', { name: 'Import', exact: true }).click()
   await page.getByLabel(/Or photos of the pages/).setInputFiles([
     { name: 'page1.png', mimeType: 'image/png', buffer: shot },
     { name: 'page2.png', mimeType: 'image/png', buffer: shot },
@@ -100,7 +100,7 @@ test('a file that is not an image is named, and the photos beside it are kept', 
   await page.goto('/')
   await signIn(page, COOK)
   const shot = await page.screenshot()
-  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByRole('link', { name: 'Import', exact: true }).click()
   await page.getByLabel(/Or photos of the pages/).setInputFiles([
     { name: 'page1.png', mimeType: 'image/png', buffer: shot },
     { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('not a photo') },
@@ -119,7 +119,7 @@ test('import from a link to the recipe page', async ({ page }) => {
   const url = `http://mock-anthropic:8080/page?text=${encodeURIComponent(text)}`
   await page.goto('/')
   await signIn(page, COOK)
-  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByRole('link', { name: 'Import', exact: true }).click()
   await page.getByLabel('Or a link to the recipe').fill(url)
   await page.getByRole('button', { name: 'Read link' }).click()
 
@@ -138,7 +138,7 @@ test('import from a link to the recipe page', async ({ page }) => {
 test("a link that can't be opened says why", async ({ page }) => {
   await page.goto('/')
   await signIn(page, COOK)
-  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByRole('link', { name: 'Import', exact: true }).click()
   await page.getByLabel('Or a link to the recipe').fill('http://no-such-host.invalid/recipe')
   await page.getByRole('button', { name: 'Read link' }).click()
 
@@ -151,7 +151,7 @@ test("a link's picture can be dropped before saving", async ({ page }) => {
   const text = [name, 'whole', `leek-${id}`, 'Slice the leeks.'].join('\n')
   await page.goto('/')
   await signIn(page, COOK)
-  await page.getByRole('button', { name: 'Import' }).click()
+  await page.getByRole('link', { name: 'Import', exact: true }).click()
   await page.getByLabel('Or a link to the recipe').fill(`http://mock-anthropic:8080/page?text=${encodeURIComponent(text)}`)
   await page.getByRole('button', { name: 'Read link' }).click()
 
@@ -161,4 +161,16 @@ test("a link's picture can be dropped before saving", async ({ page }) => {
 
   await expect(page.getByRole('heading', { name })).toBeVisible()
   await expect(page.getByRole('img', { name })).toHaveCount(0)
+})
+
+test('Import and New recipe are one Tab stop each and open with Enter', async ({ page }) => {
+  await page.goto('/')
+  await signIn(page, COOK)
+  const importLink = page.getByRole('link', { name: 'Import', exact: true })
+  await importLink.focus()
+  // A button nested in the link would take the next Tab stop.
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('link', { name: 'New recipe', exact: true })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('heading', { name: 'New recipe' })).toBeVisible()
 })

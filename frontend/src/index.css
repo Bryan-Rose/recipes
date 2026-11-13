@@ -59,7 +59,8 @@ textarea {
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
-button:focus-visible {
+button:focus-visible,
+a.button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -79,7 +80,15 @@ label {
   margin-bottom: 0.3rem;
 }
 
-button {
+/* a.button: a link styled as a button, so navigation never nests a <button> in an <a>. */
+a.button {
+  display: inline-block;
+  text-decoration: none;
+  color: inherit;
+}
+
+button,
+a.button {
   cursor: pointer;
   padding: 0.45rem 0.85rem;
   border-radius: var(--radius-sm);
@@ -88,7 +97,8 @@ button {
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
-button:hover:not(:disabled) {
+button:hover:not(:disabled),
+a.button:hover {
   border-color: var(--text-faint);
 }
 
@@ -97,35 +107,41 @@ button:disabled {
   cursor: not-allowed;
 }
 
-button.primary {
+button.primary,
+a.button.primary {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
   font-weight: 600;
 }
 
-button.primary:hover:not(:disabled) {
+button.primary:hover:not(:disabled),
+a.button.primary:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
 }
 
-button.danger {
+button.danger,
+a.button.danger {
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 40%, transparent);
 }
 
-button.danger:hover:not(:disabled) {
+button.danger:hover:not(:disabled),
+a.button.danger:hover {
   background: var(--danger-soft);
 }
 
-button.ghost {
+button.ghost,
+a.button.ghost {
   border-color: transparent;
   background: transparent;
   color: var(--text-muted);
   padding: 0.25rem 0.5rem;
 }
 
-button.ghost:hover:not(:disabled) {
+button.ghost:hover:not(:disabled),
+a.button.ghost:hover {
   background: var(--surface-sunken);
   color: var(--text);
 }

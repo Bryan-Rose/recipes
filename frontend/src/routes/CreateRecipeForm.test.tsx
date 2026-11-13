@@ -326,7 +326,7 @@ describe('leaving unsaved work', () => {
   const exits = [
     ['Nav cookbooks', 'link'],
     ['← All recipes', 'link'],
-    ['Cancel', 'button'],
+    ['Cancel', 'link'],
   ] as const
 
   it.each(edits.flatMap(([what, edit]) => exits.map(([name, role]) => [what, name, role, edit] as const)))(
@@ -342,6 +342,11 @@ describe('leaving unsaved work', () => {
       expect(screen.getByRole('heading', { name: 'New recipe' })).toBeInTheDocument()
     },
   )
+
+  it('makes Cancel a single link, with no button inside', () => {
+    show()
+    expect(within(screen.getByRole('link', { name: 'Cancel' })).queryByRole('button')).not.toBeInTheDocument()
+  })
 
   it.each(exits)('leaves on %s once discarding is confirmed', async (name, role) => {
     mockConfirm(true)

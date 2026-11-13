@@ -332,10 +332,8 @@ export function CreateRecipeForm({
           <button type="submit" className="primary" disabled={!canSave}>
             {createRecipe.isPending || creatingPending ? 'Saving…' : 'Save recipe'}
           </button>
-          <Link to="/">
-            <button type="button" className="ghost">
-              Cancel
-            </button>
+          <Link to="/" className="button ghost">
+            Cancel
           </Link>
           {incompleteIngredients > 0 && (
             <span className="muted">

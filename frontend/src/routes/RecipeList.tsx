@@ -112,14 +112,12 @@ export function RecipeList() {
             ))}
           </select>
           {importEnabled && (
-            <Link to="/recipes/import">
-              <button type="button">Import</button>
+            <Link to="/recipes/import" className="button">
+              Import
             </Link>
           )}
-          <Link to="/recipes/new">
-            <button type="button" className="primary">
-              New recipe
-            </button>
+          <Link to="/recipes/new" className="button primary">
+            New recipe
           </Link>
         </div>
       </div>
