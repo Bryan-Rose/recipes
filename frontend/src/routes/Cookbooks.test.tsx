@@ -47,7 +47,7 @@ beforeEach(() => {
   signedIn()
   server.use(
     http.get('/api/recipes/', () => HttpResponse.json(recipes)),
-    http.get('/api/cookbooks/', () => HttpResponse.json([mastering, french, fast])),
+    http.get('/api/cookbooks/', () => HttpResponse.json([fast, french, mastering])),
     http.get('/api/authors/', () => HttpResponse.json([julia, jacques])),
   )
 })

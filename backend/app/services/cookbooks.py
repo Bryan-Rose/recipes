@@ -16,7 +16,7 @@ def get_cookbook(db: Session, cookbook_id: int) -> Cookbook | None:
 
 
 def get_cookbooks(db: Session) -> Sequence[Cookbook]:
-    return db.execute(select(Cookbook)).scalars().all()
+    return db.execute(select(Cookbook).order_by(Cookbook.name, Cookbook.id)).scalars().all()
 
 
 def create_cookbook(db: Session, cookbook_in: CookbookCreate) -> Cookbook:

@@ -98,3 +98,12 @@ def test_cookbook_names_unique_per_author(client: TestClient, cookbook: Cookbook
     assert client.patch(f"/cookbooks/{cookbook.id}", json={"author_id": other["id"]}).status_code == 409
     sibling = client.post("/cookbooks/", json={"name": "Sibling", "author_id": cookbook.author.id}).json()
     assert client.patch(f"/cookbooks/{sibling['id']}", json={"name": cookbook.name}).status_code == 409
+
+
+def test_list_cookbooks_sorted_by_name_ignoring_case(client: TestClient, author: AuthorRead):
+    for name in ["banana", "Cherry", "apple"]:
+        assert client.post("/cookbooks/", json={"name": name, "author_id": author.id}).status_code == 201
+
+    response = client.get("/cookbooks/")
+
+    assert [c["name"] for c in response.json()] == ["apple", "banana", "Cherry"]

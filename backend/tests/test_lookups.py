@@ -67,6 +67,15 @@ def test_created_appears_in_list(client: TestClient, prefix: str, item: LookupRe
     assert [LookupRead.model_validate(i) for i in response.json()] == [item]
 
 
+def test_list_sorted_by_name_ignoring_case(client: TestClient, prefix: str):
+    for name in ["banana", "Cherry", "apple"]:
+        assert client.post(f"{prefix}/", json={"name": name}).status_code == 201
+
+    response = client.get(f"{prefix}/")
+
+    assert [i["name"] for i in response.json()] == ["apple", "banana", "Cherry"]
+
+
 def test_get(client: TestClient, prefix: str, item: LookupRead):
     response = client.get(f"{prefix}/{item.id}")
 
