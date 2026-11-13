@@ -913,6 +913,11 @@ export interface components {
             /** Steps */
             steps: string[];
             usage: components["schemas"]["ImportUsage"];
+            /**
+             * Image
+             * @description URL import only: the page's picture, base64, in whatever image format the site sent. None when it has none, or it couldn't be fetched.
+             */
+            image?: string | null;
         };
         /** RecipeIngredientCreate */
         RecipeIngredientCreate: {

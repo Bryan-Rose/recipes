@@ -6,23 +6,33 @@ Photos can't be read that way, so they give a fixed recipe with one step per pho
 
 It also serves a recipe web page for URL import: GET /page?text=... returns the
 text, one paragraph per line, with no schema.org data, so the backend sends
-Claude the page's text and the line parsing above applies.
+Claude the page's text and the line parsing above applies. Its og:image is
+GET /picture.png, a tiny PNG.
 """
 
+import base64
 import html
 import json
 import re
 from urllib.parse import parse_qs, urlparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# A 2×1 PNG, the same as e2e/tests/helpers.ts.
+PICTURE = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8AAQv8BD/kD/YURmXYAAAAASUVORK5CYII=")
+
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        lines = parse_qs(urlparse(self.path).query)["text"][0].splitlines()
-        body = "".join(f"<p>{html.escape(line)}</p>" for line in lines)
-        data = f"<!doctype html><html><body>{body}</body></html>".encode()
+        url = urlparse(self.path)
+        if url.path == "/picture.png":
+            data, kind = PICTURE, "image/png"
+        else:
+            lines = parse_qs(url.query)["text"][0].splitlines()
+            body = "".join(f"<p>{html.escape(line)}</p>" for line in lines)
+            head = '<meta property="og:image" content="/picture.png">'
+            data, kind = f"<!doctype html><html><head>{head}</head><body>{body}</body></html>".encode(), "text/html; charset=utf-8"
         self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)

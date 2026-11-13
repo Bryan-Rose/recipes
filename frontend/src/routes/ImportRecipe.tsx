@@ -60,8 +60,12 @@ export function ImportRecipe() {
           </button>
         </aside>
         <CreateRecipeForm
-          initial={fromImport(importRecipe.data, { ingredient, measurement, preparation }, 'url' in source ? source.url : null)}
+          initial={{
+            ...fromImport(importRecipe.data, { ingredient, measurement, preparation }, 'url' in source ? source.url : null),
+            image: importRecipe.data.image,
+          }}
           heading="Review import"
+          photoChoices={'photos' in source ? source.photos : []}
         />
       </div>
     )

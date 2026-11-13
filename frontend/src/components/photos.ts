@@ -37,4 +37,7 @@ async function toJpegs(file: Blob, maxSides: number[]): Promise<string[]> {
   }
 }
 
+/** Base64 image bytes (no data: prefix) as a Blob, for toJpeg or toImageUpload. */
+export const base64Blob = (data: string) => new Blob([Uint8Array.from(atob(data), (char) => char.charCodeAt(0))])
+
 export const jpegUrl = (photo: string) => `data:image/jpeg;base64,${photo}`

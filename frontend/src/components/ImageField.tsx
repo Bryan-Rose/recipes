@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 
 import type { ImageUpload } from '../api/types'
 import { toImageUpload } from './photos'
@@ -12,6 +12,7 @@ export function ImageField({
   onPick,
   onRemove,
   onConverting,
+  children,
 }: {
   src: string | null
   alt: string
@@ -21,6 +22,8 @@ export function ImageField({
   onRemove: () => void
   /** Told while a picked file is still converting, so a form can hold its save. */
   onConverting?: (converting: boolean) => void
+  /** More ways to pick, shown under the file input. */
+  children?: ReactNode
 }) {
   const id = useId()
   const [converting, setConverting] = useState(false)
@@ -65,6 +68,7 @@ export function ImageField({
           </button>
         )}
       </div>
+      {children}
       {converting && <p className="muted">Preparing photo…</p>}
       {(pickError ?? error) && <p className="error-box">{pickError ?? error}</p>}
     </section>

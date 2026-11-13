@@ -6,7 +6,7 @@ import httpx2
 import pytest
 
 from app.services import fetch
-from app.services.fetch import FetchError, fetch_page, page_text
+from app.services.fetch import FetchError, fetch_image, fetch_page, page_image, page_text
 
 PAGE = "<html><body><p>Pancakes</p></body></html>"
 
@@ -31,7 +31,7 @@ class FakeWeb:
         return self.pages.get(key) or httpx2.Response(404)
 
     def get(self, url: str, **kwargs) -> str:
-        return fetch_page(url, httpx2.MockTransport(self.handle), **kwargs)
+        return fetch_page(url, httpx2.MockTransport(self.handle), **kwargs)[0]
 
 
 @pytest.fixture()
@@ -69,7 +69,8 @@ def test_private_addresses_allowed_when_configured(web: FakeWeb):
 def test_follows_redirects_and_checks_each_hop(web: FakeWeb):
     web.dns["short.link"] = ["93.184.215.15"]
     web.pages["short.link/r"] = httpx2.Response(302, headers={"location": "https://example.com/"})
-    assert web.get("http://short.link/r") == PAGE
+    # The final address, which the page's relative links resolve against.
+    assert fetch_page("http://short.link/r", httpx2.MockTransport(web.handle)) == (PAGE, "https://example.com/")
 
     web.dns["evil.link"] = ["93.184.215.16"]
     web.dns["internal"] = ["10.0.0.5"]
@@ -171,3 +172,63 @@ def test_text_is_capped():
 def test_json_ld_type_is_matched_loosely():
     html = '<script type="Application/LD+JSON; charset=utf-8">{"@type": "Recipe", "name": "Soup"}</script><p>Story</p>'
     assert json.loads(page_text(html)) == {"@type": "Recipe", "name": "Soup"}
+
+
+JPEG = b"\xff\xd8\xff\xe0 a photo"
+
+
+def test_fetches_an_image(web: FakeWeb):
+    web.pages["example.com/soup.webp"] = httpx2.Response(200, content=JPEG, headers={"content-type": "image/webp"})
+    assert fetch_image("https://example.com/soup.webp", httpx2.MockTransport(web.handle)) == JPEG
+    assert web.requests[0].url.host == "93.184.215.14"
+
+
+@pytest.mark.parametrize(
+    ("response", "message"),
+    [
+        (httpx2.Response(200, html=PAGE), "isn't a image"),
+        (httpx2.Response(200, content=b"<svg/>", headers={"content-type": "image/svg+xml"}), "isn't a image"),
+        (httpx2.Response(200, content=b"x" * (fetch.MAX_IMAGE_BYTES + 1), headers={"content-type": "image/jpeg"}), "too big"),
+    ],
+)
+def test_refuses_what_isnt_a_photo(web: FakeWeb, response: httpx2.Response, message: str):
+    web.pages["example.com/pic"] = response
+    with pytest.raises(FetchError, match=message):
+        fetch_image("https://example.com/pic", httpx2.MockTransport(web.handle))
+
+
+def test_image_on_a_private_address_is_refused(web: FakeWeb):
+    web.dns["internal"] = ["10.0.0.5"]
+    with pytest.raises(FetchError, match="isn't a public web address"):
+        fetch_image("http://internal/pic.jpg", httpx2.MockTransport(web.handle))
+    assert web.requests == []
+
+
+def test_malformed_link_is_a_fetch_error():
+    with pytest.raises(FetchError, match="isn't a valid address"):
+        fetch_image("http://[::1")
+
+
+@pytest.mark.parametrize(
+    ("image", "expected"),
+    [
+        ("https://cdn.example/a.jpg", "https://cdn.example/a.jpg"),
+        (["/img/a.jpg", "/img/b.jpg"], "https://example.com/img/a.jpg"),
+        ({"@type": "ImageObject", "url": "a.jpg"}, "https://example.com/recipes/a.jpg"),
+        ([{"@type": "ImageObject", "contentUrl": "https://cdn.example/c.jpg"}], "https://cdn.example/c.jpg"),
+    ],
+)
+def test_page_image_from_the_schema_org_recipe(image: object, expected: str):
+    html = ld({"@type": "Recipe", "image": image}) + '<meta property="og:image" content="https://cdn.example/og.jpg">'
+    assert page_image(html, "https://example.com/recipes/soup") == expected
+
+
+@pytest.mark.parametrize("recipe", [{"@type": "Recipe"}, {"@type": "Recipe", "image": []}, {"@type": "Recipe", "image": {"url": " "}}])
+def test_page_image_falls_back_to_og_image(recipe: dict):
+    html = ld(recipe) + '<meta property="og:image" content="/og.jpg"><meta property="og:image" content="/second.jpg">'
+    assert page_image(html, "https://example.com/recipes/soup") == "https://example.com/og.jpg"
+
+
+@pytest.mark.parametrize("html", ["<p>No picture</p>", '<meta property="og:image" content="http://[::1">'])
+def test_page_without_a_usable_image(html: str):
+    assert page_image(html, "https://example.com/") is None

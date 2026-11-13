@@ -18,7 +18,7 @@ import type { IngredientDraft, LookupKind, RecipeInitial, RecipeScalars } from '
 import { ImageField } from '../components/ImageField'
 import { IngredientFields } from '../components/IngredientFields'
 import { MoveButtons } from '../components/MoveButtons'
-import { jpegUrl } from '../components/photos'
+import { base64Blob, jpegUrl, toImageUpload } from '../components/photos'
 import { RecipeFields } from '../components/RecipeFields'
 
 /** Local rows need a stable key before the server has given them an id. */
@@ -38,7 +38,16 @@ function keyed<T>(value: T): Keyed<T> {
  * `RecipeCreate` accepts its children nested. Nothing hits the API until Save,
  * which first creates any lookups an import left pending.
  */
-export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?: RecipeInitial; heading?: string }) {
+export function CreateRecipeForm({
+  initial,
+  heading = 'New recipe',
+  photoChoices = [],
+}: {
+  initial?: RecipeInitial
+  heading?: string
+  /** Base64 JPEGs (an import's page photos) the user can pick as the recipe's image. */
+  photoChoices?: string[]
+}) {
   const navigate = useNavigate()
   const createRecipe = useCreateRecipe()
   const { data: recipes, error: recipesError } = useRecipes()
@@ -54,7 +63,7 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
   const [steps, setSteps] = useState<Keyed<string>[]>(() => (initial?.steps ?? []).map(keyed))
   const [pendingError, setPendingError] = useState<unknown>(null)
   const [creatingPending, setCreatingPending] = useState(false)
-  const [image, setImage] = useState<ImageUpload | null>(null)
+  const [image, setImage] = useState<ImageUpload | null>(initial?.image ?? null)
   const [convertingImage, setConvertingImage] = useState(false)
 
   // Names are unique per cookbook, and among recipes without one.
@@ -97,6 +106,15 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
         preparation_id: await resolve('preparation', row.preparation_id, pending?.preparation),
       })),
     )
+  }
+
+  async function choosePhoto(photo: string) {
+    setConvertingImage(true)
+    try {
+      setImage(await toImageUpload(base64Blob(photo)))
+    } finally {
+      setConvertingImage(false)
+    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -164,7 +182,18 @@ export function CreateRecipeForm({ initial, heading = 'New recipe' }: { initial?
           onPick={setImage}
           onRemove={() => setImage(null)}
           onConverting={setConvertingImage}
-        />
+          busy={convertingImage}
+        >
+          {photoChoices.length > 0 && (
+            <div className="row" style={{ marginTop: '0.75rem' }}>
+              {photoChoices.map((photo, index) => (
+                <button key={index} type="button" disabled={convertingImage} onClick={() => void choosePhoto(photo)}>
+                  Use page {index + 1}
+                </button>
+              ))}
+            </div>
+          )}
+        </ImageField>
 
         <section className="card editor-section">
           <h2 className="section-heading">Ingredients</h2>

@@ -60,7 +60,7 @@ def main(
                 photos = PhotoImport(photos=[base64.b64encode(photo.read_bytes()).decode() for photo in args.photo]).photos
                 draft, usage = imports.parse_photos(client, settings.import_model, db, photos)
             else:
-                page = fetch.page_text(fetch.fetch_page(args.url, fetch_transport, allow_private=settings.import_fetch_private))
+                page = fetch.page_text(fetch.fetch_page(args.url, fetch_transport, allow_private=settings.import_fetch_private)[0])
                 if not page:
                     raise SystemExit("No text on that page; nothing sent to Claude.")
                 draft, usage = imports.parse_text(client, settings.import_model, db, page)

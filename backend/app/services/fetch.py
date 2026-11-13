@@ -1,4 +1,4 @@
-"""Downloads a recipe page for URL import and boils it down to text for Claude.
+"""Downloads a recipe page (and its picture) for URL import and boils the page down to text for Claude.
 
 The backend fetches the page itself (Claude's web_fetch is refused by most big recipe
 sites), so every hop is checked against SSRF: http(s) only, and the host must resolve to
@@ -10,14 +10,18 @@ import ipaddress
 import json
 import socket
 import time
+from collections.abc import Callable
 from html.parser import HTMLParser
 from typing import Any
 
 import httpx2
 
 MAX_BYTES = 2_000_000
+MAX_IMAGE_BYTES = 5_000_000
 MAX_REDIRECTS = 5
 DEADLINE_SECONDS = 15
+# The picture is optional, so it gets less of the time nginx allows the whole import.
+IMAGE_DEADLINE_SECONDS = 8
 # Recipe blogs can run long; this keeps a parse near $0.03 at Sonnet 5.5 prices.
 MAX_TEXT = 60_000
 # Many recipe sites turn away clients that don't look like a browser.
@@ -39,9 +43,48 @@ def _checked_address(host: str, port: int, allow_private: bool) -> str:
     return addresses[0]
 
 
-def fetch_page(url: str, transport: httpx2.BaseTransport | None = None, allow_private: bool = False) -> str:
-    """The HTML at url, following up to MAX_REDIRECTS redirects, each checked the same way."""
-    deadline = time.monotonic() + DEADLINE_SECONDS
+def fetch_page(url: str, transport: httpx2.BaseTransport | None = None, allow_private: bool = False) -> tuple[str, str]:
+    """The HTML at url and the address it ended up at, following up to MAX_REDIRECTS redirects, each checked the same way."""
+    body, encoding, final_url = _get(
+        url,
+        transport,
+        allow_private,
+        "text/html,application/xhtml+xml",
+        lambda kind: "html" in kind,
+        "web page",
+        MAX_BYTES,
+        DEADLINE_SECONDS,
+    )
+    return body.decode(encoding or "utf-8", errors="replace"), final_url
+
+
+def fetch_image(url: str, transport: httpx2.BaseTransport | None = None, allow_private: bool = False) -> bytes:
+    """The image at url, checked like a page. SVG is refused: it's a document, not a photo."""
+    body, _, _ = _get(
+        url,
+        transport,
+        allow_private,
+        "image/avif,image/webp,image/png,image/jpeg,image/*",
+        lambda kind: kind.startswith("image/") and "svg" not in kind,
+        "image",
+        MAX_IMAGE_BYTES,
+        IMAGE_DEADLINE_SECONDS,
+    )
+    return bytes(body)
+
+
+def _get(
+    url: str,
+    transport: httpx2.BaseTransport | None,
+    allow_private: bool,
+    accept: str,
+    wanted: Callable[[str], bool],
+    what: str,
+    max_bytes: int,
+    seconds: float,
+) -> tuple[bytearray, str | None, str]:
+    """The body, its encoding and the final URL, if the content type passes `wanted`."""
+    deadline = time.monotonic() + seconds
 
     def time_left() -> float:
         left = deadline - time.monotonic()
@@ -49,11 +92,14 @@ def fetch_page(url: str, transport: httpx2.BaseTransport | None = None, allow_pr
             raise FetchError("that site is too slow")
         return left
 
-    headers = {"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml"}
+    headers = {"User-Agent": USER_AGENT, "Accept": accept}
     # A fresh client per fetch: pooled connections are keyed by address, not by host name.
     with httpx2.Client(transport=transport, timeout=5.0, follow_redirects=False, headers=headers) as client:
         for _ in range(MAX_REDIRECTS + 1):
-            target = httpx2.URL(url)
+            try:
+                target = httpx2.URL(url)
+            except httpx2.InvalidURL as exc:
+                raise FetchError("that link isn't a valid address") from exc
             if target.scheme not in ("http", "https") or not target.host:
                 raise FetchError("only http and https links work")
             time_left()
@@ -72,15 +118,15 @@ def fetch_page(url: str, transport: httpx2.BaseTransport | None = None, allow_pr
                         continue
                     if response.status_code != 200:
                         raise FetchError(f"the site answered {response.status_code}")
-                    if "html" not in response.headers.get("content-type", ""):
-                        raise FetchError("that link isn't a web page")
+                    if not wanted(response.headers.get("content-type", "").lower()):
+                        raise FetchError(f"that link isn't a {what}")
                     body = bytearray()
                     for chunk in response.iter_bytes():
                         body += chunk
-                        if len(body) > MAX_BYTES:
-                            raise FetchError("that page is too big")
+                        if len(body) > max_bytes:
+                            raise FetchError(f"that {what} is too big")
                         time_left()
-                    return body.decode(response.encoding or "utf-8", errors="replace")
+                    return body, response.encoding, str(target)
             except httpx2.HTTPError as exc:
                 raise FetchError("couldn't connect to that site") from exc
     raise FetchError("that link redirects too many times")
@@ -95,12 +141,16 @@ class _Page(HTMLParser):
         super().__init__()
         self.text: list[str] = []
         self.json_ld: list[str] = []
+        self.og_image: str | None = None
         self._skipping: list[str] = []
         self._in_json_ld = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        kind = (dict(attrs).get("type") or "").split(";")[0].strip().lower()
-        if tag == "script" and kind == "application/ld+json":
+        attributes = dict(attrs)
+        kind = (attributes.get("type") or "").split(";")[0].strip().lower()
+        if tag == "meta" and attributes.get("property") == "og:image" and self.og_image is None:
+            self.og_image = attributes.get("content")
+        elif tag == "script" and kind == "application/ld+json":
             self._in_json_ld = True
             self.json_ld.append("")
         elif tag in _HIDDEN:
@@ -130,17 +180,46 @@ def _find_recipe(node: Any) -> dict | None:
     return _find_recipe(node.get("@graph"))
 
 
-def page_text(html: str) -> str:
-    """The page's schema.org Recipe as JSON when it has one (most recipe sites do), else its visible text."""
-    page = _Page()
-    page.feed(html)
+def _recipe(page: _Page) -> dict | None:
     for block in page.json_ld:
         try:
             recipe = _find_recipe(json.loads(block))
         except ValueError, RecursionError:
             continue
         if recipe:
-            # Reviews can be most of the block and say nothing about the recipe.
-            recipe = {key: value for key, value in recipe.items() if key not in ("review", "aggregateRating", "video")}
-            return json.dumps(recipe, ensure_ascii=False, indent=1)[:MAX_TEXT]
+            return recipe
+    return None
+
+
+def page_text(html: str) -> str:
+    """The page's schema.org Recipe as JSON when it has one (most recipe sites do), else its visible text."""
+    page = _Page()
+    page.feed(html)
+    if recipe := _recipe(page):
+        # Reviews can be most of the block and say nothing about the recipe.
+        recipe = {key: value for key, value in recipe.items() if key not in ("review", "aggregateRating", "video")}
+        return json.dumps(recipe, ensure_ascii=False, indent=1)[:MAX_TEXT]
     return "\n".join(page.text)[:MAX_TEXT]
+
+
+def _image_url(node: Any) -> str | None:
+    """schema.org's image is a URL, an ImageObject or a list of either; the first one."""
+    if isinstance(node, list):
+        return _image_url(node[0]) if node else None
+    if isinstance(node, dict):
+        return _image_url(node.get("url") or node.get("contentUrl"))
+    return node if isinstance(node, str) and node.strip() else None
+
+
+def page_image(html: str, page_url: str) -> str | None:
+    """The address of the page's picture: its schema.org Recipe's image, else its og:image."""
+    page = _Page()
+    page.feed(html)
+    recipe = _recipe(page)
+    found = (_image_url(recipe.get("image")) if recipe else None) or page.og_image
+    if not found:
+        return None
+    try:
+        return str(httpx2.URL(page_url).join(found.strip()))
+    except httpx2.InvalidURL:
+        return None

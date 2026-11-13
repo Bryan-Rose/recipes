@@ -6,7 +6,7 @@
  */
 
 import { findByName } from '../api/lookups'
-import type { Lookup, RecipeDraft, RecipeIngredientCreate } from '../api/types'
+import type { ImageUpload, Lookup, RecipeDraft, RecipeIngredientCreate } from '../api/types'
 import type { Denominator } from './amount'
 
 /** The scalar half of a recipe — everything `RecipeUpdate` accepts. */
@@ -86,6 +86,7 @@ export interface RecipeInitial {
   ingredients: IngredientDraft[]
   requirements: string[]
   steps: string[]
+  image?: ImageUpload | null
 }
 
 /** An imported draft as form state: names matched to existing rows case-insensitively, the rest left pending. */
