@@ -45,6 +45,8 @@ MIN_PASSWORD_LENGTH = 8
 # Login is public, and each failed username is held in memory for the lockout window (#143).
 MAX_USERNAME_LENGTH = 150
 MAX_PASSWORD_LENGTH = 1024
+# Checking a password is looser, only bounding scrypt's input, so passwords set before the cap still work.
+MAX_LOGIN_PASSWORD_LENGTH = 4096
 
 NewPassword = Annotated[SecretStr, Field(min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)]
 """A password being set. Login takes any string, so older short passwords still work."""

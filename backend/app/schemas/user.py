@@ -6,7 +6,7 @@ from app.schemas.fields import MAX_USERNAME_LENGTH, Name, NewPassword, Omittable
 
 
 class UserBase(BaseModel):
-    username: Annotated[Name, Field(max_length=MAX_USERNAME_LENGTH)]  # longer couldn't log in
+    username: Annotated[Name, Field(max_length=MAX_USERNAME_LENGTH)]  # login caps it too (#143)
     full_name: Name
 
 

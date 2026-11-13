@@ -60,8 +60,9 @@ def test_create_user_rejects_what_login_would_refuse(client: TestClient, usernam
     assert response.status_code == 422
 
 
-def test_update_user_rejects_short_password(client: TestClient, user: UserRead):
-    assert client.patch(f"/users/{user.id}", json={"password": "short"}).status_code == 422
+@pytest.mark.parametrize("password", ["short", "x" * 1025])
+def test_update_user_rejects_bad_password_length(client: TestClient, user: UserRead, password: str):
+    assert client.patch(f"/users/{user.id}", json={"password": password}).status_code == 422
 
 
 def test_create_user_script_rejects_short_password(monkeypatch: pytest.MonkeyPatch):
