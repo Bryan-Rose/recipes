@@ -253,7 +253,8 @@
 }
 
 /* Keep short button labels on one line when the header row gets tight. */
-.page-header button {
+.page-header button,
+.page-header a.button {
   white-space: nowrap;
 }
 

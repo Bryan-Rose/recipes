@@ -49,7 +49,7 @@ beforeEach(() => {
 async function readRecipe(text = 'Leek soup\n3 leeks, sliced') {
   const user = userEvent.setup()
   renderWithProviders(<App />, { route: '/' })
-  await user.click(await screen.findByRole('button', { name: 'Import' }))
+  await user.click(await screen.findByRole('link', { name: 'Import' }))
   await user.type(screen.getByLabelText('Recipe text'), text)
   await user.click(screen.getByRole('button', { name: 'Read recipe' }))
   return user
@@ -58,14 +58,22 @@ async function readRecipe(text = 'Leek soup\n3 leeks, sliced') {
 it('is offered only when import is set up', async () => {
   server.use(http.get('/api/auth/config', () => HttpResponse.json(passwordOnly)))
   renderWithProviders(<App />, { route: '/' })
-  expect(await screen.findByRole('button', { name: 'New recipe' })).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Import' })).not.toBeInTheDocument()
+  expect(await screen.findByRole('link', { name: 'New recipe' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Import' })).not.toBeInTheDocument()
+})
+
+it('offers Import and New recipe as single links, with no button inside', async () => {
+  renderWithProviders(<App />, { route: '/' })
+  for (const name of ['Import', 'New recipe']) {
+    const link = await screen.findByRole('link', { name })
+    expect(within(link).queryByRole('button')).not.toBeInTheDocument()
+  }
 })
 
 it('sends a deep link back to the list when import is off', async () => {
   server.use(http.get('/api/auth/config', () => HttpResponse.json(passwordOnly)))
   renderWithProviders(<App />, { route: '/recipes/import' })
-  expect(await screen.findByRole('button', { name: 'New recipe' })).toBeInTheDocument()
+  expect(await screen.findByRole('link', { name: 'New recipe' })).toBeInTheDocument()
   expect(screen.queryByLabelText('Recipe text')).not.toBeInTheDocument()
 })
 

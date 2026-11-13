@@ -32,6 +32,14 @@ function show(data: Recipe) {
   renderWithProviders(<App />, { route: '/recipes/7' })
 }
 
+it('links to the editor with a single link, with no button inside', async () => {
+  signedIn()
+  show(recipe)
+  const edit = await screen.findByRole('link', { name: 'Edit' })
+  expect(edit).toHaveAttribute('href', '/recipes/7/edit')
+  expect(within(edit).queryByRole('button')).not.toBeInTheDocument()
+})
+
 describe('serving scaler', () => {
   beforeEach(() => signedIn())
 

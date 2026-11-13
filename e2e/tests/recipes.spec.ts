@@ -20,7 +20,7 @@ test('create, view, edit and delete a recipe', async ({ page }) => {
   const name = `E2E Soup ${id}`
   const ingredient = `leek-${id}`
 
-  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByRole('link', { name: 'New recipe', exact: true }).click()
   await page.getByLabel('Name').fill(name)
   await page.getByLabel('Servings').fill('4')
   await page.getByLabel('Active time (minutes)', { exact: true }).fill('75')
@@ -59,7 +59,7 @@ test('create, view, edit and delete a recipe', async ({ page }) => {
 
   // Edit the name.
   const renamed = `${name} (revised)`
-  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('link', { name: 'Edit', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Edit recipe' })).toBeVisible()
   await page.getByLabel('Name').fill(renamed)
   await page.getByLabel('Source URL').fill('https://cooking.example.com/soup')
@@ -84,7 +84,7 @@ test('an ingredient takes a fractional amount and no preparation', async ({ page
   const id = unique()
   const ingredient = `flour-${id}`
 
-  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByRole('link', { name: 'New recipe', exact: true }).click()
   await page.getByLabel('Name').fill(`E2E Bread ${id}`)
   await page.getByRole('button', { name: '+ Add ingredient' }).click()
   await page.getByLabel('Amount').fill('2')
@@ -98,7 +98,7 @@ test('an ingredient takes a fractional amount and no preparation', async ({ page
   await expect(row).toHaveText(`2 ½ scoop-${id}s ${ingredient}`)
 
   // The editor splits the stored 5/2 back into its two controls.
-  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('link', { name: 'Edit', exact: true }).click()
   await expect(page.getByLabel('Amount')).toHaveValue('2')
   await expect(page.getByRole('combobox', { name: 'Fraction' }).locator('option:checked')).toHaveText('½')
 })
@@ -106,7 +106,7 @@ test('an ingredient takes a fractional amount and no preparation', async ({ page
 test('adding an ingredient someone else just created says it already exists', async ({ page, baseURL }) => {
   const ingredient = `shallot-${unique()}`
 
-  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByRole('link', { name: 'New recipe', exact: true }).click()
   await page.getByRole('button', { name: '+ Add ingredient' }).click()
   await expect(page.getByLabel('Ingredient', { exact: true })).toBeVisible()
 
@@ -132,7 +132,7 @@ test('an amount typed while a new ingredient saves is kept', async ({ page }) =>
     await route.continue()
   })
 
-  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByRole('link', { name: 'New recipe', exact: true }).click()
   await page.getByRole('button', { name: '+ Add ingredient' }).click()
   await page.getByRole('button', { name: '+ New ingredient' }).click()
   await page.getByLabel('New ingredient name').fill(ingredient)
@@ -183,7 +183,7 @@ test('steps can be put in order when creating and when editing', async ({ page }
   const name = `E2E Order ${unique()}`
   const steps = page.locator('.step-list li')
 
-  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByRole('link', { name: 'New recipe', exact: true }).click()
   await page.getByLabel('Name').fill(name)
   for (const text of ['Chop.', 'Fry.', 'Prep.']) {
     await page.getByRole('button', { name: '+ Add step' }).click()
@@ -196,7 +196,7 @@ test('steps can be put in order when creating and when editing', async ({ page }
   await expect(page.getByRole('heading', { name })).toBeVisible()
   await expect(steps).toHaveText(['Prep.', 'Chop.', 'Fry.'])
 
-  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('link', { name: 'Edit', exact: true }).click()
   await page.getByRole('button', { name: 'Move Method entry 1 down' }).click()
   await expect(page.getByPlaceholder('Describe this step…').first()).toHaveValue('Chop.')
   await page.getByRole('button', { name: 'Done' }).click()
@@ -213,7 +213,7 @@ test('leaving with unsaved changes asks first, however you leave', async ({ page
   const { id } = (await created.json()) as { id: number }
 
   await page.goto(`/recipes/${id}`)
-  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('link', { name: 'Edit', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Edit recipe' })).toBeVisible()
   await page.getByLabel('Servings').fill('6')
 
@@ -345,7 +345,7 @@ test('tags are added and removed in the forms, shown, and filter the list', asyn
   expect((await api.post('/api/tags/', { data: { name: weeknight } })).status()).toBe(201)
   expect((await api.post('/api/recipes/', { data: { name: `E2E Untagged ${id}` } })).status()).toBe(201)
 
-  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByRole('link', { name: 'New recipe', exact: true }).click()
   await page.getByLabel('Name').fill(name)
   await page.getByLabel('Tag', { exact: true }).selectOption({ label: weeknight })
   await page.getByRole('button', { name: '+ New tag' }).click()
@@ -359,7 +359,7 @@ test('tags are added and removed in the forms, shown, and filter the list', asyn
   await expect(tags.getByRole('link', { name: vegan })).toBeVisible()
   await expect(tags.getByRole('link', { name: weeknight })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('link', { name: 'Edit', exact: true }).click()
   await page.getByRole('button', { name: `Remove tag ${vegan}` }).click()
   await page.getByRole('button', { name: 'Save details' }).click()
   await expect(page.getByText('Unsaved changes')).toBeHidden()
@@ -447,7 +447,7 @@ test('recipe names are unique per cookbook', async ({ page, baseURL }) => {
 test('a recipe photo shows on the recipe and in the list, and can be replaced and removed', async ({ page }) => {
   const name = `E2E Photo ${unique()}`
 
-  await page.getByRole('button', { name: 'New recipe' }).click()
+  await page.getByRole('link', { name: 'New recipe', exact: true }).click()
   await page.getByLabel('Name').fill(name)
   await page.getByLabel('Add a photo').setInputFiles({ name: 'dish.png', mimeType: 'image/png', buffer: PNG })
   await expect(page.getByRole('img', { name: 'Recipe photo' })).toBeVisible()
@@ -463,7 +463,7 @@ test('a recipe photo shows on the recipe and in the list, and can be replaced an
   await expectLoaded(card.locator('img.recipe-card__thumb'))
 
   await card.getByRole('link', { name, exact: true }).click()
-  await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('link', { name: 'Edit', exact: true }).click()
   await page.getByLabel('Replace photo').setInputFiles({ name: 'better.png', mimeType: 'image/png', buffer: PNG })
   await expect(page.getByRole('img', { name: 'Recipe photo' })).not.toHaveAttribute('src', firstSrc!)
   await page.getByRole('button', { name: 'Remove photo' }).click()

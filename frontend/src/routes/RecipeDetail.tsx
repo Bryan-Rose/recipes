@@ -66,8 +66,8 @@ export function RecipeDetail() {
       <div className="page-header">
         <h1>{recipe.name}</h1>
         <div className="row">
-          <Link to={`/recipes/${recipe.id}/edit`}>
-            <button type="button">Edit</button>
+          <Link to={`/recipes/${recipe.id}/edit`} className="button">
+            Edit
           </Link>
           <button type="button" className="danger" onClick={handleDelete} disabled={deleteRecipe.isPending}>
             {deleteRecipe.isPending ? 'Deleting…' : 'Delete'}
