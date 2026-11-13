@@ -44,8 +44,8 @@ export function useLogin() {
 export function useLogout() {
   return useMutation({
     mutationFn: () => api.post<void>('/auth/logout', undefined),
-    // A full reload drops every cached query from the old session. The refresh after every
-    // mutation (queryClient.ts) still fires first and gets 401s, which is harmless here.
+    // A full reload drops every cached query from the old session. This runs before the
+    // refresh after every mutation (queryClient.ts), whose 401s are harmless here.
     // replace(), so Back doesn't return to /logout.
     onSuccess: () => window.location.replace('/'),
   })
@@ -58,8 +58,8 @@ export function useChangePassword() {
   })
 }
 
-/** Where the SSO button sends the browser; a full navigation, not a fetch. */
 // Matches NewPassword in backend/app/schemas/fields.py.
 export const MIN_PASSWORD_LENGTH = 8
 
+/** Where the SSO button sends the browser; a full navigation, not a fetch. */
 export const OIDC_LOGIN_URL = '/api/auth/oidc/login'
