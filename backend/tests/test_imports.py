@@ -146,7 +146,8 @@ def test_url_import_fits_in_nginx_read_timeout():
     conf = (Path(__file__).parents[2] / "frontend" / "nginx.conf").read_text()
     match = re.search(r"proxy_read_timeout (\d+)s;", conf)
     assert match is not None
-    total = fetch.DEADLINE_SECONDS + CLAUDE_TIMEOUT_SECONDS + fetch.IMAGE_DEADLINE_SECONDS
+    overrun = fetch.READ_TIMEOUT_SECONDS  # the last socket read of each fetch
+    total = fetch.DEADLINE_SECONDS + overrun + CLAUDE_TIMEOUT_SECONDS + fetch.IMAGE_DEADLINE_SECONDS + overrun
     assert total < int(match[1])
 
 

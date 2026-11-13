@@ -21,8 +21,9 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/imports", tags=["imports"])
 
 # A URL import fetches the page, parses it, then fetches its picture, all under nginx's
-# 120s proxy_read_timeout: 15 + 95 + 8 leaves 2s spare (tests/test_imports.py checks it).
-CLAUDE_TIMEOUT_SECONDS = 95.0
+# 120s proxy_read_timeout. Each fetch can overrun its deadline by one socket read, so
+# (15 + 5) + 85 + (8 + 5) leaves 2s spare (tests/test_imports.py checks it).
+CLAUDE_TIMEOUT_SECONDS = 85.0
 
 
 @lru_cache
