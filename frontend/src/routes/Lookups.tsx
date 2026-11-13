@@ -10,6 +10,8 @@ import {
   tags,
   useAuthors,
   useCookbooks,
+  useCreateAuthor,
+  useCreateCookbook,
   useDeleteCookbook,
   useRemoveCookbookImage,
   useSetCookbookImage,
@@ -19,6 +21,7 @@ import { imageUrl } from '../api/recipes'
 import type { Cookbook, Lookup } from '../api/types'
 import { ErrorState, Loading } from '../components/Feedback'
 import { ImageField } from '../components/ImageField'
+import { LookupPicker } from '../components/LookupPicker'
 
 /** The name-only lookups; cookbooks also carry an author, so they get their own list. */
 const KINDS = {
@@ -99,11 +102,56 @@ function CookbookList() {
   if (isPending) return <Loading what="cookbooks" />
   if (error) return <ErrorState error={error} what="cookbooks" />
   return (
-    <ItemList label="Cookbooks">
-      {cookbooks.map((cookbook) => (
-        <CookbookRow key={cookbook.id} cookbook={cookbook} />
-      ))}
-    </ItemList>
+    <>
+      <AddCookbook />
+      <ItemList label="Cookbooks">
+        {cookbooks.map((cookbook) => (
+          <CookbookRow key={cookbook.id} cookbook={cookbook} />
+        ))}
+      </ItemList>
+    </>
+  )
+}
+
+function AddCookbook() {
+  const create = useCreateCookbook()
+  const createAuthor = useCreateAuthor()
+  const { data: authorList } = useAuthors()
+  const [name, setName] = useState('')
+  const [authorId, setAuthorId] = useState<number | null>(null)
+  const inputId = useId()
+
+  return (
+    <form
+      className="card stack"
+      aria-label="Add a cookbook"
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (authorId === null) return
+        create.mutate({ name: name.trim(), author_id: authorId }, { onSuccess: () => setName('') })
+      }}
+    >
+      <h2>Add a cookbook</h2>
+      <div className="field-grid">
+        <div className="field">
+          <label htmlFor={inputId}>Name</label>
+          <input id={inputId} required value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <LookupPicker
+          label="Author"
+          options={authorList}
+          value={authorId}
+          onChange={setAuthorId}
+          onCreate={createAuthor.mutateAsync}
+        />
+      </div>
+      {create.error != null && <p className="error-box">{describeError(create.error)}</p>}
+      <div className="row">
+        <button type="submit" className="primary" disabled={create.isPending || authorId === null}>
+          {create.isPending ? 'Adding…' : 'Add cookbook'}
+        </button>
+      </div>
+    </form>
   )
 }
 

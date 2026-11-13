@@ -10,7 +10,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { ApiError, api } from './client'
-import type { Author, Cookbook, CookbookUpdate, ImageUpload, Ingredient, Lookup, Measurement, Preparation, Tag } from './types'
+import type { Author, Cookbook, CookbookCreate, CookbookUpdate, ImageUpload, Ingredient, Lookup, Measurement, Preparation, Tag } from './types'
 
 /**
  * `name` is unique on all of these tables, and POSTing a duplicate returns 409.
@@ -83,9 +83,19 @@ export function useCookbooks() {
   return useQuery({ queryKey: ['cookbooks'], queryFn: () => api.get<Cookbook[]>('/cookbooks/') })
 }
 
+/** Names are unique per author, so a 409 is always that clash. */
+const cookbookClash = explainConflict('That author already has a cookbook with this name.')
+
+export function useCreateCookbook() {
+  return useMutation({
+    mutationFn: (cookbook: CookbookCreate) => api.post<Cookbook>('/cookbooks/', cookbook).catch(cookbookClash),
+  })
+}
+
 export function useUpdateCookbook() {
   return useMutation({
-    mutationFn: ({ id, ...changes }: CookbookUpdate & { id: number }) => api.patch<Cookbook>(`/cookbooks/${id}`, changes),
+    mutationFn: ({ id, ...changes }: CookbookUpdate & { id: number }) =>
+      api.patch<Cookbook>(`/cookbooks/${id}`, changes).catch(cookbookClash),
   })
 }
 

@@ -59,3 +59,34 @@ test('a cook renames an author, deletes the cookbook in use, then the author', a
   await expect(renamed).toBeHidden()
   await api.dispose()
 })
+
+test('a cook adds a cookbook with a new author, then files a recipe in it', async ({ page }) => {
+  const suffix = unique()
+  const authorName = `E2E New Author ${suffix}`
+  const bookName = `E2E New Book ${suffix}`
+
+  await page.goto('/lookups/cookbooks')
+  await signIn(page, COOK)
+  const form = page.getByRole('form', { name: 'Add a cookbook' })
+  await form.getByLabel('Name', { exact: true }).fill(bookName)
+  await form.getByRole('button', { name: '+ New author' }).click()
+  await form.getByLabel('New author name').fill(authorName)
+  await form.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(form.getByLabel('Author', { exact: true })).toHaveValue(/\d+/)
+  await form.getByRole('button', { name: 'Add cookbook' }).click()
+  await expect(page.getByRole('listitem', { name: bookName, exact: true }).getByText(`${authorName} · 0 recipes`)).toBeVisible()
+
+  // The same author can't have two books with one name.
+  await form.getByLabel('Name', { exact: true }).fill(bookName.toUpperCase())
+  await form.getByRole('button', { name: 'Add cookbook' }).click()
+  await expect(form.getByText('That author already has a cookbook with this name.')).toBeVisible()
+
+  // The new cookbook is on offer for a recipe.
+  const recipeName = `E2E Filed ${suffix}`
+  await page.goto('/recipes/new')
+  await page.getByLabel('Name').fill(recipeName)
+  await page.getByLabel('Cookbook').selectOption({ label: `${bookName} — ${authorName}` })
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+  await expect(page.getByRole('heading', { name: recipeName })).toBeVisible()
+  await expect(page.getByRole('link', { name: bookName })).toBeVisible()
+})

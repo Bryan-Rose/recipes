@@ -125,6 +125,7 @@ describe('lookups', () => {
     let deletes = 0
     server.use(
       http.get('/api/cookbooks/', () => HttpResponse.json([mastering, empty])),
+      http.get('/api/authors/', () => HttpResponse.json([julia])),
       http.delete('/api/cookbooks/:id', () => {
         deletes++
         return new HttpResponse(null, { status: 204 })
@@ -226,6 +227,7 @@ describe('lookups', () => {
     let count = 1
     server.use(
       http.get('/api/cookbooks/', () => HttpResponse.json([{ ...mastering, recipe_count: count }])),
+      http.get('/api/authors/', () => HttpResponse.json([julia])),
       http.get('/api/recipes/', () => HttpResponse.json(count ? [summary] : [])),
       http.get('/api/recipes/7', () => HttpResponse.json(recipe)),
       http.get('/api/ingredients/', () => HttpResponse.json([])),
@@ -245,5 +247,75 @@ describe('lookups', () => {
     await user.click(within(await screen.findByRole('navigation', { name: 'Lookup types' })).getByRole('link', { name: 'Cookbooks' }))
 
     expect(await screen.findByText(/0 recipes$/)).toBeInTheDocument()
+  })
+
+  it('adds a cookbook by an existing author', async () => {
+    let posted: unknown
+    server.use(
+      http.get('/api/cookbooks/', () => HttpResponse.json(posted ? [mastering] : [])),
+      http.get('/api/authors/', () => HttpResponse.json([julia, jacques])),
+      http.post('/api/cookbooks/', async ({ request }) => {
+        posted = await request.json()
+        return HttpResponse.json(mastering, { status: 201 })
+      }),
+    )
+    const user = userEvent.setup()
+    show('/lookups/cookbooks')
+
+    const form = within(await screen.findByRole('form', { name: 'Add a cookbook' }))
+    await user.type(form.getByLabelText('Name'), ' Mastering ')
+    expect(form.getByRole('button', { name: 'Add cookbook' })).toBeDisabled() // no author yet
+    await user.selectOptions(form.getByLabelText('Author'), await form.findByRole('option', { name: julia.name }))
+    await user.click(form.getByRole('button', { name: 'Add cookbook' }))
+
+    await expect.poll(() => posted).toEqual({ name: 'Mastering', author_id: julia.id })
+    expect(await screen.findByRole('listitem', { name: 'Mastering' })).toBeInTheDocument()
+    await waitFor(() => expect(form.getByLabelText('Name')).toHaveValue(''))
+  })
+
+  it('adds a cookbook by a new author', async () => {
+    const newAuthor = { id: 9, name: 'Madhur Jaffrey' }
+    let created = false
+    let posted: unknown
+    server.use(
+      http.get('/api/cookbooks/', () => HttpResponse.json([])),
+      http.get('/api/authors/', () => HttpResponse.json(created ? [julia, newAuthor] : [julia])),
+      http.post('/api/authors/', () => {
+        created = true
+        return HttpResponse.json(newAuthor, { status: 201 })
+      }),
+      http.post('/api/cookbooks/', async ({ request }) => {
+        posted = await request.json()
+        return HttpResponse.json({ ...mastering, name: 'Indian Cookery', author: newAuthor }, { status: 201 })
+      }),
+    )
+    const user = userEvent.setup()
+    show('/lookups/cookbooks')
+
+    const form = within(await screen.findByRole('form', { name: 'Add a cookbook' }))
+    await user.type(form.getByLabelText('Name'), 'Indian Cookery')
+    await user.click(await form.findByRole('button', { name: '+ New author' }))
+    await user.type(form.getByLabelText('New author name'), `${newAuthor.name}{Enter}`)
+    await waitFor(() => expect(form.getByLabelText('Author')).toHaveValue(String(newAuthor.id)))
+    await user.click(form.getByRole('button', { name: 'Add cookbook' }))
+
+    await expect.poll(() => posted).toEqual({ name: 'Indian Cookery', author_id: newAuthor.id })
+  })
+
+  it('explains a cookbook name the author already has', async () => {
+    server.use(
+      http.get('/api/cookbooks/', () => HttpResponse.json([mastering])),
+      http.get('/api/authors/', () => HttpResponse.json([julia])),
+      http.post('/api/cookbooks/', () => HttpResponse.json({ detail: 'Already exists' }, { status: 409 })),
+    )
+    const user = userEvent.setup()
+    show('/lookups/cookbooks')
+
+    const form = within(await screen.findByRole('form', { name: 'Add a cookbook' }))
+    await user.type(form.getByLabelText('Name'), 'Mastering')
+    await user.selectOptions(form.getByLabelText('Author'), await form.findByRole('option', { name: julia.name }))
+    await user.click(form.getByRole('button', { name: 'Add cookbook' }))
+
+    expect(await form.findByText('That author already has a cookbook with this name.')).toBeInTheDocument()
   })
 })

@@ -86,3 +86,12 @@ def test_update_cookbook_rejects_null(client: TestClient, cookbook: CookbookRead
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"][-1] == field
+
+
+def test_cookbook_names_unique_per_author(client: TestClient, cookbook: CookbookRead):
+    other = client.post("/authors/", json={"name": "Jacques Pépin"}).json()
+    clash = {"name": cookbook.name.upper(), "author_id": cookbook.author.id}
+
+    assert client.post("/cookbooks/", json=clash).status_code == 409
+    assert client.post("/cookbooks/", json={**clash, "author_id": other["id"]}).status_code == 201
+    assert client.patch(f"/cookbooks/{cookbook.id}", json={"author_id": other["id"]}).status_code == 409

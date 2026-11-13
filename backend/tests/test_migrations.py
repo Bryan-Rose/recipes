@@ -355,3 +355,41 @@ def test_recipe_names_become_unique_per_cookbook(alembic_config: Config):
     with pytest.raises(IntegrityError), engine.begin() as connection:
         connection.execute(text(insert.format("PIE", 2)))  # unique app-wide again
     engine.dispose()
+
+
+def _insert_cookbooks(connection, names: str) -> None:
+    connection.execute(text("INSERT INTO authors (id, name) VALUES (1, 'Julia'), (2, 'Jacques')"))
+    connection.execute(text(f"INSERT INTO cookbooks (name, author_id) VALUES {names}"))
+
+
+def test_cookbook_names_become_unique_per_author(alembic_config: Config):
+    command.upgrade(alembic_config, "08e03b8561b7")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        _insert_cookbooks(connection, "('Basics', 1), ('Basics', 2)")
+
+    command.upgrade(alembic_config, "f8a75ac06317")
+    with engine.begin() as connection:
+        assert connection.execute(text("SELECT name, author_id FROM cookbooks ORDER BY id")).all() == [("Basics", 1), ("Basics", 2)]
+    with pytest.raises(IntegrityError), engine.begin() as connection:
+        connection.execute(text("INSERT INTO cookbooks (name, author_id) VALUES ('BASICS', 1)"))
+
+    command.downgrade(alembic_config, "08e03b8561b7")
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO cookbooks (name, author_id) VALUES ('Basics', 1)"))
+    engine.dispose()
+
+
+def test_duplicate_cookbooks_stop_the_migration(alembic_config: Config):
+    command.upgrade(alembic_config, "08e03b8561b7")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        _insert_cookbooks(connection, "('Basics', 1), ('basics', 1), ('Basics', 2)")
+
+    with pytest.raises(RuntimeError, match="Julia: Basics, basics"):
+        command.upgrade(alembic_config, "f8a75ac06317")
+
+    with engine.connect() as connection:
+        assert MigrationContext.configure(connection).get_current_revision() == "08e03b8561b7"
+        assert connection.execute(text("SELECT count(*) FROM cookbooks")).scalar() == 3
+    engine.dispose()
