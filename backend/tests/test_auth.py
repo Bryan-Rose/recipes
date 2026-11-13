@@ -238,12 +238,18 @@ def test_change_password_requires_current_password(client: TestClient, cook: Use
     assert response.status_code == 403
 
 
-def test_change_password_rejects_short_password(client: TestClient, cook: User):
+@pytest.mark.parametrize(
+    ("current", "new"),
+    [("correct horse", "short"), ("correct horse", "x" * 1025), ("x" * 4097, "battery staple")],
+    ids=["short new", "long new", "long current"],
+)
+def test_change_password_rejects_bad_lengths(client: TestClient, cook: User, current: str, new: str):
     _login(client)
 
-    response = client.post("/auth/password", json={"current_password": "correct horse", "new_password": "short"})
+    response = client.post("/auth/password", json={"current_password": current, "new_password": new})
 
     assert response.status_code == 422
+    assert _login(client).status_code == 204  # password unchanged
 
 
 def test_change_password_signs_out_other_sessions(client: TestClient, cook: User):
