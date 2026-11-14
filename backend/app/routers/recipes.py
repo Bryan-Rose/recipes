@@ -25,6 +25,7 @@ from app.schemas.recipes import (
     StepUpdate,
 )
 from app.services import recipes as recipes_service
+from app.services.lookups import delete_item, update_item
 
 recipe_router = APIRouter(prefix="/recipes", tags=["recipes"])
 step_router = APIRouter(prefix="/recipes/{recipe_id}/steps", tags=["steps"])
@@ -145,7 +146,7 @@ def update_step(recipe_id: IdPath, step_id: IdPath, step_in: StepUpdate, db: Ses
     existing = recipes_service.get_step(db, recipe_id, step_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return recipes_service.update_step(db, existing, step_in)
+    return update_item(db, existing, step_in)
 
 
 @step_router.delete("/{step_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -153,7 +154,7 @@ def delete_step(recipe_id: IdPath, step_id: IdPath, db: Session = Depends(get_db
     existing = recipes_service.get_step(db, recipe_id, step_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    recipes_service.delete_step(db, existing)
+    delete_item(db, existing)
 
 
 ## Steps
@@ -188,7 +189,7 @@ def update_requirement(recipe_id: IdPath, requirement_id: IdPath, requirement_in
     existing = recipes_service.get_requirement(db, recipe_id, requirement_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return recipes_service.update_requirement(db, existing, requirement_in)
+    return update_item(db, existing, requirement_in)
 
 
 @requirement_router.delete("/{requirement_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -196,7 +197,7 @@ def delete_requirement(recipe_id: IdPath, requirement_id: IdPath, db: Session = 
     existing = recipes_service.get_requirement(db, recipe_id, requirement_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    recipes_service.delete_requirement(db, existing)
+    delete_item(db, existing)
 
 
 ## Requirements
@@ -239,7 +240,7 @@ def delete_recipe_ingredient(recipe_id: IdPath, ri_id: IdPath, db: Session = Dep
     existing = recipes_service.get_recipe_ingredient(db, recipe_id, ri_id)
     if existing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    recipes_service.delete_recipe_ingredient(db, existing)
+    delete_item(db, existing)
 
 
 ## Recipe Ingredients
