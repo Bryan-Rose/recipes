@@ -13,10 +13,8 @@ from app.schemas.recipes import (
     RecipeIngredientUpdate,
     RecipeUpdate,
     RequirementCreate,
-    RequirementUpdate,
     StepCreate,
     StepOrder,
-    StepUpdate,
 )
 from app.services import images
 
@@ -136,20 +134,6 @@ def create_step(db: Session, recipe: Recipe, step_in: StepCreate) -> Step:
     return db_model
 
 
-def update_step(db: Session, step: Step, step_in: StepUpdate) -> Step:
-    for field, value in step_in.model_dump(exclude_unset=True).items():
-        setattr(step, field, value)
-
-    db.commit()
-    db.refresh(step)
-    return step
-
-
-def delete_step(db: Session, step: Step) -> None:
-    db.delete(step)
-    db.commit()
-
-
 def get_step(db: Session, recipe_id: int, step_id: int) -> Step | None:
     return db.execute(select(Step).where(Step.recipe_id == recipe_id, Step.id == step_id)).scalar()
 
@@ -185,20 +169,6 @@ def create_requirement(db: Session, recipe_id: int, requirement_in: RequirementC
     return db_model
 
 
-def update_requirement(db: Session, requirement: Requirement, requirement_in: RequirementUpdate) -> Requirement:
-    for field, value in requirement_in.model_dump(exclude_unset=True).items():
-        setattr(requirement, field, value)
-
-    db.commit()
-    db.refresh(requirement)
-    return requirement
-
-
-def delete_requirement(db: Session, requirement: Requirement) -> None:
-    db.delete(requirement)
-    db.commit()
-
-
 def get_requirement(db: Session, recipe_id: int, requirement_id: int) -> Requirement | None:
     return db.execute(select(Requirement).where(Requirement.recipe_id == recipe_id, Requirement.id == requirement_id)).scalar()
 
@@ -230,11 +200,6 @@ def update_recipe_ingredient(db: Session, recipe_ingredient: RecipeIngredient, r
     db.commit()
     db.refresh(recipe_ingredient)
     return recipe_ingredient
-
-
-def delete_recipe_ingredient(db: Session, recipe_ingredient: RecipeIngredient) -> None:
-    db.delete(recipe_ingredient)
-    db.commit()
 
 
 def get_recipe_ingredient(db: Session, recipe_id: int, recipe_ingredient_id: int) -> RecipeIngredient | None:

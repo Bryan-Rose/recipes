@@ -51,4 +51,4 @@ branch = true
 show_missing = true
 skip_covered = true
 # Measured at 99% when added; raise it when coverage improves, never lower it to pass.
-fail_under = 98
+fail_under = 99

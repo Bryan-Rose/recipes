@@ -1,4 +1,4 @@
-"""CRUD for the name-only lookups, shared by every model in routers/lookups.py."""
+"""Generic CRUD: the name-only lookups in routers/lookups.py, plus update/delete for recipe children."""
 
 from collections.abc import Sequence
 
