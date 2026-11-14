@@ -109,19 +109,6 @@ def delete_recipe_image(recipe_id: IdPath, db: Session = Depends(get_db), settin
 ## Steps
 
 
-@step_router.get("/", response_model=list[StepRead])
-def list_steps(recipe_id: IdPath, db: Session = Depends(get_db)):
-    return recipes_service.get_steps(db, recipe_id)
-
-
-@step_router.get("/{step_id}", response_model=StepRead)
-def get_step(recipe_id: IdPath, step_id: IdPath, db: Session = Depends(get_db)):
-    response = recipes_service.get_step(db, recipe_id, step_id)
-    if response is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return response
-
-
 @step_router.post("/", response_model=StepRead, status_code=status.HTTP_201_CREATED)
 def create_step(recipe_id: IdPath, step_in: StepCreate, db: Session = Depends(get_db)):
     existing_recipe = recipes_service.get_recipe(db, recipe_id)
@@ -163,19 +150,6 @@ def delete_step(recipe_id: IdPath, step_id: IdPath, db: Session = Depends(get_db
 ## Requirements
 
 
-@requirement_router.get("/", response_model=list[RequirementRead])
-def list_requirements(recipe_id: IdPath, db: Session = Depends(get_db)):
-    return recipes_service.get_requirements(db, recipe_id)
-
-
-@requirement_router.get("/{requirement_id}", response_model=RequirementRead)
-def get_requirement(recipe_id: IdPath, requirement_id: IdPath, db: Session = Depends(get_db)):
-    response = recipes_service.get_requirement(db, recipe_id, requirement_id)
-    if response is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return response
-
-
 @requirement_router.post("/", response_model=RequirementRead, status_code=status.HTTP_201_CREATED)
 def create_requirement(recipe_id: IdPath, requirement_in: RequirementCreate, db: Session = Depends(get_db)):
     existing_recipe = recipes_service.get_recipe(db, recipe_id)
@@ -204,19 +178,6 @@ def delete_requirement(recipe_id: IdPath, requirement_id: IdPath, db: Session = 
 
 
 ## Recipe Ingredients
-
-
-@recipe_ingredient_router.get("/", response_model=list[RecipeIngredientRead])
-def list_recipe_ingredient(recipe_id: IdPath, db: Session = Depends(get_db)):
-    return recipes_service.get_recipe_ingredients(db, recipe_id)
-
-
-@recipe_ingredient_router.get("/{ri_id}", response_model=RecipeIngredientRead)
-def get_recipe_ingredient(recipe_id: IdPath, ri_id: IdPath, db: Session = Depends(get_db)):
-    response = recipes_service.get_recipe_ingredient(db, recipe_id, ri_id)
-    if response is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return response
 
 
 @recipe_ingredient_router.post("/", response_model=RecipeIngredientRead, status_code=status.HTTP_201_CREATED)

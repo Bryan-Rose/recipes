@@ -547,8 +547,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Steps */
-        get: operations["list_steps_recipes__recipe_id__steps__get"];
+        get?: never;
         put?: never;
         /** Create Step */
         post: operations["create_step_recipes__recipe_id__steps__post"];
@@ -565,8 +564,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Step */
-        get: operations["get_step_recipes__recipe_id__steps__step_id__get"];
+        get?: never;
         put?: never;
         post?: never;
         /** Delete Step */
@@ -584,8 +582,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Requirements */
-        get: operations["list_requirements_recipes__recipe_id__requirements__get"];
+        get?: never;
         put?: never;
         /** Create Requirement */
         post: operations["create_requirement_recipes__recipe_id__requirements__post"];
@@ -602,8 +599,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Requirement */
-        get: operations["get_requirement_recipes__recipe_id__requirements__requirement_id__get"];
+        get?: never;
         put?: never;
         post?: never;
         /** Delete Requirement */
@@ -621,8 +617,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Recipe Ingredient */
-        get: operations["list_recipe_ingredient_recipes__recipe_id__recipeingredients__get"];
+        get?: never;
         put?: never;
         /** Create Recipe Ingredient */
         post: operations["create_recipe_ingredient_recipes__recipe_id__recipeingredients__post"];
@@ -639,8 +634,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Recipe Ingredient */
-        get: operations["get_recipe_ingredient_recipes__recipe_id__recipeingredients__ri_id__get"];
+        get?: never;
         put?: never;
         post?: never;
         /** Delete Recipe Ingredient */
@@ -2858,37 +2852,6 @@ export interface operations {
             };
         };
     };
-    list_steps_recipes__recipe_id__steps__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                recipe_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StepRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     create_step_recipes__recipe_id__steps__post: {
         parameters: {
             query?: never;
@@ -2906,38 +2869,6 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StepRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_step_recipes__recipe_id__steps__step_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                recipe_id: number;
-                step_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3022,37 +2953,6 @@ export interface operations {
             };
         };
     };
-    list_requirements_recipes__recipe_id__requirements__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                recipe_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RequirementRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     create_requirement_recipes__recipe_id__requirements__post: {
         parameters: {
             query?: never;
@@ -3070,38 +2970,6 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RequirementRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_requirement_recipes__recipe_id__requirements__requirement_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                recipe_id: number;
-                requirement_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3186,37 +3054,6 @@ export interface operations {
             };
         };
     };
-    list_recipe_ingredient_recipes__recipe_id__recipeingredients__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                recipe_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecipeIngredientRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     create_recipe_ingredient_recipes__recipe_id__recipeingredients__post: {
         parameters: {
             query?: never;
@@ -3234,38 +3071,6 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecipeIngredientRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_recipe_ingredient_recipes__recipe_id__recipeingredients__ri_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                recipe_id: number;
-                ri_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };
