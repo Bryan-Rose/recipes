@@ -32,6 +32,10 @@ def _create(client: TestClient, recipe_id: int, payload: dict) -> RecipeIngredie
     return RecipeIngredientRead.model_validate(response.json())
 
 
+def _ingredients(client: TestClient, recipe_id: int) -> list[RecipeIngredientRead]:
+    return RecipeRead.model_validate(client.get(f"/recipes/{recipe_id}").json()).recipe_ingredients
+
+
 def _only_id(db_session: Session, recipe_id: int) -> int:
     """Read the row id straight from the database.
 
@@ -80,70 +84,6 @@ def test_create_recipe_ingredient_for_unknown_recipe(
     assert response.status_code == 404
 
 
-def test_list_recipe_ingredients_empty(client: TestClient, recipe: RecipeRead):
-    response = client.get(f"/recipes/{recipe.id}/{PREFIX}/")
-
-    assert response.status_code == 200
-    assert response.json() == []
-
-
-def test_list_recipe_ingredients_is_scoped_to_its_recipe(
-    client: TestClient,
-    recipe: RecipeRead,
-    ingredient: IngredientRead,
-    measurement: MeasurementRead,
-    preparation: PreparationRead,
-):
-    other = RecipeRead.model_validate(client.post("/recipes/", json={"name": "Coq au Vin"}).json())
-    mine = _create(client, recipe.id, _payload(ingredient, measurement, preparation, amount=3))
-    _create(client, other.id, _payload(ingredient, measurement, preparation, amount=7))
-
-    response = client.get(f"/recipes/{recipe.id}/{PREFIX}/")
-
-    assert response.status_code == 200
-    assert [RecipeIngredientRead.model_validate(row) for row in response.json()] == [mine]
-
-
-def test_get_recipe_ingredient(
-    client: TestClient,
-    db_session: Session,
-    recipe: RecipeRead,
-    ingredient: IngredientRead,
-    measurement: MeasurementRead,
-    preparation: PreparationRead,
-):
-    created = _create(client, recipe.id, _payload(ingredient, measurement, preparation))
-    ri_id = _only_id(db_session, recipe.id)
-
-    response = client.get(f"/recipes/{recipe.id}/{PREFIX}/{ri_id}")
-
-    assert response.status_code == 200
-    assert RecipeIngredientRead.model_validate(response.json()) == created
-
-
-def test_get_recipe_ingredient_not_found(client: TestClient, recipe: RecipeRead):
-    response = client.get(f"/recipes/{recipe.id}/{PREFIX}/999")
-
-    assert response.status_code == 404
-
-
-def test_get_recipe_ingredient_under_the_wrong_recipe(
-    client: TestClient,
-    db_session: Session,
-    recipe: RecipeRead,
-    ingredient: IngredientRead,
-    measurement: MeasurementRead,
-    preparation: PreparationRead,
-):
-    other = RecipeRead.model_validate(client.post("/recipes/", json={"name": "Coq au Vin"}).json())
-    _create(client, recipe.id, _payload(ingredient, measurement, preparation))
-    ri_id = _only_id(db_session, recipe.id)
-
-    response = client.get(f"/recipes/{other.id}/{PREFIX}/{ri_id}")
-
-    assert response.status_code == 404
-
-
 def test_update_recipe_ingredient_amount(
     client: TestClient,
     db_session: Session,
@@ -158,8 +98,7 @@ def test_update_recipe_ingredient_amount(
     patch_response = client.patch(f"/recipes/{recipe.id}/{PREFIX}/{ri_id}", json={"amount_numerator": 8})
     assert patch_response.status_code == 200
 
-    response = client.get(f"/recipes/{recipe.id}/{PREFIX}/{ri_id}")
-    updated = RecipeIngredientRead.model_validate(response.json())
+    [updated] = _ingredients(client, recipe.id)
     assert (updated.amount_numerator, updated.amount_denominator) == (8, 1)
     # RecipeIngredientUpdate is all-optional; the three FKs we did not send
     # must survive exclude_unset untouched.
@@ -225,8 +164,7 @@ def test_delete_recipe_ingredient(
     delete_response = client.delete(f"/recipes/{recipe.id}/{PREFIX}/{ri_id}")
     assert delete_response.status_code == 204
 
-    assert client.get(f"/recipes/{recipe.id}/{PREFIX}/{ri_id}").status_code == 404
-    assert client.get(f"/recipes/{recipe.id}/{PREFIX}/").json() == []
+    assert _ingredients(client, recipe.id) == []
 
 
 def test_delete_recipe_ingredient_not_found(client: TestClient, recipe: RecipeRead):
@@ -244,13 +182,13 @@ def test_delete_recipe_ingredient_under_the_wrong_recipe(
     preparation: PreparationRead,
 ):
     other = RecipeRead.model_validate(client.post("/recipes/", json={"name": "Coq au Vin"}).json())
-    _create(client, recipe.id, _payload(ingredient, measurement, preparation))
+    created = _create(client, recipe.id, _payload(ingredient, measurement, preparation))
     ri_id = _only_id(db_session, recipe.id)
 
     delete_response = client.delete(f"/recipes/{other.id}/{PREFIX}/{ri_id}")
     assert delete_response.status_code == 404
 
-    assert client.get(f"/recipes/{recipe.id}/{PREFIX}/{ri_id}").status_code == 200
+    assert _ingredients(client, recipe.id) == [created]
 
 
 def test_recipe_ingredients_appear_on_the_parent_recipe(

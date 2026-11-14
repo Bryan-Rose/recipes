@@ -138,10 +138,6 @@ def get_step(db: Session, recipe_id: int, step_id: int) -> Step | None:
     return db.execute(select(Step).where(Step.recipe_id == recipe_id, Step.id == step_id)).scalar()
 
 
-def get_steps(db: Session, recipe_id: int) -> Sequence[Step]:
-    return db.execute(select(Step).where(Step.recipe_id == recipe_id).order_by(Step.position, Step.id)).scalars().all()
-
-
 def reorder_steps(db: Session, recipe: Recipe, order_in: StepOrder) -> list[Step]:
     by_id = {step.id: step for step in recipe.steps}
     # A list that no longer matches (a step added or removed since the client loaded) is refused, not merged.
@@ -173,10 +169,6 @@ def get_requirement(db: Session, recipe_id: int, requirement_id: int) -> Require
     return db.execute(select(Requirement).where(Requirement.recipe_id == recipe_id, Requirement.id == requirement_id)).scalar()
 
 
-def get_requirements(db: Session, recipe_id: int) -> Sequence[Requirement]:
-    return db.execute(select(Requirement).where(Requirement.recipe_id == recipe_id)).scalars().all()
-
-
 ## Requirement
 
 
@@ -206,10 +198,6 @@ def get_recipe_ingredient(db: Session, recipe_id: int, recipe_ingredient_id: int
     return db.execute(
         select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe_id, RecipeIngredient.id == recipe_ingredient_id)
     ).scalar()
-
-
-def get_recipe_ingredients(db: Session, recipe_id: int) -> Sequence[RecipeIngredient]:
-    return db.execute(select(RecipeIngredient).where(RecipeIngredient.recipe_id == recipe_id)).scalars().all()
 
 
 ## Recipe Ingredients
