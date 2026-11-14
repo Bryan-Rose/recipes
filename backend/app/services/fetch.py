@@ -159,9 +159,11 @@ class _Page(HTMLParser):
         super().__init__()
         self.text: list[str] = []
         self.json_ld: list[str] = []
+        self.next_data = ""  # Next.js's embedded page data (NYT Cooking's has more than its JSON-LD)
         self.og_image: str | None = None
         self._skipping: list[str] = []
         self._in_json_ld = False
+        self._in_next_data = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
@@ -171,18 +173,22 @@ class _Page(HTMLParser):
         elif tag == "script" and kind == "application/ld+json":
             self._in_json_ld = True
             self.json_ld.append("")
+        elif tag == "script" and attributes.get("id") == "__NEXT_DATA__":
+            self._in_next_data = True
         elif tag in _HIDDEN:
             self._skipping.append(tag)
 
     def handle_endtag(self, tag: str) -> None:
-        if tag == "script" and self._in_json_ld:
-            self._in_json_ld = False
+        if tag == "script" and (self._in_json_ld or self._in_next_data):
+            self._in_json_ld = self._in_next_data = False
         elif self._skipping and self._skipping[-1] == tag:
             self._skipping.pop()
 
     def handle_data(self, data: str) -> None:
         if self._in_json_ld:
             self.json_ld[-1] += data
+        elif self._in_next_data:
+            self.next_data += data
         elif not self._skipping and data.strip():
             self.text.append(data.strip())
 
@@ -209,13 +215,47 @@ def _recipe(page: _Page) -> dict | None:
     return None
 
 
+def _lines(node: Any) -> list[str]:
+    """The text of a rich-text document (NYT's ProseMirror JSON), one line per heading, list item or paragraph."""
+    if isinstance(node, list):
+        return [line for child in node for line in _lines(child)]
+    if not isinstance(node, dict):
+        return []
+    if node.get("type") in ("h3", "list_item", "paragraph"):
+        line = "".join(_texts(node)).strip()
+        return [line] if line else []
+    return _lines(node.get("content"))
+
+
+def _texts(node: Any) -> list[str]:
+    if isinstance(node, list):
+        return [text for child in node for text in _texts(child)]
+    if not isinstance(node, dict):
+        return []
+    return [node["text"]] if isinstance(node.get("text"), str) else _texts(node.get("content"))
+
+
+def _nyt_extras(page: _Page) -> dict:
+    """NYT Cooking's ingredient list with its group headings ("FOR THE GRAVY:"), which its JSON-LD drops, and its tips."""
+    try:
+        recipe = json.loads(page.next_data)["props"]["pageProps"]["scoopRecipe"]
+        ingredients = _lines(recipe["ingredients"]["doc"])
+        tips = _lines([tip["details"]["doc"] for tip in recipe.get("tips") or []])
+    except ValueError, RecursionError, LookupError, TypeError:
+        return {}  # not an NYT page, or NYT changed its page: the JSON-LD alone still has the recipe
+    if not ingredients:
+        return {}
+    return {"recipeIngredient": ingredients, "tips": tips} if tips else {"recipeIngredient": ingredients}
+
+
 def page_text(html: str) -> str:
     """The page's schema.org Recipe as JSON when it has one (most recipe sites do), else its visible text."""
     page = _Page()
     page.feed(html)
     if recipe := _recipe(page):
-        # Reviews can be most of the block and say nothing about the recipe.
-        recipe = {key: value for key, value in recipe.items() if key not in ("review", "aggregateRating", "video")}
+        # Reviews and reader comments can be most of the block and say nothing about the recipe.
+        dropped = ("review", "aggregateRating", "comment", "commentCount", "video")
+        recipe = {key: value for key, value in recipe.items() if key not in dropped} | _nyt_extras(page)
         return json.dumps(recipe, ensure_ascii=False, indent=1)[:MAX_TEXT]
     return "\n".join(page.text)[:MAX_TEXT]
 
