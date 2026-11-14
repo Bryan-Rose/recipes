@@ -13,16 +13,27 @@ from pydantic.json_schema import SkipJsonSchema
 # integer JavaScript (the frontend) and JSON-as-float can represent exactly.
 _MAX_INT = 2**53 - 1
 
-DbId = Annotated[int, Field(ge=1, le=_MAX_INT)]
+
+def _not_bool(value: object) -> object:
+    # Pydantic's lax mode reads JSON true/false as 1/0. Not Strict(): that would also refuse 1.0,
+    # which JSON Schema counts as an integer.
+    if isinstance(value, bool):
+        raise ValueError("must be a number, not true or false")  # noqa: TRY004 — pydantic turns only ValueError into a 422
+    return value
+
+
+_NotBool = BeforeValidator(_not_bool)
+
+DbId = Annotated[int, Field(ge=1, le=_MAX_INT), _NotBool]
 """A row id in a request body."""
 
-PositiveInt = Annotated[int, Field(ge=1, le=_MAX_INT)]
+PositiveInt = Annotated[int, Field(ge=1, le=_MAX_INT), _NotBool]
 """A stored count such as an amount or page number."""
 
-Minutes = Annotated[int, Field(ge=0, le=_MAX_INT)]
+Minutes = Annotated[int, Field(ge=0, le=_MAX_INT), _NotBool]
 """A duration in whole minutes; 0 is allowed (no resting time)."""
 
-Denominator = Literal[1, 2, 3, 4, 8]
+Denominator = Annotated[Literal[1, 2, 3, 4, 8], _NotBool]
 """The denominators an ingredient amount may use: halves, thirds, quarters, eighths."""
 
 IdPath = Annotated[int, Path(ge=1, le=_MAX_INT)]
