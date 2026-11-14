@@ -118,9 +118,69 @@ def ld(data: object) -> str:
 
 def test_prefers_the_schema_org_recipe():
     recipe = {"@type": ["Recipe", "NewsArticle"], "name": "Pancakes", "review": [{"reviewBody": "Yum"}], "recipeIngredient": ["2 eggs"]}
+    recipe |= {"comment": [{"@type": "Comment", "text": "Made these twice"}], "commentCount": 1}
     html = "<html><head>" + ld({"@type": "WebSite"}) + "<script type='application/ld+json'>{broken</script>"
     html += ld({"@context": "https://schema.org", "@graph": [{"@type": "Person"}, recipe]}) + "</head><body><p>Story</p></body></html>"
     assert json.loads(page_text(html)) == {"@type": ["Recipe", "NewsArticle"], "name": "Pancakes", "recipeIngredient": ["2 eggs"]}
+
+
+def doc(*nodes: dict) -> dict:
+    return {"doc": {"content": list(nodes)}}
+
+
+def text(value: str) -> dict:
+    return {"type": "text", "text": value}
+
+
+def heading(value: str) -> dict:
+    return {"type": "h3", "content": [text(value)]}
+
+
+def items(*lines: list[dict]) -> dict:
+    """A bullet list; each line is the text nodes of one item."""
+    return {
+        "type": "bullet_list",
+        "content": [{"type": "list_item", "content": [{"type": "paragraph", "content": line}]} for line in lines],
+    }
+
+
+# The shape of an NYT Cooking page (2026-11): its JSON-LD flattens the ingredient groups
+# and has no tips; the Next.js page data has both.
+NYT_LD = {"@type": "Recipe", "name": "Thanksgiving", "recipeIngredient": ["1 turkey breast", "1 cup cranberries"]}
+NYT_RECIPE = {
+    "ingredients": doc(
+        heading("FOR THE TURKEY:"),
+        items([text("1 turkey breast")]),
+        heading("FOR THE SAUCE:"),
+        items([text("1 cup "), {"type": "link", "content": [text("cranberries")]}]),  # split across nodes
+    ),
+    "tips": [{"details": doc({"type": "paragraph", "content": [text("Dry the bread in a low oven.")]})}],
+}
+
+
+def nyt_page(next_data: str) -> str:
+    return f'<html><head>{ld(NYT_LD)}<script id="__NEXT_DATA__" type="application/json">{next_data}</script></head></html>'
+
+
+def test_nyt_cooking_keeps_ingredient_groups_and_tips():
+    html = nyt_page(json.dumps({"props": {"pageProps": {"scoopRecipe": NYT_RECIPE}}}))
+    assert json.loads(page_text(html)) == NYT_LD | {
+        "recipeIngredient": ["FOR THE TURKEY:", "1 turkey breast", "FOR THE SAUCE:", "1 cup cranberries"],
+        "tips": ["Dry the bread in a low oven."],
+    }
+
+
+@pytest.mark.parametrize(
+    "next_data",
+    [
+        "{broken",
+        json.dumps({"props": {"pageProps": {}}}),
+        json.dumps({"props": {"pageProps": {"scoopRecipe": {"ingredients": "changed"}}}}),
+        json.dumps({"props": {"pageProps": {"scoopRecipe": {"ingredients": doc()}}}}),
+    ],
+)
+def test_nyt_cooking_falls_back_to_the_json_ld(next_data: str):
+    assert json.loads(page_text(nyt_page(next_data))) == NYT_LD
 
 
 def test_falls_back_to_the_visible_text():

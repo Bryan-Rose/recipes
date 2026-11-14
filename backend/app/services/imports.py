@@ -28,7 +28,8 @@ singular name.
 - The app can't store ranges ("1-2 cups": use the larger), amounts it can't express exactly, ingredient groups \
 ("For the sauce:"), or notes on an ingredient line ("optional", "plus more to serve"). Make the nearest fit, and add \
 one line per thing you changed or left out to notes, so nothing is lost.
-- notes: any other useful text from the recipe (tips, storage, variations), then the lines above. null if none.
+- notes: "By <name>" first when the recipe names its author, then any other useful text from the recipe (tips, \
+storage, variations), then the lines above. null if none.
 - Photos are pages of one recipe, in order. Ignore page numbers, running heads and anything that isn't this recipe. \
 If a page shows more than one recipe, take the one that continues across the photos (or the most complete one), and \
 say in notes which you took. Where the print is unreadable, leave a gap and say so in notes.
