@@ -34,10 +34,7 @@ def _totals(db: Session) -> tuple[list[ShoppingRecipeRead], _Totals]:
 
 def get_list(db: Session) -> ShoppingListRead:
     recipes, totals = _totals(db)
-    ticked = {
-        (c.ingredient_id, c.measurement_id): Fraction(c.amount_numerator, c.amount_denominator)
-        for c in db.execute(select(ShoppingListCheck)).scalars()
-    }
+    ticked = {(c.ingredient_id, c.measurement_id): Fraction(c.amount) for c in db.execute(select(ShoppingListCheck)).scalars()}
     lines = [
         ShoppingLine.model_validate(
             {
@@ -87,7 +84,7 @@ def set_checked(db: Session, ingredient_id: int, measurement_id: int, checked: b
     if line is None:
         raise NotOnListError
     check = check or ShoppingListCheck(ingredient_id=ingredient_id, measurement_id=measurement_id)
-    check.amount_numerator, check.amount_denominator = line[1].numerator, line[1].denominator
+    check.amount = str(line[1])
     db.add(check)
     db.commit()
 
@@ -112,4 +109,5 @@ _PRUNE_TICKS = text(
 
 @event.listens_for(Session, "before_commit")
 def _prune_ticks(session: Session) -> None:
-    session.execute(_PRUNE_TICKS)  # autoflushes first, so it sees this commit's changes
+    session.flush()  # the app's sessions don't autoflush, and the prune must see this commit's changes
+    session.execute(_PRUNE_TICKS)

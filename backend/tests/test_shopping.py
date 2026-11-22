@@ -201,3 +201,31 @@ def test_a_tick_stays_while_its_line_does(client: TestClient, ingredient: Ingred
     # An unrelated commit doesn't touch it.
     client.post("/tags/", json={"name": "quick"})
     assert _lines(client)[0][4]
+
+
+def test_ticks_amounts_beyond_64_bits(client: TestClient, ingredient: IngredientRead, measurement: MeasurementRead):
+    # Coprime servings near 2**53: shopped at 1 each, butter sums to a fraction whose denominator is ~8e31.
+    for name, servings in (("A", 9007199254740881), ("B", 9007199254740857)):
+        recipe_id = _recipe(client, name, servings, [(ingredient.id, measurement.id, 1, 1)])
+        client.put(f"/shopping-list/recipes/{recipe_id}", json={"servings": 1})
+    assert client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}").status_code == 204
+    assert _lines(client)[0][4]
+
+
+def test_prune_sees_the_commits_own_changes_without_autoflush(
+    client: TestClient, db_session, ingredient: IngredientRead, measurement: MeasurementRead
+):
+    from sqlalchemy.orm import sessionmaker
+
+    from app.models.shopping import ShoppingListCheck, ShoppingListRecipe
+
+    recipe_id = _recipe(client, "Cake", None, [(ingredient.id, measurement.id, 1, 1)])
+    client.put(f"/shopping-list/recipes/{recipe_id}", json={})
+    client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}")
+
+    # Like the app's SessionLocal: the pending delete must be flushed before the prune runs.
+    session = sessionmaker(bind=db_session.get_bind(), autoflush=False)()
+    session.delete(session.get_one(ShoppingListRecipe, recipe_id))
+    session.commit()
+    assert session.query(ShoppingListCheck).count() == 0
+    session.close()

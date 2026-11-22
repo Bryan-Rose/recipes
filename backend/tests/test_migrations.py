@@ -406,5 +406,5 @@ def test_existing_shopping_ticks_become_unticked(alembic_config: Config):
     command.upgrade(alembic_config, "5abfb0e76e51")
     with engine.connect() as connection:
         # A tick with no amount covers nothing, so its line shows as to buy until ticked again.
-        assert connection.execute(text("SELECT * FROM shopping_list_checks")).all() == [(1, 1, 0, 1)]
+        assert connection.execute(text("SELECT * FROM shopping_list_checks")).all() == [(1, 1, "0")]
     engine.dispose()

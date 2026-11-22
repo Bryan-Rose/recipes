@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Integer
+from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -32,6 +32,6 @@ class ShoppingListCheck(Base):
     # CASCADE: a tick never keeps a lookup row from being deleted.
     ingredient_id: Mapped[int] = mapped_column(Integer, ForeignKey("ingredients.id", ondelete="CASCADE"), primary_key=True)
     measurement_id: Mapped[int] = mapped_column(Integer, ForeignKey("measurements.id", ondelete="CASCADE"), primary_key=True)
-    # 0 for ticks stored before amounts were: they cover nothing, so they show as unticked.
-    amount_numerator: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    amount_denominator: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    # A fraction as text ("11/24"): sums of scaled amounts can outgrow SQLite's 64-bit integers.
+    # "0" for ticks stored before amounts were: they cover nothing, so they show as unticked.
+    amount: Mapped[str] = mapped_column(String, nullable=False, server_default="0")
