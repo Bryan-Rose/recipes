@@ -159,21 +159,45 @@ def test_a_tick_covers_the_amount_it_was_ticked_at(
 
 
 def test_a_tick_goes_when_its_line_leaves_the_list(client: TestClient, ingredient: IngredientRead, measurement: MeasurementRead):
+    """However the line leaves, a line that comes back starts unticked, with no list read in between."""
+    butter = {"ingredient_id": ingredient.id, "measurement_id": measurement.id, "amount_numerator": 1}
     cake = _recipe(client, "Cake", None, [(ingredient.id, measurement.id, 1, 1)])
     toast = _recipe(client, "Toast", None, [(ingredient.id, measurement.id, 1, 2)])
+
+    def tick_then(leave) -> bool:
+        """Lists Cake, ticks butter, runs `leave`, lists Toast; is butter still ticked?"""
+        client.put(f"/shopping-list/recipes/{cake}", json={})
+        assert client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}").status_code == 204
+        leave()
+        lines = client.put(f"/shopping-list/recipes/{toast}", json={}).json()["lines"]
+        client.delete("/shopping-list")
+        return lines[0]["checked"]
+
+    assert not tick_then(lambda: client.delete(f"/shopping-list/recipes/{cake}"))
+
+    def drop_butter_from_cake():
+        ri = client.get(f"/recipes/{cake}").json()["recipe_ingredients"][0]["id"]
+        assert client.delete(f"/recipes/{cake}/recipeingredients/{ri}").status_code == 204
+
+    assert not tick_then(drop_butter_from_cake)
+    client.post(f"/recipes/{cake}/recipeingredients/", json=butter)
+
+    def move_cake_to_grams():
+        gram = client.post("/measurements/", json={"name": "gram"}).json()["id"]
+        ri = client.get(f"/recipes/{cake}").json()["recipe_ingredients"][0]["id"]
+        assert client.patch(f"/recipes/{cake}/recipeingredients/{ri}", json={"measurement_id": gram}).status_code == 200
+
+    assert not tick_then(move_cake_to_grams)
+    ri = client.get(f"/recipes/{cake}").json()["recipe_ingredients"][0]["id"]
+    client.patch(f"/recipes/{cake}/recipeingredients/{ri}", json={"measurement_id": measurement.id})
+
+    assert not tick_then(lambda: client.delete(f"/recipes/{cake}"))
+
+
+def test_a_tick_stays_while_its_line_does(client: TestClient, ingredient: IngredientRead, measurement: MeasurementRead):
+    cake = _recipe(client, "Cake", None, [(ingredient.id, measurement.id, 1, 1)])
     client.put(f"/shopping-list/recipes/{cake}", json={})
     client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}")
-
-    # Removed without reading the list in between: the remove itself drops the tick.
-    client.delete(f"/shopping-list/recipes/{cake}")
-    client.put(f"/shopping-list/recipes/{toast}", json={})
-    assert _lines(client) == [("butter", "cup", 1, 2, False)]
-
-    # The line leaving through a recipe edit is caught when the list is read.
-    client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}")
-    ri = client.get(f"/recipes/{toast}").json()["recipe_ingredients"][0]["id"]
-    client.delete(f"/recipes/{toast}/recipeingredients/{ri}")
-    assert _lines(client) == []
-    body = {"ingredient_id": ingredient.id, "measurement_id": measurement.id, "amount_numerator": 1, "amount_denominator": 4}
-    client.post(f"/recipes/{toast}/recipeingredients/", json=body)
-    assert _lines(client) == [("butter", "cup", 1, 4, False)]
+    # An unrelated commit doesn't touch it.
+    client.post("/tags/", json={"name": "quick"})
+    assert _lines(client)[0][4]

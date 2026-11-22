@@ -1,6 +1,6 @@
 from fractions import Fraction
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, event, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.recipe import Recipe, RecipeIngredient
@@ -32,18 +32,8 @@ def _totals(db: Session) -> tuple[list[ShoppingRecipeRead], _Totals]:
     return recipes, totals
 
 
-def _prune_ticks(db: Session, totals: _Totals) -> None:
-    """Drops ticks whose line has left the list, so a line that returns later starts unticked."""
-    for check in db.execute(select(ShoppingListCheck)).scalars():
-        if (check.ingredient_id, check.measurement_id) not in totals:
-            db.delete(check)
-    db.commit()
-
-
 def get_list(db: Session) -> ShoppingListRead:
     recipes, totals = _totals(db)
-    # Also on read: a recipe edit or delete can drop a line without going through this service.
-    _prune_ticks(db, totals)
     ticked = {
         (c.ingredient_id, c.measurement_id): Fraction(c.amount_numerator, c.amount_denominator)
         for c in db.execute(select(ShoppingListCheck)).scalars()
@@ -78,8 +68,7 @@ def remove_recipe(db: Session, recipe_id: int) -> bool:
     if entry is None:
         return False
     db.delete(entry)
-    db.flush()
-    _prune_ticks(db, _totals(db)[1])
+    db.commit()
     return True
 
 
@@ -107,3 +96,20 @@ def clear(db: Session) -> None:
     db.execute(delete(ShoppingListRecipe))
     db.execute(delete(ShoppingListCheck))
     db.commit()
+
+
+# A line can leave the list through many paths: removing a recipe from it, deleting the recipe, or
+# deleting or changing one of its ingredients. Rather than each of them remembering to, every commit
+# drops the ticks whose line is gone, so a line that comes back later starts unticked.
+_PRUNE_TICKS = text(
+    "DELETE FROM shopping_list_checks WHERE NOT EXISTS ("
+    " SELECT 1 FROM shopping_list_recipes AS listed"
+    " JOIN recipe_ingredients AS ri ON ri.recipe_id = listed.recipe_id"
+    " WHERE ri.ingredient_id = shopping_list_checks.ingredient_id"
+    " AND ri.measurement_id = shopping_list_checks.measurement_id)"
+)
+
+
+@event.listens_for(Session, "before_commit")
+def _prune_ticks(session: Session) -> None:
+    session.execute(_PRUNE_TICKS)  # autoflushes first, so it sees this commit's changes
