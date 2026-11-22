@@ -32,7 +32,7 @@ def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record):
         dbapi_connection.execute("PRAGMA foreign_keys=ON")
 
 
-def get_db():
+def get_db():  # pragma: no cover — every test overrides it with a shared in-memory session (conftest.py)
     db = SessionLocal()
     try:
         yield db

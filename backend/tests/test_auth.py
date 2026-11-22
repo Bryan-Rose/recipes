@@ -517,3 +517,27 @@ def test_oidc_callback_refused_user_redirects_to_login(client: TestClient):
     response = client.get("/auth/oidc/callback", follow_redirects=False)
 
     assert response.headers["location"] == "/login?error=sso_not_allowed"
+
+
+def test_logout_without_a_session_cookie(client: TestClient):
+    client.cookies.clear()
+    response = client.post("/auth/logout")
+    assert response.status_code == 204
+
+
+def test_oidc_client_is_registered_once_per_process(monkeypatch: pytest.MonkeyPatch):
+    from authlib.integrations.starlette_client import OAuth
+
+    from app.routers import auth as auth_router
+
+    monkeypatch.setattr(auth_router, "_oauth", OAuth())
+    base = {"oidc_issuer": "https://idp.example.com/", "oidc_client_id": "recipes", "oidc_redirect_uri": "https://r.example/cb"}
+    public = get_settings().model_copy(update=base)
+    client = get_oidc_client(public)
+    assert client._server_metadata_url == "https://idp.example.com/.well-known/openid-configuration"
+    assert client.client_kwargs["token_endpoint_auth_method"] == "none"
+    assert get_oidc_client(public) is client
+
+    monkeypatch.setattr(auth_router, "_oauth", OAuth())
+    confidential = get_oidc_client(get_settings().model_copy(update={**base, "oidc_client_secret": "s3cret"}))
+    assert confidential.client_kwargs["token_endpoint_auth_method"] == "client_secret_basic"

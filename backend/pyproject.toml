@@ -50,5 +50,7 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-# Measured at 99% when added; raise it when coverage improves, never lower it to pass.
-fail_under = 99
+# 99 when added, 99.9 since #176 (actual 99.94%); raise it when coverage improves, never lower it to pass.
+fail_under = 99.9
+# The floor is compared after rounding to this many places: at 0, 98.5% rounded up to 99 and passed (#176).
+precision = 2
