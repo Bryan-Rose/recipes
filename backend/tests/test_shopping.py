@@ -99,9 +99,11 @@ def test_remove_and_clear(client: TestClient, ingredient: IngredientRead, measur
     assert _lines(client) == [("butter", "cup", 1, 1, False)]
 
 
-def test_unknown_recipe_or_lookup(client: TestClient, ingredient: IngredientRead):
+def test_unknown_recipe_or_line(client: TestClient, ingredient: IngredientRead, measurement: MeasurementRead):
     assert client.put("/shopping-list/recipes/999", json={}).status_code == 404
-    assert client.put(f"/shopping-list/checks/{ingredient.id}/999").status_code == 409
+    # A line that isn't on the list can't be ticked, so no tick waits for one to appear.
+    assert client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}").status_code == 404
+    assert client.put(f"/shopping-list/checks/{ingredient.id}/999").status_code == 404
 
 
 def test_invalid_servings(client: TestClient, recipe):
@@ -111,9 +113,9 @@ def test_invalid_servings(client: TestClient, recipe):
 
 def test_deleting_a_recipe_or_lookup_is_not_blocked(client: TestClient, measurement: MeasurementRead):
     salt = client.post("/ingredients/", json={"name": "salt"}).json()["id"]
-    recipe_id = _recipe(client, "Cake", None, [])
+    recipe_id = _recipe(client, "Cake", None, [(salt, measurement.id, 1, 1)])
     client.put(f"/shopping-list/recipes/{recipe_id}", json={})
-    client.put(f"/shopping-list/checks/{salt}/{measurement.id}")
+    assert client.put(f"/shopping-list/checks/{salt}/{measurement.id}").status_code == 204
 
     assert client.delete(f"/recipes/{recipe_id}").status_code == 204
     assert client.delete(f"/ingredients/{salt}").status_code == 204
@@ -123,3 +125,34 @@ def test_deleting_a_recipe_or_lookup_is_not_blocked(client: TestClient, measurem
 def test_requires_login(client: TestClient):
     client.cookies.clear()
     assert client.get("/shopping-list").status_code == 401
+
+
+def test_a_tick_covers_the_amount_it_was_ticked_at(
+    client: TestClient, db_session, ingredient: IngredientRead, measurement: MeasurementRead
+):
+    cake = _recipe(client, "Cake", 4, [(ingredient.id, measurement.id, 1, 1)])
+    toast = _recipe(client, "Toast", None, [])
+    client.put(f"/shopping-list/recipes/{cake}", json={"servings": 4})
+    client.put(f"/shopping-list/recipes/{toast}", json={})
+    assert client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}").status_code == 204
+
+    def butter_ticked() -> bool:
+        return _lines(client)[0][4]
+
+    # Needing less keeps it ticked: fewer servings.
+    client.put(f"/shopping-list/recipes/{cake}", json={"servings": 2})
+    assert butter_ticked()
+    # Back up to the amount it was ticked at: still covered.
+    client.put(f"/shopping-list/recipes/{cake}", json={"servings": 4})
+    assert butter_ticked()
+
+    # Editing a listed recipe to need more puts it back to buy.
+    body = {"ingredient_id": ingredient.id, "measurement_id": measurement.id, "amount_numerator": 1, "amount_denominator": 2}
+    assert client.post(f"/recipes/{toast}/recipeingredients/", json=body).status_code == 201
+    assert not butter_ticked()
+
+    # Re-ticking covers the new amount; removing a recipe needs less, so it stays ticked.
+    client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}")
+    assert butter_ticked()
+    client.delete(f"/shopping-list/recipes/{toast}")
+    assert butter_ticked()

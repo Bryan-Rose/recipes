@@ -1,24 +1,25 @@
 from fractions import Fraction
 
-from sqlalchemy import delete, select, tuple_
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.recipe import Recipe, RecipeIngredient
 from app.models.shopping import ShoppingListCheck, ShoppingListRecipe
 from app.schemas.shopping import ShoppingLine, ShoppingListRead, ShoppingRecipeRead
 
+_Totals = dict[tuple[int, int], tuple[RecipeIngredient, Fraction]]
 
-def get_list(db: Session) -> ShoppingListRead:
+
+def _totals(db: Session) -> tuple[list[ShoppingRecipeRead], _Totals]:
+    """The listed recipes, and the amount each (ingredient, measurement) line needs across them."""
     entries = db.execute(
         select(ShoppingListRecipe).options(
             selectinload(ShoppingListRecipe.recipe).selectinload(Recipe.recipe_ingredients).selectinload(RecipeIngredient.ingredient),
             selectinload(ShoppingListRecipe.recipe).selectinload(Recipe.recipe_ingredients).selectinload(RecipeIngredient.measurement),
         )
     ).scalars()
-    checked = set(db.execute(select(ShoppingListCheck.ingredient_id, ShoppingListCheck.measurement_id)).tuples())
-
     recipes: list[ShoppingRecipeRead] = []
-    totals: dict[tuple[int, int], tuple[RecipeIngredient, Fraction]] = {}
+    totals: _Totals = {}
     for entry in entries:
         recipe = entry.recipe
         recipes.append(ShoppingRecipeRead(recipe_id=recipe.id, name=recipe.name, servings=entry.servings, recipe_servings=recipe.servings))
@@ -28,7 +29,15 @@ def get_list(db: Session) -> ShoppingListRead:
             key = (ri.ingredient_id, ri.measurement_id)
             amount = Fraction(ri.amount_numerator, ri.amount_denominator) * scale
             totals[key] = (ri, totals[key][1] + amount if key in totals else amount)
+    return recipes, totals
 
+
+def get_list(db: Session) -> ShoppingListRead:
+    recipes, totals = _totals(db)
+    ticked = {
+        (c.ingredient_id, c.measurement_id): Fraction(c.amount_numerator, c.amount_denominator)
+        for c in db.execute(select(ShoppingListCheck)).scalars()
+    }
     lines = [
         ShoppingLine.model_validate(
             {
@@ -36,7 +45,7 @@ def get_list(db: Session) -> ShoppingListRead:
                 "measurement": ri.measurement,
                 "amount_numerator": amount.numerator,
                 "amount_denominator": amount.denominator,
-                "checked": key in checked,
+                "checked": key in ticked and ticked[key] >= amount,
             },
             from_attributes=True,
         )
@@ -51,10 +60,6 @@ def put_recipe(db: Session, recipe: Recipe, servings: int | None) -> None:
     entry = db.get(ShoppingListRecipe, recipe.id) or ShoppingListRecipe(recipe_id=recipe.id)
     entry.servings = servings
     db.add(entry)
-    # Its lines now need more than was ticked off, so they're to buy again.
-    pairs = [(ri.ingredient_id, ri.measurement_id) for ri in recipe.recipe_ingredients]
-    if pairs:
-        db.execute(delete(ShoppingListCheck).where(tuple_(ShoppingListCheck.ingredient_id, ShoppingListCheck.measurement_id).in_(pairs)))
     db.commit()
 
 
@@ -67,12 +72,23 @@ def remove_recipe(db: Session, recipe_id: int) -> bool:
     return True
 
 
+class NotOnListError(Exception):
+    pass
+
+
 def set_checked(db: Session, ingredient_id: int, measurement_id: int, checked: bool) -> None:
     check = db.get(ShoppingListCheck, (ingredient_id, measurement_id))
-    if checked and check is None:
-        db.add(ShoppingListCheck(ingredient_id=ingredient_id, measurement_id=measurement_id))
-    elif not checked and check is not None:
-        db.delete(check)
+    if not checked:
+        if check is not None:
+            db.delete(check)
+            db.commit()
+        return
+    line = _totals(db)[1].get((ingredient_id, measurement_id))
+    if line is None:
+        raise NotOnListError
+    check = check or ShoppingListCheck(ingredient_id=ingredient_id, measurement_id=measurement_id)
+    check.amount_numerator, check.amount_denominator = line[1].numerator, line[1].denominator
+    db.add(check)
     db.commit()
 
 

@@ -51,8 +51,14 @@ test('build a shared shopping list from two recipes, tick it off and clear it', 
   const shared = await (await admin.get('/api/shopping-list')).json()
   expect(shared.recipes.map((recipe: { name: string }) => recipe.name)).toEqual([cake, toast])
 
+  // Needing less keeps the tick.
   await page.getByRole('button', { name: `Remove ${toast}` }).click()
   await expect(page.getByRole('checkbox', { name: `½ ${id} cup butter-${id}` })).toBeChecked()
+
+  // The tick covered ¾ cup; doubling the cake to 1 cup puts it back to buy.
+  await page.getByLabel(`Servings of ${cake}`).fill('4')
+  await page.getByLabel(`Servings of ${cake}`).blur()
+  await expect(page.getByRole('checkbox', { name: `1 ${id} cup butter-${id}` })).not.toBeChecked()
 
   page.once('dialog', (dialog) => void dialog.accept())
   await page.getByRole('button', { name: 'Clear list' }).click()

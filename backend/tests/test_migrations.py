@@ -393,3 +393,18 @@ def test_duplicate_cookbooks_stop_the_migration(alembic_config: Config):
         assert MigrationContext.configure(connection).get_current_revision() == "08e03b8561b7"
         assert connection.execute(text("SELECT count(*) FROM cookbooks")).scalar() == 3
     engine.dispose()
+
+
+def test_existing_shopping_ticks_become_unticked(alembic_config: Config):
+    command.upgrade(alembic_config, "81dad1b1f59e")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO ingredients (id, name) VALUES (1, 'butter')"))
+        connection.execute(text("INSERT INTO measurements (id, name) VALUES (1, 'cup')"))
+        connection.execute(text("INSERT INTO shopping_list_checks (ingredient_id, measurement_id) VALUES (1, 1)"))
+
+    command.upgrade(alembic_config, "5abfb0e76e51")
+    with engine.connect() as connection:
+        # A tick with no amount covers nothing, so its line shows as to buy until ticked again.
+        assert connection.execute(text("SELECT * FROM shopping_list_checks")).all() == [(1, 1, 0, 1)]
+    engine.dispose()

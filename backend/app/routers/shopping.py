@@ -39,7 +39,11 @@ def remove_shopping_recipe(recipe_id: IdPath, db: Session = Depends(get_db)):
 
 @router.put("/checks/{ingredient_id}/{measurement_id}", status_code=status.HTTP_204_NO_CONTENT)
 def check_line(ingredient_id: IdPath, measurement_id: IdPath, db: Session = Depends(get_db)):
-    shopping_service.set_checked(db, ingredient_id, measurement_id, checked=True)
+    """Ticks the line at the amount it needs now; it comes back to buy if it later needs more."""
+    try:
+        shopping_service.set_checked(db, ingredient_id, measurement_id, checked=True)
+    except shopping_service.NotOnListError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such line on the shopping list")
 
 
 @router.delete("/checks/{ingredient_id}/{measurement_id}", status_code=status.HTTP_204_NO_CONTENT)
