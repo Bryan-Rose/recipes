@@ -181,3 +181,36 @@ it('shows the photo when there is one', async () => {
   show({ ...recipe, image: 'a'.repeat(32) })
   expect(await screen.findByRole('img', { name: 'Pancakes' })).toHaveAttribute('src', `/api/images/${'a'.repeat(32)}.jpg`)
 })
+
+describe('shopping list', () => {
+  beforeEach(() => signedIn())
+
+  it('adds the recipe at the servings shown', async () => {
+    let body: unknown
+    server.use(
+      http.put('/api/shopping-list/recipes/7', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({ recipes: [], lines: [] })
+      }),
+    )
+    const user = userEvent.setup()
+    show(recipe)
+
+    const box = await screen.findByLabelText('Servings')
+    await user.clear(box)
+    await user.type(box, '8')
+    await user.click(screen.getByRole('button', { name: 'Add to shopping list' }))
+    await vi.waitFor(() => expect(body).toEqual({ servings: 8 }))
+  })
+
+  it('links to the list when the recipe is on it', async () => {
+    server.use(
+      http.get('/api/shopping-list', () =>
+        HttpResponse.json({ recipes: [{ recipe_id: 7, name: 'Pancakes', servings: 4, recipe_servings: 4 }], lines: [] }),
+      ),
+    )
+    show(recipe)
+    expect(await screen.findByRole('link', { name: 'On shopping list' })).toHaveAttribute('href', '/shopping')
+    expect(screen.queryByRole('button', { name: 'Add to shopping list' })).not.toBeInTheDocument()
+  })
+})

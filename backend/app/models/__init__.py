@@ -8,6 +8,7 @@ from app.models.measurement import Measurement  # noqa: F401
 from app.models.preparation import Preparation  # noqa: F401
 from app.models.recipe import Recipe, RecipeIngredient, Requirement, Step, Tag  # noqa: F401
 from app.models.session import UserSession  # noqa: F401
+from app.models.shopping import ShoppingListCheck, ShoppingListRecipe  # noqa: F401
 from app.models.user import User  # noqa: F401
 
 # Counted in SQL as part of each cookbook query; defined here because cookbook.py can't import Recipe.

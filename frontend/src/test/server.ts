@@ -29,6 +29,7 @@ export const server = setupServer(
   http.get('/api/ingredients/', () => HttpResponse.json([])),
   http.get('/api/measurements/', () => HttpResponse.json([])),
   http.get('/api/preparations/', () => HttpResponse.json([])),
+  http.get('/api/shopping-list', () => HttpResponse.json({ recipes: [], lines: [] })),
 )
 
 export function signedIn(user: User = testUser) {

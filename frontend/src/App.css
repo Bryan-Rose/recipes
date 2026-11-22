@@ -521,3 +521,19 @@
   border-radius: var(--radius-sm);
   background: var(--surface-sunken);
 }
+
+.shopping-line {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  cursor: pointer;
+}
+
+.shopping-line--checked > span {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.shopping-servings {
+  width: 4.5rem;
+}
