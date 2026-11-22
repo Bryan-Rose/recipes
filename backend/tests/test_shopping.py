@@ -99,9 +99,11 @@ def test_remove_and_clear(client: TestClient, ingredient: IngredientRead, measur
     assert _lines(client) == [("butter", "cup", 1, 1, False)]
 
 
-def test_unknown_recipe_or_lookup(client: TestClient, ingredient: IngredientRead):
+def test_unknown_recipe_or_line(client: TestClient, ingredient: IngredientRead, measurement: MeasurementRead):
     assert client.put("/shopping-list/recipes/999", json={}).status_code == 404
-    assert client.put(f"/shopping-list/checks/{ingredient.id}/999").status_code == 409
+    # A line that isn't on the list can't be ticked, so no tick waits for one to appear.
+    assert client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}").status_code == 404
+    assert client.put(f"/shopping-list/checks/{ingredient.id}/999").status_code == 404
 
 
 def test_invalid_servings(client: TestClient, recipe):
@@ -111,9 +113,9 @@ def test_invalid_servings(client: TestClient, recipe):
 
 def test_deleting_a_recipe_or_lookup_is_not_blocked(client: TestClient, measurement: MeasurementRead):
     salt = client.post("/ingredients/", json={"name": "salt"}).json()["id"]
-    recipe_id = _recipe(client, "Cake", None, [])
+    recipe_id = _recipe(client, "Cake", None, [(salt, measurement.id, 1, 1)])
     client.put(f"/shopping-list/recipes/{recipe_id}", json={})
-    client.put(f"/shopping-list/checks/{salt}/{measurement.id}")
+    assert client.put(f"/shopping-list/checks/{salt}/{measurement.id}").status_code == 204
 
     assert client.delete(f"/recipes/{recipe_id}").status_code == 204
     assert client.delete(f"/ingredients/{salt}").status_code == 204
@@ -123,3 +125,107 @@ def test_deleting_a_recipe_or_lookup_is_not_blocked(client: TestClient, measurem
 def test_requires_login(client: TestClient):
     client.cookies.clear()
     assert client.get("/shopping-list").status_code == 401
+
+
+def test_a_tick_covers_the_amount_it_was_ticked_at(
+    client: TestClient, db_session, ingredient: IngredientRead, measurement: MeasurementRead
+):
+    cake = _recipe(client, "Cake", 4, [(ingredient.id, measurement.id, 1, 1)])
+    toast = _recipe(client, "Toast", None, [])
+    client.put(f"/shopping-list/recipes/{cake}", json={"servings": 4})
+    client.put(f"/shopping-list/recipes/{toast}", json={})
+    assert client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}").status_code == 204
+
+    def butter_ticked() -> bool:
+        return _lines(client)[0][4]
+
+    # Needing less keeps it ticked: fewer servings.
+    client.put(f"/shopping-list/recipes/{cake}", json={"servings": 2})
+    assert butter_ticked()
+    # Back up to the amount it was ticked at: still covered.
+    client.put(f"/shopping-list/recipes/{cake}", json={"servings": 4})
+    assert butter_ticked()
+
+    # Editing a listed recipe to need more puts it back to buy.
+    body = {"ingredient_id": ingredient.id, "measurement_id": measurement.id, "amount_numerator": 1, "amount_denominator": 2}
+    assert client.post(f"/recipes/{toast}/recipeingredients/", json=body).status_code == 201
+    assert not butter_ticked()
+
+    # Re-ticking covers the new amount; removing a recipe needs less, so it stays ticked.
+    client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}")
+    assert butter_ticked()
+    client.delete(f"/shopping-list/recipes/{toast}")
+    assert butter_ticked()
+
+
+def test_a_tick_goes_when_its_line_leaves_the_list(client: TestClient, ingredient: IngredientRead, measurement: MeasurementRead):
+    """However the line leaves, a line that comes back starts unticked, with no list read in between."""
+    butter = {"ingredient_id": ingredient.id, "measurement_id": measurement.id, "amount_numerator": 1}
+    cake = _recipe(client, "Cake", None, [(ingredient.id, measurement.id, 1, 1)])
+    toast = _recipe(client, "Toast", None, [(ingredient.id, measurement.id, 1, 2)])
+
+    def tick_then(leave) -> bool:
+        """Lists Cake, ticks butter, runs `leave`, lists Toast; is butter still ticked?"""
+        client.put(f"/shopping-list/recipes/{cake}", json={})
+        assert client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}").status_code == 204
+        leave()
+        lines = client.put(f"/shopping-list/recipes/{toast}", json={}).json()["lines"]
+        client.delete("/shopping-list")
+        return lines[0]["checked"]
+
+    assert not tick_then(lambda: client.delete(f"/shopping-list/recipes/{cake}"))
+
+    def drop_butter_from_cake():
+        ri = client.get(f"/recipes/{cake}").json()["recipe_ingredients"][0]["id"]
+        assert client.delete(f"/recipes/{cake}/recipeingredients/{ri}").status_code == 204
+
+    assert not tick_then(drop_butter_from_cake)
+    client.post(f"/recipes/{cake}/recipeingredients/", json=butter)
+
+    def move_cake_to_grams():
+        gram = client.post("/measurements/", json={"name": "gram"}).json()["id"]
+        ri = client.get(f"/recipes/{cake}").json()["recipe_ingredients"][0]["id"]
+        assert client.patch(f"/recipes/{cake}/recipeingredients/{ri}", json={"measurement_id": gram}).status_code == 200
+
+    assert not tick_then(move_cake_to_grams)
+    ri = client.get(f"/recipes/{cake}").json()["recipe_ingredients"][0]["id"]
+    client.patch(f"/recipes/{cake}/recipeingredients/{ri}", json={"measurement_id": measurement.id})
+
+    assert not tick_then(lambda: client.delete(f"/recipes/{cake}"))
+
+
+def test_a_tick_stays_while_its_line_does(client: TestClient, ingredient: IngredientRead, measurement: MeasurementRead):
+    cake = _recipe(client, "Cake", None, [(ingredient.id, measurement.id, 1, 1)])
+    client.put(f"/shopping-list/recipes/{cake}", json={})
+    client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}")
+    # An unrelated commit doesn't touch it.
+    client.post("/tags/", json={"name": "quick"})
+    assert _lines(client)[0][4]
+
+
+def test_ticks_amounts_beyond_64_bits(client: TestClient, ingredient: IngredientRead, measurement: MeasurementRead):
+    # Coprime servings near 2**53: shopped at 1 each, butter sums to a fraction whose denominator is ~8e31.
+    for name, servings in (("A", 9007199254740881), ("B", 9007199254740857)):
+        recipe_id = _recipe(client, name, servings, [(ingredient.id, measurement.id, 1, 1)])
+        client.put(f"/shopping-list/recipes/{recipe_id}", json={"servings": 1})
+    assert client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}").status_code == 204
+    assert _lines(client)[0][4]
+
+
+def test_prune_sees_the_commits_own_changes_without_autoflush(
+    client: TestClient, db_session, ingredient: IngredientRead, measurement: MeasurementRead
+):
+    from sqlalchemy.orm import sessionmaker
+
+    from app.models.shopping import ShoppingListCheck, ShoppingListRecipe
+
+    recipe_id = _recipe(client, "Cake", None, [(ingredient.id, measurement.id, 1, 1)])
+    client.put(f"/shopping-list/recipes/{recipe_id}", json={})
+    client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}")
+
+    # Like the app's SessionLocal: the pending delete must be flushed before the prune runs.
+    session = sessionmaker(bind=db_session.get_bind(), autoflush=False)()
+    session.delete(session.get_one(ShoppingListRecipe, recipe_id))
+    session.commit()
+    assert session.query(ShoppingListCheck).count() == 0
+    session.close()

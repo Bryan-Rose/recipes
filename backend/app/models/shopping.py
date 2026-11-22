@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Integer
+from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -21,10 +21,17 @@ class ShoppingListRecipe(Base):
 
 
 class ShoppingListCheck(Base):
-    """A shopping list line ticked off. Lines are one per ingredient and measurement."""
+    """A shopping list line ticked off, with the amount it needed then. Lines are one per ingredient and measurement.
+
+    The line shows as ticked only while it needs no more than that, so a recipe added, scaled up or
+    edited to need more puts it back to buy, and a smaller need keeps it ticked.
+    """
 
     __tablename__ = "shopping_list_checks"
 
     # CASCADE: a tick never keeps a lookup row from being deleted.
     ingredient_id: Mapped[int] = mapped_column(Integer, ForeignKey("ingredients.id", ondelete="CASCADE"), primary_key=True)
     measurement_id: Mapped[int] = mapped_column(Integer, ForeignKey("measurements.id", ondelete="CASCADE"), primary_key=True)
+    # A fraction as text ("11/24"): sums of scaled amounts can outgrow SQLite's 64-bit integers.
+    # "0" for ticks stored before amounts were: they cover nothing, so they show as unticked.
+    amount: Mapped[str] = mapped_column(String, nullable=False, server_default="0")

@@ -515,7 +515,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Check Line */
+        /**
+         * Check Line
+         * @description Ticks the line at the amount it needs now; it comes back to buy if it later needs more.
+         */
         put: operations["check_line_shopping_list_checks__ingredient_id___measurement_id__put"];
         post?: never;
         /** Uncheck Line */
