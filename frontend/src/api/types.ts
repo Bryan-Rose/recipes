@@ -47,3 +47,4 @@ export type Lookup = { id: number; name: string }
 
 export type ShoppingList = Schemas['ShoppingListRead']
 export type ShoppingLine = Schemas['ShoppingLine']
+export type PlannedMeal = Schemas['PlannedMealRead']

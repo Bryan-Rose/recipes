@@ -9,6 +9,7 @@ import { AuthorPage, CookbookIndex, CookbookPage } from './routes/Cookbooks'
 import { LoginPage } from './routes/LoginPage'
 import { ImportRecipe } from './routes/ImportRecipe'
 import { Lookups } from './routes/Lookups'
+import { MealPlan } from './routes/MealPlan'
 import { RecipeDetail } from './routes/RecipeDetail'
 import { RecipeEdit } from './routes/RecipeEdit'
 import { RecipeList } from './routes/RecipeList'
@@ -30,6 +31,7 @@ function App() {
           {user && (
             <div className="row">
               <Link to="/cookbooks">Cookbooks</Link>
+              <Link to="/plan">Meal plan</Link>
               <Link to="/shopping">Shopping list</Link>
               <Link to="/lookups">Lookups</Link>
               {user.is_superuser && <Link to="/users">Users</Link>}
@@ -72,6 +74,7 @@ function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
       <Route path="/cookbooks/:cookbookId" element={<CookbookPage />} />
       <Route path="/authors/:authorId" element={<AuthorPage />} />
       <Route path="/lookups/:kind?" element={<Lookups />} />
+      <Route path="/plan" element={<MealPlan />} />
       <Route path="/shopping" element={<ShoppingList />} />
       <Route path="/account" element={<Account />} />
       <Route path="/logout" element={<SignOutRoute />} />
