@@ -56,7 +56,7 @@ src/
               recipes.ts + lookups.ts (TanStack Query hooks), schema.d.ts (generated)
   components/ drafts.ts (form-shaped types), pickers, shared form pieces
   routes/     RecipeList, RecipeDetail, RecipeEdit → Create/EditRecipeForm, ImportRecipe (paste, photos or link → review in
-              CreateRecipeForm), Cookbooks (index, cookbook, author)
+              CreateRecipeForm), Cookbooks (index, cookbook, author), ShoppingList
   styles/     tokens.css — the whole palette, light and dark
 ```
 

@@ -468,6 +468,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/shopping-list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Shopping List */
+        get: operations["get_shopping_list_shopping_list_get"];
+        put?: never;
+        post?: never;
+        /** Clear Shopping List */
+        delete: operations["clear_shopping_list_shopping_list_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shopping-list/recipes/{recipe_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Shopping Recipe
+         * @description Adds the recipe to the list, or changes the servings it's shopped for.
+         */
+        put: operations["put_shopping_recipe_shopping_list_recipes__recipe_id__put"];
+        post?: never;
+        /** Remove Shopping Recipe */
+        delete: operations["remove_shopping_recipe_shopping_list_recipes__recipe_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shopping-list/checks/{ingredient_id}/{measurement_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Check Line */
+        put: operations["check_line_shopping_list_checks__ingredient_id___measurement_id__put"];
+        post?: never;
+        /** Uncheck Line */
+        delete: operations["uncheck_line_shopping_list_checks__ingredient_id___measurement_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recipes/": {
         parameters: {
             query?: never;
@@ -1086,6 +1143,43 @@ export interface components {
         RequirementUpdate: {
             /** Name */
             name: string;
+        };
+        /**
+         * ShoppingLine
+         * @description One ingredient in one measurement, summed over the list's recipes. The amount is exact, so any denominator.
+         */
+        ShoppingLine: {
+            ingredient: components["schemas"]["IngredientRead"];
+            measurement: components["schemas"]["MeasurementRead"];
+            /** Amount Numerator */
+            amount_numerator: number;
+            /** Amount Denominator */
+            amount_denominator: number;
+            /** Checked */
+            checked: boolean;
+        };
+        /** ShoppingListRead */
+        ShoppingListRead: {
+            /** Recipes */
+            recipes: components["schemas"]["ShoppingRecipeRead"][];
+            /** Lines */
+            lines: components["schemas"]["ShoppingLine"][];
+        };
+        /** ShoppingRecipeRead */
+        ShoppingRecipeRead: {
+            /** Recipe Id */
+            recipe_id: number;
+            /** Name */
+            name: string;
+            /** Servings */
+            servings: number | null;
+            /** Recipe Servings */
+            recipe_servings: number | null;
+        };
+        /** ShoppingRecipeWrite */
+        ShoppingRecipeWrite: {
+            /** Servings */
+            servings?: number | null;
         };
         /** StepCreate */
         StepCreate: {
@@ -2593,6 +2687,168 @@ export interface operations {
                 content: {
                     "image/jpeg": unknown;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_shopping_list_shopping_list_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListRead"];
+                };
+            };
+        };
+    };
+    clear_shopping_list_shopping_list_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    put_shopping_recipe_shopping_list_recipes__recipe_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShoppingRecipeWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_shopping_recipe_shopping_list_recipes__recipe_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_line_shopping_list_checks__ingredient_id___measurement_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+                measurement_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    uncheck_line_shopping_list_checks__ingredient_id___measurement_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+                measurement_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

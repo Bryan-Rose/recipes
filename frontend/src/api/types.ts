@@ -44,3 +44,6 @@ export type RecipeIngredientUpdate = Schemas['RecipeIngredientUpdate']
 
 /** The lookup tables share a shape: an id and a unique name. */
 export type Lookup = { id: number; name: string }
+
+export type ShoppingList = Schemas['ShoppingListRead']
+export type ShoppingLine = Schemas['ShoppingLine']

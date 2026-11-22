@@ -3,9 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router'
 
 import { imageUrl, useDeleteRecipe, useRecipe } from '../api/recipes'
 import { describeError } from '../api/errors'
-import type { RecipeIngredient } from '../api/types'
+import { usePutShoppingRecipe, useShoppingList } from '../api/shopping'
 import { ErrorState, Loading } from '../components/Feedback'
-import { formatAmount, scaleAmount } from '../components/amount'
+import { formatIngredient } from '../components/ingredient'
 import { formatMinutes } from '../components/minutes'
 
 export function RecipeDetail() {
@@ -14,6 +14,8 @@ export function RecipeDetail() {
   const navigate = useNavigate()
   const { data: recipe, isPending, error } = useRecipe(Number.isNaN(id) ? undefined : id)
   const deleteRecipe = useDeleteRecipe()
+  const shoppingList = useShoppingList()
+  const addToList = usePutShoppingRecipe()
   // The servings box as typed; null until the reader changes it. Resets on load.
   const [servingsDraft, setServingsDraft] = useState<string | null>(null)
 
@@ -66,6 +68,20 @@ export function RecipeDetail() {
       <div className="page-header">
         <h1>{recipe.name}</h1>
         <div className="row">
+          {shoppingList.data?.recipes.some((item) => item.recipe_id === recipe.id) ? (
+            <Link to="/shopping" className="button">
+              On shopping list
+            </Link>
+          ) : (
+            <button
+              type="button"
+              // At the servings shown, so scaling here first carries over.
+              onClick={() => addToList.mutate({ recipeId: recipe.id, servings: recipe.servings == null ? null : servings })}
+              disabled={!shoppingList.data || addToList.isPending}
+            >
+              Add to shopping list
+            </button>
+          )}
           <Link to={`/recipes/${recipe.id}/edit`} className="button">
             Edit
           </Link>
@@ -88,6 +104,7 @@ export function RecipeDetail() {
       )}
 
       {deleteRecipe.error && <p className="error-box">{describeError(deleteRecipe.error)}</p>}
+      {addToList.error && <p className="error-box">{describeError(addToList.error)}</p>}
 
       {(meta.length > 0 || recipe.servings != null) && (
         <div className="card detail-meta">
@@ -156,49 +173,6 @@ export function RecipeDetail() {
   )
 }
 
-/**
- * "1 ½ cups butter, melted".
- *
- * The "whole" measurement is really an absence and reads badly if printed:
- * it means the ingredient is simply counted. "To taste" has no real amount
- * (the editor still asks for one), so it's never printed or scaled: "salt, to taste".
- */
-function formatIngredient(item: RecipeIngredient, base: number | null, servings: number | null) {
-  const preparation = item.preparation?.name
-  if (item.measurement.name.toLowerCase() === 'to taste') {
-    return (
-      <>
-        <span>{item.ingredient.name}</span>
-        {preparation && <span className="ingredient-prep">, {preparation}</span>}
-        <span className="ingredient-prep">, {item.measurement.name}</span>
-      </>
-    )
-  }
-  const amount =
-    base != null && servings != null && servings !== base
-      ? scaleAmount(item.amount_numerator, item.amount_denominator, servings, base)
-      : { numerator: item.amount_numerator, denominator: item.amount_denominator, exact: true }
-  const counted = item.measurement.name.toLowerCase() === 'whole'
-  const plural = amount.numerator > amount.denominator
-
-  const unit = counted ? '' : `${plural ? pluralize(item.measurement.name) : item.measurement.name} `
-  const name = counted && plural ? pluralize(item.ingredient.name) : item.ingredient.name
-
-  return (
-    <>
-      <span className="ingredient-amount">
-        {amount.exact ? '' : <abbr title="rounded">≈</abbr>}
-        {formatAmount(amount.numerator, amount.denominator)}
-      </span>{' '}
-      <span>
-        {unit}
-        {name}
-      </span>
-      {preparation && <span className="ingredient-prep">, {preparation}</span>}
-    </>
-  )
-}
-
 /** The servings count as an editable number with −/+ steppers. */
 function ServingsScaler({
   value,
@@ -232,10 +206,4 @@ function ServingsScaler({
       </div>
     </div>
   )
-}
-
-function pluralize(word: string) {
-  if (word.endsWith('y')) return `${word.slice(0, -1)}ies`
-  if (word.endsWith('s') || word.endsWith('h') || word.endsWith('x')) return `${word}es`
-  return `${word}s`
 }
