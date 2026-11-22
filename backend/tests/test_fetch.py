@@ -314,3 +314,10 @@ def test_page_image_falls_back_to_og_image(recipe: dict):
 @pytest.mark.parametrize("html", ["<p>No picture</p>", '<meta property="og:image" content="http://[::1">'])
 def test_page_without_a_usable_image(html: str):
     assert page_image(html, "https://example.com/") is None
+
+
+def test_rich_text_skips_nodes_that_are_not_objects():
+    doc = {
+        "content": ["stray", 3, {"type": "paragraph", "content": [None, {"text": "Whisk"}, {"text": 5}, {"content": [{"text": " well"}]}]}]
+    }
+    assert fetch._lines(doc) == ["Whisk well"]

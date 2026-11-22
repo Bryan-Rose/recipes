@@ -90,7 +90,7 @@ def import_photos(
     return _run(user, lambda: imports_service.parse_photos(client, settings.import_model, db, body.photos))
 
 
-def get_fetch_transport() -> httpx2.BaseTransport | None:
+def get_fetch_transport() -> httpx2.BaseTransport | None:  # pragma: no cover — tests always swap in a mock
     """None is the real network; tests swap in a mock."""
     return None
 

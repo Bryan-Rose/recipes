@@ -236,3 +236,8 @@ def test_scrypt_runs_at_most_four_at_once(monkeypatch: pytest.MonkeyPatch):
     with ThreadPoolExecutor(16) as pool:
         list(pool.map(lambda _: verify_password("pw", "scrypt$00$00"), range(16)))
     assert peak == 4
+
+
+@pytest.mark.parametrize("stored", [None, "", "scrypt$only-one-part", "a$b$c$d"])
+def test_verify_password_refuses_missing_or_malformed_hashes(stored):
+    assert not verify_password("anything", stored)
