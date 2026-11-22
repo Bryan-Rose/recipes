@@ -32,8 +32,18 @@ def _totals(db: Session) -> tuple[list[ShoppingRecipeRead], _Totals]:
     return recipes, totals
 
 
+def _prune_ticks(db: Session, totals: _Totals) -> None:
+    """Drops ticks whose line has left the list, so a line that returns later starts unticked."""
+    for check in db.execute(select(ShoppingListCheck)).scalars():
+        if (check.ingredient_id, check.measurement_id) not in totals:
+            db.delete(check)
+    db.commit()
+
+
 def get_list(db: Session) -> ShoppingListRead:
     recipes, totals = _totals(db)
+    # Also on read: a recipe edit or delete can drop a line without going through this service.
+    _prune_ticks(db, totals)
     ticked = {
         (c.ingredient_id, c.measurement_id): Fraction(c.amount_numerator, c.amount_denominator)
         for c in db.execute(select(ShoppingListCheck)).scalars()
@@ -68,7 +78,8 @@ def remove_recipe(db: Session, recipe_id: int) -> bool:
     if entry is None:
         return False
     db.delete(entry)
-    db.commit()
+    db.flush()
+    _prune_ticks(db, _totals(db)[1])
     return True
 
 

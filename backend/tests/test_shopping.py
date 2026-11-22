@@ -156,3 +156,24 @@ def test_a_tick_covers_the_amount_it_was_ticked_at(
     assert butter_ticked()
     client.delete(f"/shopping-list/recipes/{toast}")
     assert butter_ticked()
+
+
+def test_a_tick_goes_when_its_line_leaves_the_list(client: TestClient, ingredient: IngredientRead, measurement: MeasurementRead):
+    cake = _recipe(client, "Cake", None, [(ingredient.id, measurement.id, 1, 1)])
+    toast = _recipe(client, "Toast", None, [(ingredient.id, measurement.id, 1, 2)])
+    client.put(f"/shopping-list/recipes/{cake}", json={})
+    client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}")
+
+    # Removed without reading the list in between: the remove itself drops the tick.
+    client.delete(f"/shopping-list/recipes/{cake}")
+    client.put(f"/shopping-list/recipes/{toast}", json={})
+    assert _lines(client) == [("butter", "cup", 1, 2, False)]
+
+    # The line leaving through a recipe edit is caught when the list is read.
+    client.put(f"/shopping-list/checks/{ingredient.id}/{measurement.id}")
+    ri = client.get(f"/recipes/{toast}").json()["recipe_ingredients"][0]["id"]
+    client.delete(f"/recipes/{toast}/recipeingredients/{ri}")
+    assert _lines(client) == []
+    body = {"ingredient_id": ingredient.id, "measurement_id": measurement.id, "amount_numerator": 1, "amount_denominator": 4}
+    client.post(f"/recipes/{toast}/recipeingredients/", json=body)
+    assert _lines(client) == [("butter", "cup", 1, 4, False)]
