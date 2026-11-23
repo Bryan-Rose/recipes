@@ -4,6 +4,7 @@ from sqlalchemy.orm import column_property
 from app.models.author import Author  # noqa: F401
 from app.models.cookbook import Cookbook
 from app.models.ingredient import Ingredient  # noqa: F401
+from app.models.meal_plan import PlannedMeal  # noqa: F401
 from app.models.measurement import Measurement  # noqa: F401
 from app.models.preparation import Preparation  # noqa: F401
 from app.models.recipe import Recipe, RecipeIngredient, Requirement, Step, Tag  # noqa: F401

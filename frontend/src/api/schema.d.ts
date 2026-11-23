@@ -528,6 +528,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/meal-plan/meals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Meals
+         * @description The meals planned from start to end, both included.
+         */
+        get: operations["list_meals_meal_plan_meals_get"];
+        put?: never;
+        /** Add Meal */
+        post: operations["add_meal_meal_plan_meals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/meal-plan/meals/{meal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Meal
+         * @description Changes the servings a meal is planned for.
+         */
+        put: operations["put_meal_meal_plan_meals__meal_id__put"];
+        post?: never;
+        /** Remove Meal */
+        delete: operations["remove_meal_meal_plan_meals__meal_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/meal-plan/shop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Shop
+         * @description Adds the meals from start to end to the shopping list.
+         */
+        post: operations["shop_meal_plan_shop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recipes/": {
         parameters: {
             query?: never;
@@ -784,6 +846,19 @@ export interface components {
             /** Image */
             image: string | null;
         };
+        /** DayRange */
+        DayRange: {
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -890,6 +965,41 @@ export interface components {
         PhotoImport: {
             /** Photos */
             photos: string[];
+        };
+        /** PlannedMealCreate */
+        PlannedMealCreate: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Recipe Id */
+            recipe_id: number;
+            /** Servings */
+            servings?: number | null;
+        };
+        /** PlannedMealRead */
+        PlannedMealRead: {
+            /** Id */
+            id: number;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Recipe Id */
+            recipe_id: number;
+            /** Name */
+            name: string;
+            /** Servings */
+            servings: number | null;
+            /** Recipe Servings */
+            recipe_servings: number | null;
+        };
+        /** PlannedMealWrite */
+        PlannedMealWrite: {
+            /** Servings */
+            servings?: number | null;
         };
         /** PreparationCreate */
         PreparationCreate: {
@@ -2852,6 +2962,168 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_meals_meal_plan_meals_get: {
+        parameters: {
+            query: {
+                start: string;
+                end: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlannedMealRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_meal_meal_plan_meals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlannedMealCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlannedMealRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_meal_meal_plan_meals__meal_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlannedMealWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlannedMealRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_meal_meal_plan_meals__meal_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    shop_meal_plan_shop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DayRange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListRead"];
+                };
             };
             /** @description Validation Error */
             422: {

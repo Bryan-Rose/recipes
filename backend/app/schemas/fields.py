@@ -1,7 +1,7 @@
 """Field types for values that cross the API boundary into or out of SQLite."""
 
 import base64
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Annotated, Literal, TypeVar
 
 from fastapi import Path
@@ -35,6 +35,17 @@ Minutes = Annotated[int, Field(ge=0, le=_MAX_INT), _NotBool]
 
 Denominator = Annotated[Literal[1, 2, 3, 4, 8], _NotBool]
 """The denominators an ingredient amount may use: halves, thirds, quarters, eighths."""
+
+
+def _iso_text(value: object) -> object:
+    # Lax mode reads a number as a Unix timestamp. Not Strict(): FastAPI validates JSON in Python mode, where that refuses text too.
+    if not isinstance(value, str):
+        raise ValueError("must be an ISO date such as 2026-11-23")  # noqa: TRY004 — pydantic turns only ValueError into a 422
+    return value
+
+
+Day = Annotated[date, BeforeValidator(_iso_text)]
+"""A calendar day in a request body, as an ISO date."""
 
 IdPath = Annotated[int, Path(ge=1, le=_MAX_INT)]
 """A row id in the URL path."""
