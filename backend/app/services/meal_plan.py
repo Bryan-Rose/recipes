@@ -46,5 +46,5 @@ def shop(db: Session, start: date, end: date) -> None:
         elif recipe.servings:
             # None on the list means as written.
             entry.servings = (entry.servings or recipe.servings) + (meal.servings or recipe.servings)
-        # shortcut: a recipe without servings can't be scaled, so planning it twice still lists it once.
+        # shortcut: a recipe without servings can't be scaled, so planning it twice still lists it once (#182).
     db.commit()
