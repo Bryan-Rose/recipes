@@ -11,8 +11,8 @@ import { server, signedIn } from '../test/server'
 const cup = { id: 1, name: 'cup' }
 const list: ShoppingList = {
   recipes: [
-    { recipe_id: 7, name: 'Pancakes', servings: 6, recipe_servings: 4 },
-    { recipe_id: 8, name: 'Toast', servings: null, recipe_servings: null },
+    { recipe_id: 7, name: 'Pancakes', servings: 6, recipe_servings: 4, batches: 1 },
+    { recipe_id: 8, name: 'Toast', servings: null, recipe_servings: null, batches: 2 },
   ],
   lines: [
     // ⅓ + ⅛ cup: no eighth or third matches, so it rounds.
@@ -91,6 +91,23 @@ it('changes servings on leaving the box, and only for a valid count', async () =
   await user.type(box, '2')
   await user.tab()
   expect(writes).toEqual(['PUT /api/shopping-list/recipes/7 {"servings":2}'])
+})
+
+it('changes batches of a recipe with no servings count', async () => {
+  const user = userEvent.setup()
+  const writes = show()
+  const box = await screen.findByLabelText('Batches of Toast')
+  expect(box).toHaveValue(2)
+  expect(screen.queryByLabelText('Batches of Pancakes')).not.toBeInTheDocument()
+
+  await user.clear(box)
+  await user.type(box, '0')
+  await user.tab()
+  expect(box).toHaveValue(2)
+  await user.clear(box)
+  await user.type(box, '3')
+  await user.tab()
+  expect(writes).toEqual(['PUT /api/shopping-list/recipes/8 {"servings":null,"batches":3}'])
 })
 
 it('removes a recipe and clears the list after asking', async () => {

@@ -8,6 +8,8 @@ from app.schemas.measurement import MeasurementRead
 class ShoppingRecipeWrite(BaseModel):
     # None shops for the recipe as written.
     servings: PositiveInt | None = None
+    # For a recipe with no servings count, how many times to make it.
+    batches: PositiveInt = 1
 
 
 class ShoppingRecipeRead(BaseModel):
@@ -15,6 +17,7 @@ class ShoppingRecipeRead(BaseModel):
     name: str
     servings: int | None
     recipe_servings: int | None  # what the amounts are written for
+    batches: int
 
 
 class ShoppingLine(BaseModel):

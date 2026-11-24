@@ -12,11 +12,12 @@ export const useShoppingList = () =>
     queryFn: () => api.get<ShoppingList>('/shopping-list'),
   })
 
-/** Adds a recipe, or changes the servings it's shopped for; null means as written. */
+/** Adds a recipe, or changes the servings it's shopped for (null means as written). A recipe with no
+ * servings count is shopped for in batches instead, 1 unless given. */
 export const usePutShoppingRecipe = () =>
   useMutation({
-    mutationFn: ({ recipeId, servings }: { recipeId: number; servings: number | null }) =>
-      api.put<ShoppingList>(`/shopping-list/recipes/${recipeId}`, { servings }),
+    mutationFn: ({ recipeId, ...body }: { recipeId: number; servings: number | null; batches?: number }) =>
+      api.put<ShoppingList>(`/shopping-list/recipes/${recipeId}`, body),
   })
 
 export const useRemoveShoppingRecipe = () =>

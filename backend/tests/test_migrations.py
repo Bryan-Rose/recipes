@@ -408,3 +408,17 @@ def test_existing_shopping_ticks_become_unticked(alembic_config: Config):
         # A tick with no amount covers nothing, so its line shows as to buy until ticked again.
         assert connection.execute(text("SELECT * FROM shopping_list_checks")).all() == [(1, 1, "0")]
     engine.dispose()
+
+
+def test_listed_recipes_start_at_one_batch(alembic_config: Config):
+    command.upgrade(alembic_config, "76e4d76a644b")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
+        connection.execute(text("INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'Toast', 1)"))
+        connection.execute(text("INSERT INTO shopping_list_recipes (recipe_id, servings) VALUES (1, NULL)"))
+
+    command.upgrade(alembic_config, "6f377117db24")
+    with engine.connect() as connection:
+        assert connection.execute(text("SELECT recipe_id, servings, batches FROM shopping_list_recipes")).all() == [(1, None, 1)]
+    engine.dispose()

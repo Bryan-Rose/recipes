@@ -51,7 +51,7 @@ def test_sums_by_ingredient_and_measurement(client: TestClient, ingredient: Ingr
 def test_scales_by_servings_exactly(client: TestClient, ingredient: IngredientRead, measurement: MeasurementRead):
     recipe_id = _recipe(client, "Cake", 4, [(ingredient.id, measurement.id, 1, 3)])
     response = client.put(f"/shopping-list/recipes/{recipe_id}", json={"servings": 6})
-    assert response.json()["recipes"] == [{"recipe_id": recipe_id, "name": "Cake", "servings": 6, "recipe_servings": 4}]
+    assert response.json()["recipes"] == [{"recipe_id": recipe_id, "name": "Cake", "servings": 6, "recipe_servings": 4, "batches": 1}]
     assert _lines(client) == [("butter", "cup", 1, 2, False)]  # ⅓ × 6/4
 
     # PUT again changes the servings rather than adding the recipe twice.
@@ -229,3 +229,17 @@ def test_prune_sees_the_commits_own_changes_without_autoflush(
     session.commit()
     assert session.query(ShoppingListCheck).count() == 0
     session.close()
+
+
+def test_batches_scale_a_recipe_without_servings(client: TestClient, ingredient: IngredientRead, measurement: MeasurementRead):
+    toast = _recipe(client, "Toast", None, [(ingredient.id, measurement.id, 1, 4)])
+    cake = _recipe(client, "Cake", 4, [(ingredient.id, measurement.id, 1, 1)])
+    response = client.put(f"/shopping-list/recipes/{toast}", json={"batches": 3})
+    assert response.json()["recipes"] == [{"recipe_id": toast, "name": "Toast", "servings": None, "recipe_servings": None, "batches": 3}]
+    assert _lines(client) == [("butter", "cup", 3, 4, False)]
+
+    # A recipe with a servings count scales by those; batches don't apply to it.
+    client.put(f"/shopping-list/recipes/{cake}", json={"servings": 4, "batches": 2})
+    assert _lines(client) == [("butter", "cup", 7, 4, False)]
+
+    assert client.put(f"/shopping-list/recipes/{toast}", json={"batches": 0}).status_code == 422

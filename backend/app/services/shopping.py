@@ -22,9 +22,16 @@ def _totals(db: Session) -> tuple[list[ShoppingRecipeRead], _Totals]:
     totals: _Totals = {}
     for entry in entries:
         recipe = entry.recipe
-        recipes.append(ShoppingRecipeRead(recipe_id=recipe.id, name=recipe.name, servings=entry.servings, recipe_servings=recipe.servings))
+        recipes.append(
+            ShoppingRecipeRead(
+                recipe_id=recipe.id, name=recipe.name, servings=entry.servings, recipe_servings=recipe.servings, batches=entry.batches
+            )
+        )
         # Fraction keeps the sum exact (⅓ + ⅓ + ⅓ is 1); the browser rounds once, for display.
-        scale = Fraction(entry.servings, recipe.servings) if entry.servings and recipe.servings else Fraction(1)
+        if recipe.servings:
+            scale = Fraction(entry.servings or recipe.servings, recipe.servings)
+        else:
+            scale = Fraction(entry.batches)
         for ri in recipe.recipe_ingredients:
             key = (ri.ingredient_id, ri.measurement_id)
             amount = Fraction(ri.amount_numerator, ri.amount_denominator) * scale
@@ -53,9 +60,10 @@ def get_list(db: Session) -> ShoppingListRead:
     return ShoppingListRead(recipes=recipes, lines=lines)
 
 
-def put_recipe(db: Session, recipe: Recipe, servings: int | None) -> None:
+def put_recipe(db: Session, recipe: Recipe, servings: int | None, batches: int) -> None:
     entry = db.get(ShoppingListRecipe, recipe.id) or ShoppingListRecipe(recipe_id=recipe.id)
     entry.servings = servings
+    entry.batches = batches
     db.add(entry)
     db.commit()
 

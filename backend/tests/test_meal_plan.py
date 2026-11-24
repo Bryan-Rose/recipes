@@ -67,9 +67,14 @@ def test_shop_adds_the_weeks_servings_to_the_list(client: TestClient, ingredient
 
     response = client.post("/meal-plan/shop", json=WEEK)
     assert response.status_code == 200
-    assert [(r["name"], r["servings"]) for r in response.json()["recipes"]] == [("Cake", 6), ("Soup", 5), ("Toast", None)]
-    # Cake 6/4 + Soup 5/2 + Toast once.
-    assert [(line["amount_numerator"], line["amount_denominator"]) for line in response.json()["lines"]] == [(5, 1)]
+    recipes = [(r["name"], r["servings"], r["batches"]) for r in response.json()["recipes"]]
+    assert recipes == [("Cake", 6, 1), ("Soup", 5, 1), ("Toast", None, 2)]
+    # Cake 6/4 + Soup 5/2 + Toast twice.
+    assert [(line["amount_numerator"], line["amount_denominator"]) for line in response.json()["lines"]] == [(6, 1)]
+
+    # Shopping the week again adds another batch for each of Toast's meals.
+    again = client.post("/meal-plan/shop", json=WEEK).json()["recipes"]
+    assert [(r["name"], r["servings"], r["batches"]) for r in again] == [("Cake", 12, 1), ("Soup", 8, 1), ("Toast", None, 4)]
 
     # The plan is left as it was.
     assert len(client.get("/meal-plan/meals", params=WEEK).json()) == 5

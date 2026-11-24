@@ -41,10 +41,12 @@ def shop(db: Session, start: date, end: date) -> None:
         recipe = meal.recipe
         entry = listed.get(recipe.id)
         if entry is None:
-            listed[recipe.id] = entry = ShoppingListRecipe(recipe_id=recipe.id, servings=meal.servings)
+            listed[recipe.id] = entry = ShoppingListRecipe(recipe_id=recipe.id, servings=meal.servings, batches=1)
             db.add(entry)
         elif recipe.servings:
             # None on the list means as written.
             entry.servings = (entry.servings or recipe.servings) + (meal.servings or recipe.servings)
-        # shortcut: a recipe without servings can't be scaled, so planning it twice still lists it once (#182).
+        else:
+            # Nothing to scale by, so each meal is one more batch.
+            entry.batches += 1
     db.commit()
