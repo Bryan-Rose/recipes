@@ -206,7 +206,7 @@ describe('shopping list', () => {
   it('links to the list when the recipe is on it', async () => {
     server.use(
       http.get('/api/shopping-list', () =>
-        HttpResponse.json({ recipes: [{ recipe_id: 7, name: 'Pancakes', servings: 4, recipe_servings: 4 }], lines: [] }),
+        HttpResponse.json({ recipes: [{ recipe_id: 7, name: 'Pancakes', servings: 4, recipe_servings: 4, batches: 1 }], lines: [] }),
       ),
     )
     show(recipe)

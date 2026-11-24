@@ -81,10 +81,29 @@ export function ShoppingList() {
                 <li key={recipe.recipe_id}>
                   <div className="row">
                     <Link to={`/recipes/${recipe.recipe_id}`}>{recipe.name}</Link>
-                    {recipe.recipe_servings != null && (
+                    {/* Each box saves on leaving it; keyed so a change from elsewhere replaces what's shown.
+                        Nothing to scale by without a servings count, so that recipe is made in batches. */}
+                    {recipe.recipe_servings == null ? (
+                      <label className="row muted">
+                        Batches
+                        <input
+                          key={recipe.batches}
+                          type="number"
+                          min="1"
+                          inputMode="numeric"
+                          className="shopping-servings"
+                          aria-label={`Batches of ${recipe.name}`}
+                          defaultValue={recipe.batches}
+                          onBlur={(event) => {
+                            const batches = Number(event.target.value)
+                            if (!Number.isInteger(batches) || batches < 1) event.target.value = String(recipe.batches)
+                            else if (batches !== recipe.batches) putRecipe.mutate({ recipeId: recipe.recipe_id, servings: null, batches })
+                          }}
+                        />
+                      </label>
+                    ) : (
                       <label className="row muted">
                         Servings
-                        {/* Saved on leaving the box; keyed so a change from elsewhere replaces what's shown. */}
                         <input
                           key={recipe.servings}
                           type="number"

@@ -17,6 +17,8 @@ class ShoppingListRecipe(Base):
     # CASCADE: deleting a recipe takes it off the list rather than failing as still in use.
     recipe_id: Mapped[int] = mapped_column(Integer, ForeignKey("recipes.id", ondelete="CASCADE"), primary_key=True)
     servings: Mapped[int | None] = mapped_column(Integer, nullable=True)  # None: as written
+    # How many times to make a recipe that has no servings count to scale by; ignored for one that has.
+    batches: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     recipe: Mapped[Recipe] = relationship()
 
 

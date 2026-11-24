@@ -496,7 +496,7 @@ export interface paths {
         get?: never;
         /**
          * Put Shopping Recipe
-         * @description Adds the recipe to the list, or changes the servings it's shopped for.
+         * @description Adds the recipe to the list, or changes the servings (or, without a servings count, the batches) it's shopped for.
          */
         put: operations["put_shopping_recipe_shopping_list_recipes__recipe_id__put"];
         post?: never;
@@ -1288,11 +1288,18 @@ export interface components {
             servings: number | null;
             /** Recipe Servings */
             recipe_servings: number | null;
+            /** Batches */
+            batches: number;
         };
         /** ShoppingRecipeWrite */
         ShoppingRecipeWrite: {
             /** Servings */
             servings?: number | null;
+            /**
+             * Batches
+             * @default 1
+             */
+            batches: number;
         };
         /** StepCreate */
         StepCreate: {

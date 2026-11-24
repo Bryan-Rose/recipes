@@ -23,11 +23,11 @@ def clear_shopping_list(db: Session = Depends(get_db)):
 
 @router.put("/recipes/{recipe_id}", response_model=ShoppingListRead)
 def put_shopping_recipe(recipe_id: IdPath, body: ShoppingRecipeWrite, db: Session = Depends(get_db)):
-    """Adds the recipe to the list, or changes the servings it's shopped for."""
+    """Adds the recipe to the list, or changes the servings (or, without a servings count, the batches) it's shopped for."""
     recipe = recipes_service.get_recipe(db, recipe_id)
     if recipe is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    shopping_service.put_recipe(db, recipe, body.servings)
+    shopping_service.put_recipe(db, recipe, body.servings, body.batches)
     return shopping_service.get_list(db)
 
 
