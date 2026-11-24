@@ -11,8 +11,10 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings, get_settings
 from app.main import app as fastapi_app
+from app.models import RecipeImportRecord
 from app.routers.imports import CLAUDE_TIMEOUT_SECONDS, get_fetch_transport, get_import_client
 from app.services import fetch
+from tests.test_images import upload
 
 DRAFT = {
     "name": "Pancakes",
@@ -71,7 +73,7 @@ def test_returns_the_parsed_draft(client: TestClient, fake_api: FakeApi):
     assert response.status_code == 200
     # Sonnet 5.5: 2000 x $2/M + 500 x $10/M.
     usage = {"model": "claude-sonnet-5-5", "input_tokens": 2000, "output_tokens": 500, "cost_usd": pytest.approx(0.009)}
-    assert response.json() == {**DRAFT, "usage": usage, "image": None}
+    assert response.json() == {**DRAFT, "usage": usage, "image": None, "import_id": response.json()["import_id"]}
 
 
 def test_prompt_lists_existing_lookups_and_the_text(client: TestClient, fake_api: FakeApi, ingredient, measurement, preparation):
@@ -346,3 +348,92 @@ def test_empty_page_is_422(client: TestClient, fake_api: FakeApi, monkeypatch: p
     monkeypatch.setattr(fetch, "page_text", lambda html: "")
     assert client.post("/imports/url", json={"url": "https://example.com/"}).json() == {"detail": "Couldn't read a recipe from that"}
     assert fake_api.requests == []
+
+
+## History
+
+
+@pytest.mark.parametrize(
+    ("body", "outcome"),
+    [(message(json.dumps(DRAFT)), "draft"), (message("", "refusal"), "no_draft"), (message('{"name": "Pan', "max_tokens"), "cut_off")],
+)
+def test_every_parse_is_stored(client: TestClient, fake_api: FakeApi, body: dict, outcome: str):
+    fake_api.body = body
+    client.post("/imports/text", json={"text": "Pancakes"})
+    (row,) = client.get("/imports/").json()
+    assert row["source"] == "text"
+    assert row["outcome"] == outcome
+    assert row["recipe"] is None
+    assert {k: row[k] for k in ("model", "input_tokens", "output_tokens")} == {
+        "model": "claude-sonnet-5-5",
+        "input_tokens": 2000,
+        "output_tokens": 500,
+    }
+    assert row["cost_usd"] == pytest.approx(0.009)
+    assert row["created_at"].endswith("Z") or row["created_at"].endswith("+00:00")
+
+
+def test_failed_call_is_not_stored(client: TestClient, fake_api: FakeApi):
+    fake_api.status = 500
+    fake_api.body = {"type": "error", "error": {"type": "api_error", "message": "boom"}}
+    assert client.post("/imports/text", json={"text": "Pancakes"}).status_code == 502
+    assert client.get("/imports/").json() == []
+
+
+def test_history_is_newest_first_with_source(client: TestClient, fake_api: FakeApi, recipe_site):
+    client.post("/imports/text", json={"text": "Pancakes"})
+    client.post("/imports/photos", json={"photos": [JPEG]})
+    assert client.post("/imports/url", json={"url": "https://example.com/"}).status_code == 200
+    assert [row["source"] for row in client.get("/imports/").json()] == ["url", "photos", "text"]
+
+
+def test_saving_the_draft_links_its_cost_to_the_recipe(client: TestClient, fake_api: FakeApi):
+    import_id = client.post("/imports/text", json={"text": "Pancakes"}).json()["import_id"]
+    recipe = client.post("/recipes/", json={"name": "Pancakes", "import_id": import_id}).json()
+    assert recipe["source_import"] == {
+        "model": "claude-sonnet-5-5",
+        "input_tokens": 2000,
+        "output_tokens": 500,
+        "cost_usd": pytest.approx(0.009),
+    }
+    assert client.get(f"/recipes/{recipe['id']}").json()["source_import"]["input_tokens"] == 2000
+    (row,) = client.get("/imports/").json()
+    assert row["recipe"] == {"id": recipe["id"], "name": "Pancakes"}
+
+
+def test_recipe_without_an_import_has_no_cost(client: TestClient, recipe):
+    assert client.get(f"/recipes/{recipe.id}").json()["source_import"] is None
+
+
+def test_an_import_links_to_one_recipe(client: TestClient, fake_api: FakeApi, images_dir: Path):
+    import_id = client.post("/imports/text", json={"text": "Pancakes"}).json()["import_id"]
+    assert client.post("/recipes/", json={"name": "Pancakes", "import_id": import_id}).status_code == 201
+    response = client.post("/recipes/", json={"name": "Waffles", "import_id": import_id, "image": upload()})
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Unknown import, or a recipe was already saved from it"
+    assert client.post("/recipes/", json={"name": "Crepes", "import_id": import_id + 1}).status_code == 409
+    assert [r["name"] for r in client.get("/recipes/").json()] == ["Pancakes"]
+    assert list(images_dir.glob("*")) == []  # refused before the image was written
+
+
+def test_deleting_the_recipe_or_user_keeps_the_cost(client: TestClient, fake_api: FakeApi, user, db_session):
+    import_id = client.post("/imports/text", json={"text": "Pancakes"}).json()["import_id"]
+    recipe = client.post("/recipes/", json={"name": "Pancakes", "import_id": import_id}).json()
+    assert client.delete(f"/recipes/{recipe['id']}").status_code == 204
+    (row,) = client.get("/imports/").json()
+    assert row["recipe"] is None
+    # The deleted recipe's import can be saved again.
+    assert client.post("/recipes/", json={"name": "Pancakes", "import_id": import_id}).status_code == 201
+
+    other = db_session.get(RecipeImportRecord, import_id)
+    other.user_id = user.id
+    db_session.commit()
+    assert client.delete(f"/users/{user.id}").status_code == 204
+    db_session.expire_all()
+    assert db_session.get(RecipeImportRecord, import_id).user_id is None
+    assert len(client.get("/imports/").json()) == 1
+
+
+def test_history_requires_login_not_admin(client: TestClient, db_session):
+    client.cookies.clear()
+    assert client.get("/imports/").status_code == 401

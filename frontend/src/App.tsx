@@ -1,12 +1,13 @@
 import { useEffect } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 
-import { useLogout, useMe } from './api/auth'
+import { useAuthConfig, useLogout, useMe } from './api/auth'
 import { describeError } from './api/errors'
 import { ErrorState, Loading } from './components/Feedback'
 import { Account } from './routes/Account'
 import { AuthorPage, CookbookIndex, CookbookPage } from './routes/Cookbooks'
 import { LoginPage } from './routes/LoginPage'
+import { ImportCosts } from './routes/ImportCosts'
 import { ImportRecipe } from './routes/ImportRecipe'
 import { Lookups } from './routes/Lookups'
 import { MealPlan } from './routes/MealPlan'
@@ -20,6 +21,7 @@ import './App.css'
 function App() {
   const { data: user, isPending, error } = useMe()
   const navigate = useNavigate()
+  const importEnabled = useAuthConfig().data?.recipe_import
 
   return (
     <>
@@ -34,6 +36,7 @@ function App() {
               <Link to="/plan">Meal plan</Link>
               <Link to="/shopping">Shopping list</Link>
               <Link to="/lookups">Lookups</Link>
+              {importEnabled && <Link to="/import-costs">Import costs</Link>}
               {user.is_superuser && <Link to="/users">Users</Link>}
               <Link to="/account" className="muted">
                 {user.full_name}
@@ -76,6 +79,7 @@ function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
       <Route path="/lookups/:kind?" element={<Lookups />} />
       <Route path="/plan" element={<MealPlan />} />
       <Route path="/shopping" element={<ShoppingList />} />
+      <Route path="/import-costs" element={<ImportCosts />} />
       <Route path="/account" element={<Account />} />
       <Route path="/logout" element={<SignOutRoute />} />
       <Route path="/users" element={isAdmin ? <UserAdmin /> : <NotFound />} />

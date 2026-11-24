@@ -5,6 +5,7 @@ import { useAuthConfig } from '../api/auth'
 import { describeError } from '../api/errors'
 import { useIngredients, useMeasurements, usePreparations } from '../api/lookups'
 import { useImportRecipe } from '../api/recipes'
+import { formatCost } from '../components/cost'
 import { fromImport } from '../components/drafts'
 import { ErrorState, Loading } from '../components/Feedback'
 import { jpegUrl, toJpeg } from '../components/photos'
@@ -54,7 +55,7 @@ export function ImportRecipe() {
           )}
           <p className="muted">
             Read by {model}: {input_tokens.toLocaleString()} tokens in, {output_tokens.toLocaleString()} out, costing{' '}
-            {cost_usd === null ? 'an unknown amount' : `$${cost_usd.toFixed(3)}`}.
+            {cost_usd === null ? 'an unknown amount' : formatCost(cost_usd)}.
           </p>
           {/* Back to the source with it kept; changes made in the review are dropped, after asking. */}
           <button
@@ -73,6 +74,7 @@ export function ImportRecipe() {
             image: importRecipe.data.image,
           }}
           heading="Review import"
+          importId={importRecipe.data.import_id}
           photoChoices={'photos' in source ? source.photos : []}
           onUnsavedChange={setReviewUnsaved}
         />

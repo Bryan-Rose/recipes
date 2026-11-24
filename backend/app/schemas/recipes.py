@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.schemas.cookbook import CookbookRead
 from app.schemas.fields import DbId, Denominator, JpegBase64, Minutes, Name, Omittable, PositiveInt, SourceUrl, UtcDatetime
+from app.schemas.imports import ImportUsage
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
@@ -111,6 +112,7 @@ class RecipeCreate(RecipeBase):
     recipe_ingredients: list[RecipeIngredientCreate] = []
     tag_ids: list[DbId] = []
     image: ImageUpload | None = None
+    import_id: DbId | None = None  # the RecipeImport.import_id this recipe was saved from
 
     @model_validator(mode="after")
     def _page_needs_cookbook(self) -> Self:
@@ -147,6 +149,7 @@ class RecipeRead(RecipeBase):
     tags: list[TagRead] = []
     # The stem of the files GET /images/ serves: {image}.jpg and {image}-thumb.jpg.
     image: str | None = None
+    source_import: ImportUsage | None = None  # what importing it cost; None if it wasn't imported
 
 
 class RecipeSummary(BaseModel):

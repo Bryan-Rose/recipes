@@ -12,6 +12,7 @@ import { base64Blob, toImageUpload } from '../components/photos'
 import { ApiError, api } from './client'
 import type {
   ImageUpload,
+  ImportRecord,
   Recipe,
   RecipeCreate,
   RecipeImport,
@@ -75,6 +76,9 @@ export const useImportRecipe = () =>
       return { ...draft, image: image ? await toImageUpload(base64Blob(image)).catch(() => null) : null }
     },
   })
+
+/** Every import and what it cost, newest first. */
+export const useImportHistory = () => useQuery({ queryKey: ['imports'], queryFn: () => api.get<ImportRecord[]>('/imports/') })
 
 export const useUpdateRecipe = (id: number) =>
   useMutation({

@@ -1,8 +1,8 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
-from app.schemas.fields import Denominator, JpegBase64, Name
+from app.schemas.fields import Denominator, JpegBase64, Name, UtcDatetime
 
 # Plain types below: this is also the structured-output schema Claude fills in,
 # and the review screen, not this schema, is where a bad value gets fixed.
@@ -32,14 +32,21 @@ class RecipeDraft(BaseModel):
 class ImportUsage(BaseModel):
     """What one parse cost. cost_usd is None for a model missing from the price table."""
 
+    model_config = ConfigDict(from_attributes=True)
+
     model: str
     input_tokens: int
     output_tokens: int
     cost_usd: float | None
 
 
+ImportSource = Literal["text", "photos", "url"]
+ImportOutcome = Literal["draft", "no_draft", "cut_off"]
+
+
 class RecipeImport(RecipeDraft):
     usage: ImportUsage
+    import_id: int = Field(description="Send as RecipeCreate.import_id to tie this import's cost to the recipe saved from it.")
     image: str | None = Field(
         default=None,
         description="URL import only: the page's picture, base64, in whatever image format the site sent. None when it has none, "
@@ -59,3 +66,20 @@ class PhotoImport(BaseModel):
 
 class UrlImport(BaseModel):
     url: Annotated[HttpUrl, Field(max_length=2_000)]
+
+
+class ImportedRecipeRef(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+
+
+class ImportRead(ImportUsage):
+    """A stored import, newest first in GET /imports/."""
+
+    id: int
+    created_at: UtcDatetime
+    source: ImportSource
+    outcome: ImportOutcome
+    recipe: ImportedRecipeRef | None  # None: not saved, or the recipe was deleted

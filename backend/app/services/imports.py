@@ -1,13 +1,15 @@
+from collections.abc import Sequence
+
 """Turns a recipe from outside (pasted text or photos) into a RecipeDraft with the Claude API."""
 
 from anthropic import Anthropic, transform_schema
 from anthropic.types.beta import BetaMessage
 from pydantic import ValidationError
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
-from app.models import Ingredient, Measurement, Preparation
-from app.schemas.imports import ImportUsage, RecipeDraft
+from app.models import Ingredient, Measurement, Preparation, RecipeImportRecord, User
+from app.schemas.imports import ImportOutcome, ImportSource, ImportUsage, RecipeDraft
 
 SYSTEM = """You turn a recipe into structured data for a recipe app. Copy the recipe; don't improve or invent anything.
 
@@ -128,3 +130,16 @@ def _parse(client: Anthropic, model: str, prompt: str | list) -> tuple[RecipeDra
         return RecipeDraft.model_validate_json(reply), usage
     except ValidationError:
         return None, usage
+
+
+def record(db: Session, user: User, source: ImportSource, usage: ImportUsage, outcome: ImportOutcome) -> RecipeImportRecord:
+    row = RecipeImportRecord(user_id=user.id, source=source, outcome=outcome, **usage.model_dump())
+    db.add(row)
+    db.commit()
+    return row
+
+
+def get_history(db: Session) -> Sequence[RecipeImportRecord]:
+    # shortcut: every import ever, unpaginated; fine for a household's few a week, page it if that grows.
+    query = select(RecipeImportRecord).options(joinedload(RecipeImportRecord.recipe))
+    return db.execute(query.order_by(RecipeImportRecord.created_at.desc(), RecipeImportRecord.id.desc())).scalars().all()

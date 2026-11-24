@@ -60,6 +60,8 @@ def create_recipe(
         return recipes_service.create_recipe(db, recipe_in, user.id, settings.images_dir)
     except recipes_service.UnknownTagError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Unknown tag ids: {e.args[0]}")
+    except recipes_service.UnknownImportError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Unknown import, or a recipe was already saved from it")
 
 
 @recipe_router.patch("/{recipe_id}", response_model=RecipeRead)

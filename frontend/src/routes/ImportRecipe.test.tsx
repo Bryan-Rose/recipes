@@ -35,6 +35,7 @@ const draft: RecipeImport = {
   requirements: ['Large pot'],
   steps: ['Sweat the leeks.', 'Simmer.'],
   usage: { model: 'claude-sonnet-5-5', input_tokens: 2400, output_tokens: 610, cost_usd: 0.0109 },
+  import_id: 5,
 }
 
 beforeEach(() => {
@@ -117,6 +118,7 @@ it('reviews the draft beside the source and creates new lookups once on save', a
   expect(created).toEqual({ ingredients: ['leek'], measurements: [], preparations: ['sliced'] })
   expect(saved).toMatchObject({
     name: 'Leek soup',
+    import_id: 5,
     servings: 4,
     notes: 'Range 2-3 leeks: used 3.',
     requirements: [{ name: 'Large pot' }],

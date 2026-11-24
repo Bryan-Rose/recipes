@@ -4,16 +4,8 @@ import { Link, useSearchParams } from 'react-router'
 import { describeError } from '../api/errors'
 import { useAddMeal, useMealPlan, usePutMeal, useRemoveMeal, useShopMeals } from '../api/mealPlan'
 import { useRecipes } from '../api/recipes'
+import { addDays, isoDay, monday } from '../components/days'
 import { ErrorState, Loading } from '../components/Feedback'
-
-/** A local date as YYYY-MM-DD; toISOString would shift it to UTC. */
-const isoDay = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-
-const addDays = (date: Date, days: number) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days)
-
-/** The Monday of the week holding `date`. */
-const monday = (date: Date) => addDays(date, -((date.getDay() + 6) % 7))
 
 const parseDay = (iso: string | null) => {
   const [year, month, day] = (iso ?? '').split('-').map(Number)

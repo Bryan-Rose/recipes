@@ -400,6 +400,26 @@ export interface paths {
         patch: operations["update_user_users__user_id__patch"];
         trace?: never;
     };
+    "/imports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Imports
+         * @description Every import and what it cost, newest first. Works with import switched off, so past costs stay visible.
+         */
+        get: operations["list_imports_imports__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/imports/text": {
         parameters: {
             query?: never;
@@ -875,6 +895,38 @@ export interface components {
             thumb: string;
         };
         /**
+         * ImportRead
+         * @description A stored import, newest first in GET /imports/.
+         */
+        ImportRead: {
+            /** Model */
+            model: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cost Usd */
+            cost_usd: number | null;
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "text" | "photos" | "url";
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "draft" | "no_draft" | "cut_off";
+            recipe: components["schemas"]["ImportedRecipeRef"] | null;
+        };
+        /**
          * ImportUsage
          * @description What one parse cost. cost_usd is None for a model missing from the price table.
          */
@@ -903,6 +955,13 @@ export interface components {
             ingredient: string;
             /** Preparation */
             preparation: string | null;
+        };
+        /** ImportedRecipeRef */
+        ImportedRecipeRef: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /** IngredientCreate */
         IngredientCreate: {
@@ -1057,6 +1116,8 @@ export interface components {
              */
             tag_ids: number[];
             image?: components["schemas"]["ImageUpload"] | null;
+            /** Import Id */
+            import_id?: number | null;
         };
         /** RecipeImport */
         RecipeImport: {
@@ -1077,6 +1138,11 @@ export interface components {
             /** Steps */
             steps: string[];
             usage: components["schemas"]["ImportUsage"];
+            /**
+             * Import Id
+             * @description Send as RecipeCreate.import_id to tie this import's cost to the recipe saved from it.
+             */
+            import_id: number;
             /**
              * Image
              * @description URL import only: the page's picture, base64, in whatever image format the site sent. None when it has none, or it couldn't be fetched.
@@ -1186,6 +1252,7 @@ export interface components {
             tags: components["schemas"]["TagRead"][];
             /** Image */
             image?: string | null;
+            source_import?: components["schemas"]["ImportUsage"] | null;
         };
         /**
          * RecipeSummary
@@ -2685,6 +2752,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_imports_imports__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRead"][];
                 };
             };
         };
