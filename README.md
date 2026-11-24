@@ -1,11 +1,18 @@
-# Recipes!
+# Recipes
 
-The goal of this application is to 
-Oh also learn python and demostrate working knowledge with it
+A self-hosted recipe box shared by everyone in a household.
+
+- Recipes with steps, ingredients, servings scaling and a photo,
+  filed by cookbook, author and tag
+- Import from pasted text, photos of cookbook pages or a web link
+  (Claude API, optional)
+- A shared meal plan and shopping list that sums ingredients
+- Password login and optional OIDC single sign-on
 
 ## AI/LLM Use
 
-LLMs were used to generate the front end. The backend was written by hand, though LLMs were sometimes used to troubleshoot and suggest fixes or patterns
+The backend began hand-written. Most code is now written by AI agents (Claude Code)
+through reviewed pull requests, guided by `AGENTS.md`.
 
 ## Running
 
@@ -13,7 +20,7 @@ The full stack runs with Docker Compose: nginx serves the frontend and proxies
 `/api` to the FastAPI backend, and the SQLite database and uploaded images live in `./data`.
 
 ```bash
-cp .env.example .env              # optional: port, HTTPS cookies, OIDC SSO
+cp .env.example .env              # optional: port, HTTPS cookies, OIDC SSO, recipe import
 docker compose up -d --build
 docker compose exec backend python -m scripts.create_user <you> --admin
 docker compose exec backend python -m scripts.seed_lookups   # optional: starter measurements, preparations, ingredients
@@ -21,9 +28,8 @@ docker compose exec backend python -m scripts.seed_lookups   # optional: starter
 
 Then open http://localhost:8080. That first admin adds everyone else from the
 **Users** page in the header. To update after pulling changes, run
-`docker compose up -d --build` again. Back up by copying the `data` folder
-(stop the stack first). If your user id isn't 1000, set `RECIPES_UID`/`RECIPES_GID`.
-
+`docker compose up -d --build` again. To back up, see **Backups** below.
+If your user id isn't 1000, set `RECIPES_UID`/`RECIPES_GID`.
 
 ## Deploying behind Caddy
 
@@ -88,7 +94,14 @@ recipes.example.com {
 When `compose.yml` changes upstream (a new setting or healthcheck), carry the
 change over to `compose.server.yml` by hand.
 
-**Updating:** rebuild. Migrations run automatically when the backend starts, in
+**Updating:** pull and rebuild:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Migrations run automatically when the backend starts, in
 one transaction, so a migration that fails leaves the database as it was. Before
 migrating, the backend copies the database to `data/app.db.pre-<revision>.bak`
 (the revision it was at), so a migration that succeeds but mangles data can be
@@ -101,11 +114,6 @@ migrations. Stop the stack, copy the backup named for the revision the older
 image runs (`data/app.db.pre-<that revision>.bak`, not necessarily the newest
 backup) over `data/app.db`, then start the older image. Changes made since the
 update are lost.
-
-```bash
-git pull
-docker compose up -d --build
-```
 
 **Backups:** everything the app stores is in `data/`: the database `app.db` and
 recipe and cookbook images in `images/` (named by the database, so back them up together).

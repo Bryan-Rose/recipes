@@ -43,20 +43,23 @@ breaks the frontend shows up as a `npm run build` failure. Don't edit
 `schema.d.ts` — `src/api/types.ts` holds the friendly aliases everything else
 imports.
 
-**Trailing slashes are load-bearing, and asymmetric.** Collection routes require
-one (`/recipes/`), item routes reject it (`/recipes/1`). Either mistake earns a
-307, and a redirected POST or PATCH can silently lose its body, so `client.ts`
-never rewrites a path.
+**Trailing slashes are load-bearing, and not uniform.** The CRUD collections take
+one (`/recipes/`, `/ingredients/`), while item routes (`/recipes/1`) and the
+newer routers (`/shopping-list`, `/meal-plan/meals`) don't. Copy each path from
+`schema.d.ts`: a wrong slash earns a 307, and a redirected POST or PATCH can
+silently lose its body, so `client.ts` never rewrites a path.
 
 ## Layout
 
 ```
 src/
-  api/        client.ts (fetch wrapper), errors.ts, types.ts,
-              recipes.ts + lookups.ts (TanStack Query hooks), schema.d.ts (generated)
-  components/ drafts.ts (form-shaped types), pickers, shared form pieces
+  api/        client.ts (fetch wrapper), errors.ts, types.ts, schema.d.ts (generated), and TanStack Query
+              hooks per area: auth, users, recipes, lookups, shopping, mealPlan
+  components/ drafts.ts (form-shaped types), photos.ts (uploads → JPEG and thumbnail), pickers,
+              shared form pieces
   routes/     RecipeList, RecipeDetail, RecipeEdit → Create/EditRecipeForm, ImportRecipe (paste, photos or link → review in
-              CreateRecipeForm), Cookbooks (index, cookbook, author), MealPlan, ShoppingList
+              CreateRecipeForm), Cookbooks (index, cookbook, author), MealPlan, ShoppingList, Lookups,
+              LoginPage, Account, UserAdmin
   styles/     tokens.css — the whole palette, light and dark
 ```
 
