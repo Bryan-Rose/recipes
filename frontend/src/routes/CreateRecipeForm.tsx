@@ -43,12 +43,15 @@ export function CreateRecipeForm({
   initial,
   heading = 'New recipe',
   photoChoices = [],
+  importId = null,
   onUnsavedChange,
 }: {
   initial?: RecipeInitial
   heading?: string
   /** Base64 JPEGs (an import's page photos) the user can pick as the recipe's image. */
   photoChoices?: string[]
+  /** The import this draft came from, so its cost is tied to the saved recipe. */
+  importId?: number | null
   /** Told whether the form differs from `initial`, for a caller that can discard it without navigating. */
   onUnsavedChange?: (unsaved: boolean) => void
 }) {
@@ -149,6 +152,7 @@ export function CreateRecipeForm({
       ...scalars,
       name: scalars.name.trim(),
       image,
+      import_id: importId,
       recipe_ingredients: recipeIngredients,
       requirements: requirements
         .map((row) => row.value.trim())

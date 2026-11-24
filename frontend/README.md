@@ -58,7 +58,7 @@ src/
   components/ drafts.ts (form-shaped types), photos.ts (uploads → JPEG and thumbnail), pickers,
               shared form pieces
   routes/     RecipeList, RecipeDetail, RecipeEdit → Create/EditRecipeForm, ImportRecipe (paste, photos or link → review in
-              CreateRecipeForm), Cookbooks (index, cookbook, author), MealPlan, ShoppingList, Lookups,
+              CreateRecipeForm), ImportCosts, Cookbooks (index, cookbook, author), MealPlan, ShoppingList, Lookups,
               LoginPage, Account, UserAdmin
   styles/     tokens.css — the whole palette, light and dark
 ```

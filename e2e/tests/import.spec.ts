@@ -174,3 +174,22 @@ test('Import and New recipe are one Tab stop each and open with Enter', async ({
   await page.keyboard.press('Enter')
   await expect(page.getByRole('heading', { name: 'New recipe' })).toBeVisible()
 })
+
+test('an import’s cost shows on its recipe and in the cost history', async ({ page }) => {
+  const name = `Costed Soup ${unique()}`
+  await page.goto('/')
+  await signIn(page, COOK)
+  await page.getByRole('link', { name: 'Import', exact: true }).click()
+  await page.getByLabel('Recipe text').fill([name, 'cup', 'water', 'Boil.'].join('\n'))
+  await page.getByRole('button', { name: 'Read recipe' }).click()
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(page.locator('.detail-meta')).toContainText('Import cost$0.000')
+
+  await page.getByRole('link', { name: 'Import costs' }).click()
+  const row = page.getByRole('table', { name: 'Imports' }).getByRole('row').filter({ hasText: name })
+  await expect(row).toContainText('claude-sonnet-5-5')
+  await row.getByRole('link', { name }).click()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+})

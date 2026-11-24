@@ -40,6 +40,20 @@ it('links to the editor with a single link, with no button inside', async () => 
   expect(within(edit).queryByRole('button')).not.toBeInTheDocument()
 })
 
+it('shows what importing the recipe cost', async () => {
+  signedIn()
+  show({ ...recipe, source_import: { model: 'claude-sonnet-5-5', input_tokens: 2400, output_tokens: 610, cost_usd: 0.0109 } })
+  expect(await screen.findByText('Import cost')).toBeInTheDocument()
+  expect(screen.getByText('$0.011')).toBeInTheDocument()
+})
+
+it('has no import cost for a recipe typed in', async () => {
+  signedIn()
+  show(recipe)
+  await screen.findByRole('heading', { name: 'Pancakes' })
+  expect(screen.queryByText('Import cost')).not.toBeInTheDocument()
+})
+
 describe('serving scaler', () => {
   beforeEach(() => signedIn())
 

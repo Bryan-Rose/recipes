@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { imageUrl, useDeleteRecipe, useRecipe } from '../api/recipes'
 import { describeError } from '../api/errors'
 import { usePutShoppingRecipe, useShoppingList } from '../api/shopping'
+import { formatCost } from '../components/cost'
 import { ErrorState, Loading } from '../components/Feedback'
 import { formatIngredient } from '../components/ingredient'
 import { formatMinutes } from '../components/minutes'
@@ -47,6 +48,7 @@ export function RecipeDetail() {
         </a>
       ),
     },
+    recipe.source_import && { label: 'Import cost', value: formatCost(recipe.source_import.cost_usd) },
   ].filter((item): item is { label: string; value: ReactNode } => Boolean(item))
 
   const typed = Number(servingsDraft)

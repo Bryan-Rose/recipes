@@ -281,6 +281,26 @@
   color: var(--text-faint);
 }
 
+.cost-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.cost-table th,
+.cost-table td {
+  text-align: left;
+  padding: 0.4rem 0.75rem 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cost-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+}
+
 .recipe-notes {
   white-space: pre-wrap;
   margin: 0 0 1.75rem;

@@ -10,6 +10,7 @@ from app.database import Base
 
 if TYPE_CHECKING:
     from app.models.cookbook import Cookbook
+    from app.models.imports import RecipeImportRecord
     from app.models.ingredient import Ingredient
     from app.models.measurement import Measurement
     from app.models.preparation import Preparation
@@ -64,6 +65,8 @@ class Recipe(Base):
         collection_class=ordering_list("position"),
     )
     tags: Mapped[list[Tag]] = relationship(secondary=recipe_tags, back_populates="recipes")
+    # The import this recipe was saved from, if any; deleting the recipe keeps that row.
+    source_import: Mapped[RecipeImportRecord | None] = relationship(back_populates="recipe")
 
     # Read by RecipeSummary, so the list endpoint can leave out the nested rows (step_count is in models/__init__.py).
     @property

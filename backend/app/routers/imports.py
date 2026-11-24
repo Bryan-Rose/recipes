@@ -12,7 +12,7 @@ from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.database import get_db
 from app.models.user import User
-from app.schemas.imports import ImportUsage, PhotoImport, RecipeDraft, RecipeImport, TextImport, UrlImport
+from app.schemas.imports import ImportRead, ImportSource, ImportUsage, PhotoImport, RecipeDraft, RecipeImport, TextImport, UrlImport
 from app.services import fetch
 from app.services import imports as imports_service
 
@@ -39,7 +39,7 @@ def get_import_client(settings: Settings = Depends(get_settings)) -> anthropic.A
     return _client(settings.anthropic_api_key.get_secret_value().strip(), settings.anthropic_base_url)
 
 
-def _run(user: User, parse: Callable[[], tuple[RecipeDraft | None, ImportUsage]]) -> RecipeImport:
+def _run(user: User, db: Session, source: ImportSource, parse: Callable[[], tuple[RecipeDraft | None, ImportUsage]]) -> RecipeImport:
     too_long = False
     try:
         draft, usage = parse()
@@ -59,13 +59,20 @@ def _run(user: User, parse: Callable[[], tuple[RecipeDraft | None, ImportUsage]]
         cost,
         "draft returned" if draft else "cut off" if too_long else "no draft",
     )
+    row = imports_service.record(db, user, source, usage, "draft" if draft else "cut_off" if too_long else "no_draft")
     if too_long:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="That's too long to read in one go; try sending less of it"
         )
     if draft is None:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Couldn't read a recipe from that")
-    return RecipeImport(**draft.model_dump(), usage=usage)
+    return RecipeImport(**draft.model_dump(), usage=usage, import_id=row.id)
+
+
+@router.get("/", response_model=list[ImportRead])
+def list_imports(db: Session = Depends(get_db)):
+    """Every import and what it cost, newest first. Works with import switched off, so past costs stay visible."""
+    return imports_service.get_history(db)
 
 
 @router.post("/text", response_model=RecipeImport)
@@ -76,7 +83,7 @@ def import_text(
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ):
-    return _run(user, lambda: imports_service.parse_text(client, settings.import_model, db, body.text))
+    return _run(user, db, "text", lambda: imports_service.parse_text(client, settings.import_model, db, body.text))
 
 
 @router.post("/photos", response_model=RecipeImport)
@@ -87,7 +94,7 @@ def import_photos(
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ):
-    return _run(user, lambda: imports_service.parse_photos(client, settings.import_model, db, body.photos))
+    return _run(user, db, "photos", lambda: imports_service.parse_photos(client, settings.import_model, db, body.photos))
 
 
 def get_fetch_transport() -> httpx2.BaseTransport | None:  # pragma: no cover — tests always swap in a mock
@@ -113,7 +120,7 @@ def import_url(
     text = fetch.page_text(html)
     if not text:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Couldn't read a recipe from that")
-    result = _run(user, lambda: imports_service.parse_text(client, settings.import_model, db, text))
+    result = _run(user, db, "url", lambda: imports_service.parse_text(client, settings.import_model, db, text))
     # Only after a draft: no picture is worth fetching for a failed parse.
     if image_url := fetch.page_image(html, page_url):
         try:
