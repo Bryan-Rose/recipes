@@ -119,7 +119,8 @@ added; not necessarily the newest backup overall) over `data/app.db`, then start
 the older image. Changes made since the update are lost.
 
 **Backups:** everything the app stores is in `data/`: the database `app.db` and
-recipe and cookbook images in `images/` (named by the database, so back them up together).
+recipe and cookbook images in `images/`, and what each import was read from in
+`imports/` (both named by the database, so back them up together).
 Stop the backend for a consistent copy:
 
 ```bash

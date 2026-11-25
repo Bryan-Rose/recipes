@@ -12,6 +12,7 @@ import { base64Blob, toImageUpload } from '../components/photos'
 import { ApiError, api } from './client'
 import type {
   ImageUpload,
+  ImportDetail,
   ImportRecord,
   Recipe,
   RecipeCreate,
@@ -79,6 +80,10 @@ export const useImportRecipe = () =>
 
 /** Every import and what it cost, newest first. */
 export const useImportHistory = () => useQuery({ queryKey: ['imports'], queryFn: () => api.get<ImportRecord[]>('/imports/') })
+
+/** One import, with the pasted text if it was a text import. */
+export const useImport = (id: number) =>
+  useQuery({ queryKey: ['imports', id], queryFn: () => api.get<ImportDetail>(`/imports/${id}`) })
 
 export const useUpdateRecipe = (id: number) =>
   useMutation({

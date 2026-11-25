@@ -84,3 +84,18 @@ class ImportRead(ImportUsage):
     outcome: ImportOutcome
     recipe: ImportedRecipeRef | None  # None: not saved, or the recipe was deleted (then saved is true)
     saved: bool
+    original_parts: int = Field(
+        description="Files GET /imports/{id}/original/{part} serves; 0 for imports from before originals were kept."
+    )
+    page_url: str | None = Field(description="URL import: the address the page was fetched from, after redirects.")
+
+
+class ImportDetail(ImportRead):
+    text: str | None = Field(description="Text import: what was pasted. Photos and pages are served as files.")
+
+
+class SourceImport(ImportUsage):
+    """What importing a recipe cost, and where to see what it was imported from."""
+
+    id: int
+    original_parts: int

@@ -48,7 +48,20 @@ export function RecipeDetail() {
         </a>
       ),
     },
-    recipe.source_import && { label: 'Import cost', value: formatCost(recipe.source_import.cost_usd) },
+    recipe.source_import && {
+      label: 'Import cost',
+      value: (
+        <>
+          {formatCost(recipe.source_import.cost_usd)}
+          {recipe.source_import.original_parts > 0 && (
+            <>
+              {' · '}
+              <Link to={`/imports/${recipe.source_import.id}`}>View original</Link>
+            </>
+          )}
+        </>
+      ),
+    },
   ].filter((item): item is { label: string; value: ReactNode } => Boolean(item))
 
   const typed = Number(servingsDraft)

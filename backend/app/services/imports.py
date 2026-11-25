@@ -1,6 +1,8 @@
 """Turns a recipe from outside (pasted text or photos) into a RecipeDraft with the Claude API."""
 
+import secrets
 from collections.abc import Sequence
+from pathlib import Path
 
 from anthropic import Anthropic, transform_schema
 from anthropic.types.beta import BetaMessage
@@ -132,11 +134,50 @@ def _parse(client: Anthropic, model: str, prompt: str | list) -> tuple[RecipeDra
         return None, usage
 
 
-def record(db: Session, user: User, source: ImportSource, usage: ImportUsage, outcome: ImportOutcome) -> RecipeImportRecord:
-    row = RecipeImportRecord(user_id=user.id, source=source, outcome=outcome, **usage.model_dump())
-    db.add(row)
-    db.commit()
+# Original files by source; photos are one file per page.
+ORIGINAL_SUFFIX = {"text": ".txt", "photos": ".jpg", "url": ".html"}
+
+
+def original_path(directory: Path, row: RecipeImportRecord, part: int) -> Path:
+    return directory / f"{row.original}-{part}{ORIGINAL_SUFFIX[row.source]}"
+
+
+def record(
+    db: Session,
+    directory: Path,
+    user: User,
+    source: ImportSource,
+    usage: ImportUsage,
+    outcome: ImportOutcome,
+    original: list[bytes],
+    page_url: str | None = None,
+) -> RecipeImportRecord:
+    """Stores the import with what was sent to Claude, deleting those files again if the row isn't saved."""
+    row = RecipeImportRecord(
+        user_id=user.id,
+        source=source,
+        outcome=outcome,
+        original=secrets.token_hex(16),
+        original_parts=len(original),
+        page_url=page_url,
+        **usage.model_dump(),
+    )
+    paths = [original_path(directory, row, part) for part in range(len(original))]
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        for path, data in zip(paths, original, strict=True):
+            path.write_bytes(data)
+        db.add(row)
+        db.commit()
+    except Exception:
+        for path in paths:
+            path.unlink(missing_ok=True)
+        raise
     return row
+
+
+def get_import(db: Session, import_id: int) -> RecipeImportRecord | None:
+    return db.get(RecipeImportRecord, import_id)
 
 
 def get_history(db: Session) -> Sequence[RecipeImportRecord]:

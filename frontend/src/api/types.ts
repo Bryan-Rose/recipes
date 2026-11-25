@@ -30,6 +30,7 @@ export type RecipeCreate = Schemas['RecipeCreate']
 export type RecipeUpdate = Schemas['RecipeUpdate']
 export type RecipeImport = Schemas['RecipeImport']
 export type ImportRecord = Schemas['ImportRead']
+export type ImportDetail = Schemas['ImportDetail']
 export type ImageUpload = Schemas['ImageUpload']
 /** A parsed recipe without its cost or picture; the API only sends it inside RecipeImport. */
 export type RecipeDraft = Omit<RecipeImport, 'usage' | 'image' | 'import_id'>

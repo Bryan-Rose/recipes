@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./app.db"
     # Uploaded images. Docker keeps them next to the database in /data.
     images_dir: Path = Path("images")
+    # What each import sent to Claude (pasted text, photos, page HTML). Docker: /data/imports.
+    imports_dir: Path = Path("imports")
 
     # Signs the short-lived cookie that carries OIDC state through the IdP
     # round trip. A random default only breaks logins that span a restart.

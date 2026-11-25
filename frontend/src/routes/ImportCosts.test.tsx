@@ -18,6 +18,8 @@ const row = (id: number, created_at: string, cost_usd: number | null, extra: Par
   input_tokens: 2000,
   output_tokens: 500,
   cost_usd,
+  original_parts: 1,
+  page_url: null,
   ...extra,
 })
 
@@ -27,7 +29,7 @@ const history: ImportRecord[] = [
   row(5, '2026-11-24T11:00:00Z', 0.01, { saved: true }),
   row(3, '2026-11-23T12:00:00Z', null, { model: 'claude-future-9' }),
   row(2, '2026-11-20T12:00:00Z', 0.02, { source: 'photos', outcome: 'no_draft' }),
-  row(1, '2026-10-30T12:00:00Z', 0.005, { outcome: 'cut_off' }),
+  row(1, '2026-10-30T12:00:00Z', 0.005, { outcome: 'cut_off', original_parts: 0 }),
 ]
 
 const rows = (name: string) =>
@@ -66,12 +68,13 @@ it('lists each import with the recipe saved from it, or why there is none', asyn
 
   expect(await screen.findByRole('link', { name: 'Pancakes' })).toHaveAttribute('href', '/recipes/7')
   expect(rows('Imports')).toEqual([
-    ['2026-11-24', 'Link', 'Pancakes', 'claude-sonnet-5-5', '2,000 / 500', '$0.010'],
-    ['2026-11-24', 'Text', 'Recipe deleted', 'claude-sonnet-5-5', '2,000 / 500', '$0.010'],
-    ['2026-11-23', 'Text', 'Not saved', 'claude-future-9', '2,000 / 500', 'unknown'],
-    ['2026-11-20', 'Photos', 'No recipe found', 'claude-sonnet-5-5', '2,000 / 500', '$0.020'],
-    ['2026-10-30', 'Text', 'Too long', 'claude-sonnet-5-5', '2,000 / 500', '$0.005'],
+    ['2026-11-24', 'Link', 'Pancakes', 'claude-sonnet-5-5', '2,000 / 500', '$0.010', 'View original'],
+    ['2026-11-24', 'Text', 'Recipe deleted', 'claude-sonnet-5-5', '2,000 / 500', '$0.010', 'View original'],
+    ['2026-11-23', 'Text', 'Not saved', 'claude-future-9', '2,000 / 500', 'unknown', 'View original'],
+    ['2026-11-20', 'Photos', 'No recipe found', 'claude-sonnet-5-5', '2,000 / 500', '$0.020', 'View original'],
+    ['2026-10-30', 'Text', 'Too long', 'claude-sonnet-5-5', '2,000 / 500', '$0.005', ''],
   ])
+  expect(screen.getAllByRole('link', { name: 'View original' })[3]).toHaveAttribute('href', '/imports/2')
 })
 
 it('says when nothing has been imported', async () => {
