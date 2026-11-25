@@ -14,6 +14,7 @@ backend/ on every test run.
 
 import argparse
 import sqlite3
+from datetime import UTC, datetime
 from fractions import Fraction
 from pathlib import Path
 
@@ -149,8 +150,14 @@ def seed(db: Session) -> None:
     db.commit()
 
 
+def stamp() -> str:
+    return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+
+
 def backup(engine: Engine, config: Config) -> str | None:
-    """Copy a SQLite database aside before migrating it, named for the revision it was at.
+    """Copy a SQLite database aside before migrating it, named for the revision it was at and the time.
+
+    Never writes over an existing copy: a name that's taken gets a numbered suffix.
 
     Skipped when there's nothing to migrate or nothing to lose (a new database).
     """
@@ -160,7 +167,10 @@ def backup(engine: Engine, config: Config) -> str | None:
         current = MigrationContext.configure(connection).get_current_revision()
     if current in (None, ScriptDirectory.from_config(config).get_current_head()):
         return None
-    path = f"{engine.url.database}.pre-{current}.bak"
+    stem = f"{engine.url.database}.pre-{current}-{stamp()}"
+    path, n = f"{stem}.bak", 2
+    while Path(path).exists():
+        path, n = f"{stem}-{n}.bak", n + 1
     source, target = sqlite3.connect(str(engine.url.database)), sqlite3.connect(path)
     source.backup(target)
     target.close()

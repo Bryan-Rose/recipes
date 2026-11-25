@@ -103,17 +103,20 @@ docker compose up -d --build
 
 Migrations run automatically when the backend starts, in
 one transaction, so a migration that fails leaves the database as it was. Before
-migrating, the backend copies the database to `data/app.db.pre-<revision>.bak`
-(the revision it was at), so a migration that succeeds but mangles data can be
-undone by stopping the stack and copying the backup over `data/app.db`. Backups
-are never pruned; delete old ones once you're happy with the update.
+migrating, the backend copies the database to
+`data/app.db.pre-<revision>-<UTC timestamp>.bak` (the revision it was at), so a
+migration that succeeds but mangles data can be undone by stopping the stack and
+copying the backup over `data/app.db`. These copies hold the database only, not
+images (migrations don't touch them). An existing copy is never overwritten, and
+copies are never pruned; delete old ones once you're happy with the update.
 
 **Rolling back** to an older image works the same way. An older image can't run
 against a newer schema (writes fail), and deploys never run downgrade
-migrations. Stop the stack, copy the backup named for the revision the older
-image runs (`data/app.db.pre-<that revision>.bak`, not necessarily the newest
-backup) over `data/app.db`, then start the older image. Changes made since the
-update are lost.
+migrations. Stop the stack, copy the newest backup named for the revision the
+older image runs (`data/app.db.pre-<that revision>-*.bak`, or
+`data/app.db.pre-<that revision>.bak` for copies made before timestamps were
+added; not necessarily the newest backup overall) over `data/app.db`, then start
+the older image. Changes made since the update are lost.
 
 **Backups:** everything the app stores is in `data/`: the database `app.db` and
 recipe and cookbook images in `images/` (named by the database, so back them up together).

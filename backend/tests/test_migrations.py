@@ -97,7 +97,8 @@ def test_failed_migration_rolls_back_completely(scratch_config: Config, failure:
     engine.dispose()
 
 
-def test_backup_before_migrating(scratch_config: Config):
+def test_backup_before_migrating(scratch_config: Config, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("scripts.init_db.stamp", lambda: "20261125T120000Z")
     engine = create_engine(scratch_config.attributes["url"])
     assert backup(engine, scratch_config) is None  # new database: nothing to lose
 
@@ -106,14 +107,23 @@ def test_backup_before_migrating(scratch_config: Config):
     assert backup(engine, scratch_config) is None  # already at head
 
     add_revision(scratch_config, "    pass")
-    path = backup(engine, scratch_config)
-    engine.dispose()
-
-    assert path == f"{engine.url.database}.pre-{before}.bak"
+    path = f"{engine.url.database}.pre-{before}-20261125T120000Z.bak"
+    assert backup(engine, scratch_config) == path
     copy = create_engine(f"sqlite:///{path}")
     with copy.connect() as connection:
         assert MigrationContext.configure(connection).get_current_revision() == before
     copy.dispose()
+
+    # At the same revision again (e.g. after restoring a copy): a later copy sits beside the first,
+    # and one in the same second gets a suffix rather than overwriting it.
+    monkeypatch.setattr("scripts.init_db.stamp", lambda: "20261126T120000Z")
+    assert backup(engine, scratch_config) == f"{engine.url.database}.pre-{before}-20261126T120000Z.bak"
+    Path(path).write_bytes(b"older copy")
+    monkeypatch.setattr("scripts.init_db.stamp", lambda: "20261125T120000Z")
+    assert backup(engine, scratch_config) == f"{engine.url.database}.pre-{before}-20261125T120000Z-2.bak"
+    assert backup(engine, scratch_config) == f"{engine.url.database}.pre-{before}-20261125T120000Z-3.bak"
+    assert Path(path).read_bytes() == b"older copy"
+    engine.dispose()
 
 
 def test_fractions_and_optional_preparation_migrate_existing_rows(alembic_config: Config):
