@@ -2,6 +2,8 @@
 
 It "parses" the pasted recipe by line: name, measurement, ingredient, then one
 step per remaining line. So a test controls every name and can keep them unique.
+Lines starting "@author ", "@tag ", "@group " or "@note " are taken out first and
+fill those fields (the group and note go on the ingredient line).
 Photos can't be read that way, so they give a fixed recipe with one step per photo.
 
 It also serves a recipe web page for URL import: GET /page?text=... returns the
@@ -19,6 +21,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # A 2×1 PNG, the same as e2e/tests/helpers.ts.
 PICTURE = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8AAQv8BD/kD/YURmXYAAAAASUVORK5CYII=")
+
+
+TAGGED = ("author", "tag", "group", "note")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -40,21 +45,33 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         prompt = body["messages"][0]["content"]
+        fields = {key: [] for key in TAGGED}
         if isinstance(prompt, list):
             pages = sum(block["type"] == "image" for block in prompt)
             name, measurement, ingredient = "Photographed Stew", "whole", "onion"
             steps = [f"Step from photo {n}." for n in range(1, pages + 1)]
         else:
             lines = re.search(r"<recipe>\n(.*)\n</recipe>", prompt, re.S).group(1).splitlines()
-            name, measurement, ingredient, *steps = lines
+            fields = {key: [line.split(" ", 1)[1] for line in lines if line.startswith(f"@{key} ")] for key in TAGGED}
+            name, measurement, ingredient, *steps = [line for line in lines if not line.startswith("@")]
         draft = {
             "name": name,
             "servings": 2,
             "active_cook_time": 10,
             "inactive_cook_time": None,
             "notes": "Imported by the mock.",
+            "author": next(iter(fields["author"]), None),
+            "tags": fields["tag"],
             "ingredients": [
-                {"amount_numerator": 3, "amount_denominator": 2, "measurement": measurement, "ingredient": ingredient, "preparation": None}
+                {
+                    "amount_numerator": 3,
+                    "amount_denominator": 2,
+                    "measurement": measurement,
+                    "ingredient": ingredient,
+                    "preparation": None,
+                    "group": next(iter(fields["group"]), None),
+                    "note": next(iter(fields["note"]), None),
+                }
             ],
             "requirements": [],
             "steps": steps,

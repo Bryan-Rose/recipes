@@ -490,3 +490,26 @@ def test_ingredient_and_requirement_positions_follow_insert_order(alembic_config
         lines = connection.execute(text("SELECT id, recipe_id, position FROM recipe_ingredients ORDER BY id")).all()
         assert lines == [(20, 2, 0), (21, 1, 0), (22, 2, 1)]
     engine.dispose()
+
+
+def test_recipes_from_before_authors_groups_and_notes_have_none(alembic_config: Config):
+    command.upgrade(alembic_config, "97d16776d9ac")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        for sql in (
+            "INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)",
+            "INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'r', 1)",
+            "INSERT INTO ingredients (id, name) VALUES (1, 'salt')",
+            "INSERT INTO measurements (id, name) VALUES (1, 'pinch')",
+            (
+                "INSERT INTO recipe_ingredients (id, recipe_id, amount_numerator, ingredient_id, measurement_id, position)"
+                " VALUES (1, 1, 1, 1, 1, 0)"
+            ),
+        ):
+            connection.execute(text(sql))
+
+    command.upgrade(alembic_config, "a688f6a63a90")
+    with engine.connect() as connection:
+        assert connection.execute(text("SELECT author_id FROM recipes")).scalar_one() is None
+        assert tuple(connection.execute(text('SELECT "group", note FROM recipe_ingredients')).one()) == (None, None)
+    engine.dispose()

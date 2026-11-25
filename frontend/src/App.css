@@ -344,6 +344,20 @@
   display: block;
 }
 
+/* A group heading ("Sauce") over the ingredient lines under it, on the recipe page. */
+.ingredient-group {
+  font-size: 0.95rem;
+  margin: 1rem 0 0.45rem;
+}
+
+.section-heading + .ingredient-group {
+  margin-top: 0;
+}
+
+.ingredient-note {
+  color: var(--text-faint);
+}
+
 .ingredient-amount {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -423,9 +437,18 @@
   min-width: 0;
 }
 
+/* Group and note take a second row of the grid, half each. */
+.ingredient-fields__wide {
+  grid-column: span 2;
+}
+
 @media (max-width: 46rem) {
   .ingredient-fields {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .ingredient-fields__wide {
+    grid-column: span 1;
   }
 }
 

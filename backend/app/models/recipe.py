@@ -9,6 +9,7 @@ from sqlalchemy.sql import func
 from app.database import Base
 
 if TYPE_CHECKING:
+    from app.models.author import Author
     from app.models.cookbook import Cookbook
     from app.models.imports import RecipeImportRecord
     from app.models.ingredient import Ingredient
@@ -37,6 +38,9 @@ class Recipe(Base):
     name: Mapped[str] = mapped_column(String(collation="NOCASE"), nullable=False)
     cookbook_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("cookbooks.id"), nullable=True)
     cookbook_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Only for a recipe without a cookbook; a cookbook recipe's author is its cookbook's.
+    author_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("authors.id"), nullable=True)
+    author: Mapped[Author | None] = relationship(back_populates="recipes")
     active_cook_time: Mapped[int | None] = mapped_column(Integer, nullable=True)  # minutes
     inactive_cook_time: Mapped[int | None] = mapped_column(Integer, nullable=True)  # minutes
     servings: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -117,6 +121,10 @@ class RecipeIngredient(Base):
     amount_numerator: Mapped[int] = mapped_column(Integer, nullable=False)
     amount_denominator: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     position: Mapped[int] = mapped_column(Integer, nullable=False)  # like Step.position
+    # The heading the line sits under ("For the sauce"); the recipe shows one wherever it changes from the line above.
+    group: Mapped[str | None] = mapped_column(String, nullable=True)
+    # What the line's fields can't say: "1-2 cups" (the amount is the larger), "optional", "plus more to serve".
+    note: Mapped[str | None] = mapped_column(String, nullable=True)
 
     recipe_id: Mapped[int] = mapped_column(Integer, ForeignKey("recipes.id"), nullable=False)
     recipe: Mapped[Recipe] = relationship(back_populates="recipe_ingredients")

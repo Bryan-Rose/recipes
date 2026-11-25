@@ -23,10 +23,14 @@ interface IngredientFieldsProps {
   // An updater, not a value: a picker's create resolves after later edits to the row, which must survive.
   onChange: (update: (current: IngredientDraft) => IngredientDraft) => void
   disabled?: boolean
+  /** The recipe's groups so far, suggested by the Group field. */
+  groups?: string[]
 }
 
-export function IngredientFields({ value, onChange, disabled }: IngredientFieldsProps) {
+export function IngredientFields({ value, onChange, disabled, groups = [] }: IngredientFieldsProps) {
   const amountId = useId()
+  const groupId = useId()
+  const noteId = useId()
   const { whole, fraction } = splitAmount(value.amount_numerator, value.amount_denominator)
   const ingredients = useIngredients()
   const measurements = useMeasurements()
@@ -109,6 +113,36 @@ export function IngredientFields({ value, onChange, disabled }: IngredientFields
         disabled={disabled}
         noneLabel="None"
       />
+
+      <div className="field ingredient-fields__wide">
+        <label htmlFor={groupId}>Group</label>
+        <input
+          id={groupId}
+          type="text"
+          list={`${groupId}-list`}
+          placeholder="Sauce"
+          value={value.group ?? ''}
+          disabled={disabled}
+          onChange={(event) => onChange((current) => ({ ...current, group: event.target.value }))}
+        />
+        <datalist id={`${groupId}-list`}>
+          {groups.map((group) => (
+            <option key={group} value={group} />
+          ))}
+        </datalist>
+      </div>
+
+      <div className="field ingredient-fields__wide">
+        <label htmlFor={noteId}>Note</label>
+        <input
+          id={noteId}
+          type="text"
+          placeholder="optional"
+          value={value.note ?? ''}
+          disabled={disabled}
+          onChange={(event) => onChange((current) => ({ ...current, note: event.target.value }))}
+        />
+      </div>
     </div>
   )
 }

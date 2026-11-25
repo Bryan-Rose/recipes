@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test'
 
-import { COOK, expectLoaded, signIn, test, unique } from './helpers'
+import { COOK, apiAs, expectLoaded, signIn, test, unique } from './helpers'
 
 // The e2e stack points the backend at e2e/mock-anthropic, which reads the pasted
 // text line by line: name, measurement, ingredient, then one step per line.
@@ -35,6 +35,40 @@ test('import a pasted recipe, review it, and save with new lookups', async ({ pa
   await expect(page.getByRole('listitem').filter({ hasText: ingredient })).toHaveText(`1 ½ ${measurement}s ${ingredient}`)
   await expect(page.getByText('Simmer.')).toBeVisible()
   await expect(page.getByText('Imported by the mock.')).toBeVisible()
+})
+
+test('an import keeps its group, line note, existing tags and author in their own fields', async ({ page, baseURL }) => {
+  const id = unique()
+  const name = `Grouped Soup ${id}`
+  const tag = `soups-${id}`
+  const author = `Ana Roux ${id}`
+  const api = await apiAs(baseURL!, COOK)
+  expect((await api.post('/api/tags/', { data: { name: tag } })).status()).toBe(201)
+  await api.dispose()
+
+  await page.goto('/')
+  await signIn(page, COOK)
+  await page.getByRole('link', { name: 'Import', exact: true }).click()
+  const lines = [name, 'cup', `stock-${id}`, `@author ${author}`, `@tag ${tag}`, `@tag made-up-${id}`, '@group Broth', '@note 1-2 cups', 'Simmer.']
+  await page.getByLabel('Recipe text').fill(lines.join('\n'))
+  await page.getByRole('button', { name: 'Read recipe' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Review import' })).toBeVisible()
+  await expect(page.getByText(`New: “${author}”, added when you save.`)).toBeVisible()
+  // Only the existing tag is picked; the made-up one is dropped, not created.
+  await expect(page.getByRole('list', { name: 'Tags' }).getByRole('listitem')).toHaveText([`${tag}×`])
+  await expect(page.getByLabel('Group')).toHaveValue('Broth')
+  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('1-2 cups')
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Broth', level: 3 })).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Broth' }).getByRole('listitem')).toHaveText([`1 ½ cups stock-${id} (1-2 cups)`])
+  await expect(page.getByRole('list', { name: 'Tags' })).toContainText(tag)
+
+  await page.getByRole('link', { name: author }).click()
+  await expect(page.getByRole('heading', { name: author, level: 1 })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Recipes' }).getByRole('link', { name })).toBeVisible()
 })
 
 test('an edited import review asks before it is left, and saves without asking', async ({ page }) => {

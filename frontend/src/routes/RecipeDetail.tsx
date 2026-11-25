@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { imageUrl, useDeleteRecipe, useRecipe } from '../api/recipes'
@@ -24,6 +24,8 @@ export function RecipeDetail() {
   if (isPending) return <Loading what="recipe" />
   if (error) return <ErrorState error={error} what="this recipe" />
 
+  // A cookbook recipe's author is its cookbook's; only one without a cookbook has its own.
+  const author = recipe.cookbook?.author ?? recipe.author
   const meta = [
     recipe.active_cook_time != null && { label: 'Active', value: formatMinutes(recipe.active_cook_time) as ReactNode },
     recipe.inactive_cook_time != null && { label: 'Inactive', value: formatMinutes(recipe.inactive_cook_time) },
@@ -36,10 +38,7 @@ export function RecipeDetail() {
         </>
       ),
     },
-    recipe.cookbook && {
-      label: 'Author',
-      value: <Link to={`/authors/${recipe.cookbook.author.id}`}>{recipe.cookbook.author.name}</Link>,
-    },
+    author && { label: 'Author', value: <Link to={`/authors/${author.id}`}>{author.name}</Link> },
     recipe.source_url && {
       label: 'Source',
       value: (
@@ -149,11 +148,19 @@ export function RecipeDetail() {
             {recipe.recipe_ingredients.length === 0 ? (
               <p className="empty-hint">None listed.</p>
             ) : (
-              <ul className="ingredient-list">
-                {recipe.recipe_ingredients.map((item) => (
-                  <li key={item.id}>{formatIngredient(item, recipe.servings ?? null, servings)}</li>
-                ))}
-              </ul>
+              runsOf(recipe.recipe_ingredients).map((run) => (
+                <Fragment key={run[0].id}>
+                  {run[0].group && <h3 className="ingredient-group">{run[0].group}</h3>}
+                  <ul className="ingredient-list" aria-label={run[0].group ?? undefined}>
+                    {run.map((item) => (
+                      <li key={item.id}>
+                        {formatIngredient(item, recipe.servings ?? null, servings)}
+                        {item.note && <span className="ingredient-note"> ({item.note})</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </Fragment>
+              ))
             )}
           </section>
 
@@ -221,4 +228,15 @@ function ServingsScaler({
       </div>
     </div>
   )
+}
+
+/** Consecutive lines with the same group, in order: a heading shows wherever the group changes. */
+function runsOf<T extends { group: string | null }>(lines: T[]): T[][] {
+  const runs: T[][] = []
+  for (const line of lines) {
+    const last = runs.at(-1)
+    if (last && last[0].group === line.group) last.push(line)
+    else runs.push([line])
+  }
+  return runs
 }

@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router'
 
 import {
   findByName,
+  useAuthors,
+  useCreateAuthor,
   useCreateIngredient,
   useCreateMeasurement,
   useCreatePreparation,
@@ -13,7 +15,7 @@ import {
 import { useCreateRecipe, useRecipes } from '../api/recipes'
 import { describeError } from '../api/errors'
 import type { ImageUpload, RecipeCreate } from '../api/types'
-import { emptyIngredient, emptyScalars, isComplete, isFilled, moveItem } from '../components/drafts'
+import { emptyIngredient, emptyScalars, groupsOf, isComplete, isFilled, moveItem, toLine } from '../components/drafts'
 import type { IngredientDraft, LookupKind, RecipeInitial, RecipeScalars } from '../components/drafts'
 import { ImageField } from '../components/ImageField'
 import { IngredientFields } from '../components/IngredientFields'
@@ -64,7 +66,11 @@ export function CreateRecipeForm({
     preparation: [usePreparations().data, useCreatePreparation()],
   } as const
 
+  const authors = useAuthors().data
+  const createAuthor = useCreateAuthor()
+
   const [scalars, setScalars] = useState<RecipeScalars>(initial?.scalars ?? emptyScalars)
+  const [pendingAuthor, setPendingAuthor] = useState(initial?.pendingAuthor)
   const [ingredients, setIngredients] = useState<Keyed<IngredientDraft>[]>(() => (initial?.ingredients ?? []).map(keyed))
   const [requirements, setRequirements] = useState<Keyed<string>[]>(() => (initial?.requirements ?? []).map(keyed))
   const [steps, setSteps] = useState<Keyed<string>[]>(() => (initial?.steps ?? []).map(keyed))
@@ -136,20 +142,25 @@ export function CreateRecipeForm({
     setCreatingPending(true)
     setPendingError(null)
     let rows: IngredientDraft[]
+    let authorId = scalars.author_id
     try {
       rows = await resolvePending(ingredients.map((row) => row.value))
+      // Only kept without a cookbook, which brings its own author.
+      if (pendingAuthor && authorId === null && scalars.cookbook_id === null)
+        authorId = findByName(authors, pendingAuthor)?.id ?? (await createAuthor.mutateAsync(pendingAuthor)).id
     } catch (caught) {
       setPendingError(caught)
       return
     } finally {
       setCreatingPending(false)
     }
-    const recipeIngredients = rows.filter(isComplete)
+    const recipeIngredients = rows.filter(isComplete).map(toLine)
     // Never drop a row silently; canSave should already have blocked this.
     if (recipeIngredients.length !== ingredients.length) return
 
     const body: RecipeCreate = {
       ...scalars,
+      author_id: authorId,
       name: scalars.name.trim(),
       image,
       import_id: importId,
@@ -185,7 +196,12 @@ export function CreateRecipeForm({
 
       <div className="stack">
         <section className="card editor-section">
-          <RecipeFields value={scalars} onChange={setScalars} />
+          <RecipeFields
+            value={scalars}
+            onChange={setScalars}
+            pendingAuthor={pendingAuthor}
+            onPickAuthor={() => setPendingAuthor(undefined)}
+          />
           {duplicate && (
             <p className="error-box" style={{ marginTop: '1rem' }}>
               <Link to={`/recipes/${duplicate.id}`}>A recipe called “{duplicate.name}”</Link> already exists{' '}
@@ -222,6 +238,7 @@ export function CreateRecipeForm({
               <span className="child-row__index">{index + 1}</span>
               <IngredientFields
                 value={row.value}
+                groups={groupsOf(ingredients.map((other) => other.value))}
                 onChange={(update) =>
                   setIngredients((current) =>
                     current.map((item) => (item.key === row.key ? { ...item, value: update(item.value) } : item)),

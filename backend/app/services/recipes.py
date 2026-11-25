@@ -25,6 +25,7 @@ _RECIPE_LOAD_OPTIONS = [
     selectinload(Recipe.steps),
     selectinload(Recipe.requirements),
     selectinload(Recipe.cookbook),
+    selectinload(Recipe.author),
     selectinload(Recipe.tags),
     selectinload(Recipe.recipe_ingredients).selectinload(RecipeIngredient.ingredient),
     selectinload(Recipe.recipe_ingredients).selectinload(RecipeIngredient.preparation),
@@ -47,6 +48,10 @@ class OrderMismatchError(Exception):
 
 
 class PageWithoutCookbookError(Exception):
+    pass
+
+
+class AuthorWithCookbookError(Exception):
     pass
 
 
@@ -115,6 +120,11 @@ def update_recipe(db: Session, recipe: Recipe, recipe_in: RecipeUpdate) -> Recip
             raise PageWithoutCookbookError
         if "cookbook_id" in changes:
             changes["cookbook_page"] = None  # removing the cookbook drops its page, as the UI does
+    else:
+        if changes.get("author_id") is not None:
+            raise AuthorWithCookbookError
+        if "cookbook_id" in changes:
+            changes["author_id"] = None  # a cookbook brings its own author, as the UI shows
     for field, value in changes.items():
         setattr(recipe, field, value)
     if recipe_in.tag_ids is not None:

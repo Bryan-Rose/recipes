@@ -217,6 +217,7 @@ describe('lookups', () => {
       ...recipe,
       cookbook_id: mastering.id,
       cookbook_page: null,
+      author_id: null,
       active_cook_time: null,
       inactive_cook_time: null,
       cookbook: mastering,

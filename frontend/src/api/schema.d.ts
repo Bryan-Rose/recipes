@@ -1084,6 +1084,10 @@ export interface components {
             ingredient: string;
             /** Preparation */
             preparation: string | null;
+            /** Group */
+            group: string | null;
+            /** Note */
+            note: string | null;
         };
         /** ImportedRecipeRef */
         ImportedRecipeRef: {
@@ -1214,6 +1218,8 @@ export interface components {
             cookbook_id?: number | null;
             /** Cookbook Page */
             cookbook_page?: number | null;
+            /** Author Id */
+            author_id?: number | null;
             /** Active Cook Time */
             active_cook_time?: number | null;
             /** Inactive Cook Time */
@@ -1260,6 +1266,10 @@ export interface components {
             inactive_cook_time: number | null;
             /** Notes */
             notes: string | null;
+            /** Author */
+            author: string | null;
+            /** Tags */
+            tags: string[];
             /** Ingredients */
             ingredients: components["schemas"]["ImportedIngredient"][];
             /** Requirements */
@@ -1294,6 +1304,10 @@ export interface components {
              * @enum {integer}
              */
             amount_denominator: 1 | 2 | 3 | 4 | 8;
+            /** Group */
+            group?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** RecipeIngredientOrder */
         RecipeIngredientOrder: {
@@ -1314,6 +1328,10 @@ export interface components {
              * @enum {integer}
              */
             amount_denominator: 1 | 2 | 3 | 4 | 8;
+            /** Group */
+            group: string | null;
+            /** Note */
+            note: string | null;
         };
         /** RecipeIngredientUpdate */
         RecipeIngredientUpdate: {
@@ -1330,6 +1348,10 @@ export interface components {
             amount_denominator?: 1 | 2 | 3 | 4 | 8;
             /** Preparation Id */
             preparation_id?: number | null;
+            /** Group */
+            group?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** RecipeRead */
         RecipeRead: {
@@ -1339,6 +1361,8 @@ export interface components {
             cookbook_id?: number | null;
             /** Cookbook Page */
             cookbook_page?: number | null;
+            /** Author Id */
+            author_id?: number | null;
             /** Active Cook Time */
             active_cook_time?: number | null;
             /** Inactive Cook Time */
@@ -1364,6 +1388,7 @@ export interface components {
              */
             updated_at: string;
             cookbook?: components["schemas"]["CookbookRead"] | null;
+            author?: components["schemas"]["AuthorRead"] | null;
             /**
              * Steps
              * @default []
@@ -1401,6 +1426,8 @@ export interface components {
             cookbook_id: number | null;
             /** Cookbook Page */
             cookbook_page: number | null;
+            /** Author Id */
+            author_id: number | null;
             /** Active Cook Time */
             active_cook_time: number | null;
             /** Inactive Cook Time */
@@ -1428,6 +1455,8 @@ export interface components {
             cookbook_id?: number | null;
             /** Cookbook Page */
             cookbook_page?: number | null;
+            /** Author Id */
+            author_id?: number | null;
             /** Active Cook Time */
             active_cook_time?: number | null;
             /** Inactive Cook Time */

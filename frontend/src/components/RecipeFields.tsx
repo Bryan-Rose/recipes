@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 
-import { useCookbooks, useCreateTag, useTags } from '../api/lookups'
+import { useAuthors, useCookbooks, useCreateAuthor, useCreateTag, useTags } from '../api/lookups'
 import type { RecipeScalars } from './drafts'
 import { LookupPicker } from './LookupPicker'
 
@@ -8,10 +8,15 @@ interface RecipeFieldsProps {
   value: RecipeScalars
   /** A state setter: updates read the latest value, so a tag created mid-edit can't undo typing. */
   onChange: Dispatch<SetStateAction<RecipeScalars>>
+  /** An imported author's name to add on save, until another author (or none) is picked. */
+  pendingAuthor?: string
+  onPickAuthor?: () => void
 }
 
-export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
+export function RecipeFields({ value, onChange, pendingAuthor, onPickAuthor }: RecipeFieldsProps) {
   const { data: cookbooks } = useCookbooks()
+  const { data: authors } = useAuthors()
+  const createAuthor = useCreateAuthor()
   const { data: tags } = useTags()
   const createTag = useCreateTag()
 
@@ -24,7 +29,8 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
       // The page input is disabled without a cookbook, so a kept page would be saved invisibly.
       onChange((current) => ({ ...current, cookbook_id: null, cookbook_page: null }))
     } else {
-      set('cookbook_id', Number(raw))
+      // A cookbook brings its own author; the API refuses both.
+      onChange((current) => ({ ...current, cookbook_id: Number(raw), author_id: null }))
     }
   }
 
@@ -75,6 +81,21 @@ export function RecipeFields({ value, onChange }: RecipeFieldsProps) {
             }
           />
         </div>
+
+        {value.cookbook_id === null && (
+          <LookupPicker
+            label="Author"
+            options={authors}
+            value={value.author_id}
+            onChange={(id) => {
+              set('author_id', id)
+              onPickAuthor?.()
+            }}
+            pendingName={pendingAuthor}
+            onCreate={(name) => createAuthor.mutateAsync(name)}
+            noneLabel="None"
+          />
+        )}
 
         <div className="field">
           <label htmlFor="recipe-servings">Servings</label>

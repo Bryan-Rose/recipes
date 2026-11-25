@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import Ingredient, Measurement, Preparation, RecipeImportRecord, User
+from app.models import Author, Ingredient, Measurement, Preparation, RecipeImportRecord, Tag, User
 from app.schemas.imports import ImportOutcome, ImportSource, ImportUsage, RecipeDraft
 
 SYSTEM = """You turn a recipe into structured data for a recipe app. Copy the recipe; don't improve or invent anything.
@@ -26,14 +26,19 @@ and the numerator is at least 1. "1 1/2" is 3/2; "0.33" is 1/3; "2" is 2/1.
   - Counted ingredients ("2 eggs") use the measurement "whole". Ingredients with no amount ("salt to taste") use \
 amount 1/1 and the measurement "to taste".
   - preparation is how the ingredient is prepared ("finely chopped", "melted"), or null.
+  - group is the heading the line sits under in the recipe ("For the sauce:" is "Sauce"), or null when the \
+ingredients aren't grouped. Give every line under a heading the same group, and keep the recipe's line order.
+  - note is anything else the line says that the fields above can't: a range ("1-2 cups": use the larger amount \
+and note "1-2 cups"), "optional", "plus more to serve", "about", "at room temperature". null if none.
   - Reuse a name from the existing lists below whenever one means the same thing ("tbsp" is "tablespoon", \
 "yellow onion" may be "onion" if that's all there is), spelled exactly as listed. Otherwise use a short, lowercase, \
 singular name.
-- The app can't store ranges ("1-2 cups": use the larger), amounts it can't express exactly, ingredient groups \
-("For the sauce:"), or notes on an ingredient line ("optional", "plus more to serve"). Make the nearest fit, and add \
-one line per thing you changed or left out to notes, so nothing is lost.
-- notes: "By <name>" first when the recipe names its author, then any other useful text from the recipe (tips, \
-storage, variations), then the lines above. null if none.
+- The app can't store amounts it can't express exactly. Make the nearest fit, and add one line per thing you \
+changed or left out to notes, so nothing is lost.
+- author: the person the recipe is by, when it names one ("By Ana Roux" is "Ana Roux"); otherwise null. Spell it \
+as listed when it's one of the existing authors.
+- tags: names from the existing tags that fit this recipe, spelled exactly as listed, or none. Never make up a tag.
+- notes: any other useful text from the recipe (tips, storage, variations), then the lines above. null if none.
 - Photos are pages of one recipe, in order. Ignore page numbers, running heads and anything that isn't this recipe. \
 If a page shows more than one recipe, take the one that continues across the photos (or the most complete one), and \
 say in notes which you took. Where the print is unreadable, leave a gap and say so in notes.
@@ -77,7 +82,7 @@ def usage_of(response: BetaMessage, requested: str) -> ImportUsage:
     )
 
 
-def _names(db: Session, model: type[Ingredient | Measurement | Preparation]) -> str:
+def _names(db: Session, model: type[Ingredient | Measurement | Preparation | Author | Tag]) -> str:
     names = db.execute(select(model.name).order_by(model.name)).scalars().all()
     return "\n".join(names) or "(none yet)"
 
@@ -93,7 +98,9 @@ def _lookups(db: Session) -> str:
     return (
         f"<existing_measurements>\n{_names(db, Measurement)}\n</existing_measurements>\n"
         f"<existing_ingredients>\n{_names(db, Ingredient)}\n</existing_ingredients>\n"
-        f"<existing_preparations>\n{_names(db, Preparation)}\n</existing_preparations>"
+        f"<existing_preparations>\n{_names(db, Preparation)}\n</existing_preparations>\n"
+        f"<existing_authors>\n{_names(db, Author)}\n</existing_authors>\n"
+        f"<existing_tags>\n{_names(db, Tag)}\n</existing_tags>"
     )
 
 

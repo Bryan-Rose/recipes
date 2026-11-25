@@ -77,13 +77,27 @@ export function AuthorPage() {
   const author = authors.data.find((item) => item.id === id)
   if (!author) return <Missing what="author" />
   const theirs = cookbooks.data.filter((cookbook) => cookbook.author.id === id)
+  // Recipes with an author of their own are never in a cookbook.
+  const standalone = recipes.data.filter((recipe) => recipe.author_id === id).sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <>
       <BackLink />
       <h1>{author.name}</h1>
+      {standalone.length > 0 && (
+        <section aria-label="Recipes">
+          <h2>Recipes</h2>
+          <ul className="stack browse-list">
+            {standalone.map((recipe) => (
+              <li key={recipe.id} className="card browse-item">
+                <Link to={`/recipes/${recipe.id}`}>{recipe.name}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {theirs.length === 0 ? (
-        <p className="status">No cookbooks by {author.name} yet.</p>
+        standalone.length === 0 && <p className="status">No cookbooks by {author.name} yet.</p>
       ) : (
         theirs.map((cookbook) => (
           <section key={cookbook.id} aria-label={cookbook.name}>

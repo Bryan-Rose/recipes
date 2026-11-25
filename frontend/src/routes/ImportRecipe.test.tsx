@@ -28,9 +28,11 @@ const draft: RecipeImport = {
   active_cook_time: 20,
   inactive_cook_time: 30,
   notes: 'Range 2-3 leeks: used 3.',
+  author: null,
+  tags: [],
   ingredients: [
-    { amount_numerator: 3, amount_denominator: 1, measurement: 'whole', ingredient: 'leek', preparation: 'sliced' },
-    { amount_numerator: 1, amount_denominator: 2, measurement: 'Cup', ingredient: 'leek', preparation: null },
+    { amount_numerator: 3, amount_denominator: 1, measurement: 'whole', ingredient: 'leek', preparation: 'sliced', group: null, note: null },
+    { amount_numerator: 1, amount_denominator: 2, measurement: 'Cup', ingredient: 'leek', preparation: null, group: null, note: null },
   ],
   requirements: ['Large pot'],
   steps: ['Sweat the leeks.', 'Simmer.'],
@@ -131,6 +133,68 @@ it('reviews the draft beside the source and creates new lookups once on save', a
   expect(saved?.recipe_ingredients?.[0]).not.toHaveProperty('pending')
   // Lands on the new recipe (its load is stubbed out).
   expect(await screen.findByText(/Couldn.t load this recipe/)).toBeInTheDocument()
+})
+
+it('saves the imported groups, notes, existing tags and a new author', async () => {
+  let saved: RecipeCreate | undefined
+  const authors: string[] = []
+  const withFields: RecipeImport = {
+    ...draft,
+    author: 'Ana Roux',
+    tags: ['soup', 'made-up'],
+    ingredients: [{ ...draft.ingredients[1], measurement: 'cup', ingredient: 'leek', group: 'Base', note: '2-3' }],
+  }
+  server.use(
+    http.get('/api/ingredients/', () => HttpResponse.json([{ id: 1, name: 'leek' }])),
+    http.get('/api/tags/', () => HttpResponse.json([{ id: 4, name: 'Soup' }])),
+    http.post('/api/imports/text', () => HttpResponse.json(withFields)),
+    http.post('/api/authors/', async ({ request }) => {
+      const { name } = (await request.json()) as { name: string }
+      authors.push(name)
+      return HttpResponse.json({ id: 9, name }, { status: 201 })
+    }),
+    http.post('/api/recipes/', async ({ request }) => {
+      saved = (await request.json()) as RecipeCreate
+      return HttpResponse.json({ id: 7 }, { status: 201 })
+    }),
+    http.get('/api/recipes/7', () => HttpResponse.json({ detail: 'not under test' }, { status: 404 })),
+  )
+  const user = await readRecipe()
+
+  expect(await screen.findByText('New: “Ana Roux”, added when you save.', { exact: false })).toBeInTheDocument()
+  expect(within(screen.getByRole('list', { name: 'Tags' })).getByText('Soup')).toBeInTheDocument()
+  expect(screen.getByLabelText('Group')).toHaveValue('Base')
+  expect(screen.getByLabelText('Note')).toHaveValue('2-3')
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+
+  await waitFor(() => expect(saved).toBeDefined())
+  expect(authors).toEqual(['Ana Roux'])
+  expect(saved).toMatchObject({ author_id: 9, tag_ids: [4], recipe_ingredients: [{ group: 'Base', note: '2-3' }] })
+})
+
+it('drops an imported author when the recipe gets a cookbook', async () => {
+  let saved: RecipeCreate | undefined
+  server.use(
+    http.get('/api/cookbooks/', () =>
+      HttpResponse.json([{ id: 3, name: 'Soups', author: { id: 1, name: 'Bo' }, created_at: '', recipe_count: 0, image: null }]),
+    ),
+    http.post('/api/imports/text', () => HttpResponse.json({ ...draft, author: 'Ana Roux', ingredients: [] })),
+    http.post('/api/recipes/', async ({ request }) => {
+      saved = (await request.json()) as RecipeCreate
+      return HttpResponse.json({ id: 7 }, { status: 201 })
+    }),
+    http.get('/api/recipes/7', () => HttpResponse.json({ detail: 'not under test' }, { status: 404 })),
+  )
+  const user = await readRecipe()
+
+  await screen.findByText('New: “Ana Roux”, added when you save.', { exact: false })
+  await screen.findByRole('option', { name: 'Soups — Bo' })
+  await user.selectOptions(screen.getByLabelText('Cookbook'), 'Soups — Bo')
+  expect(screen.queryByLabelText('Author')).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+
+  // No POST /api/authors/ handler: creating the author would fail the test as an unmocked request.
+  await waitFor(() => expect(saved).toMatchObject({ cookbook_id: 3, author_id: null }))
 })
 
 it("can drop a pending name with Don't add", async () => {

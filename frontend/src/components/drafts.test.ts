@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
 import type { RecipeDraft } from '../api/types'
-import { emptyIngredient, fromImport, isComplete, isFilled, moveItem } from './drafts'
+import { emptyIngredient, fromImport, groupsOf, isComplete, isFilled, moveItem, toLine } from './drafts'
 
 describe('isComplete', () => {
-  const full = { ingredient_id: 1, measurement_id: 2, preparation_id: 3, amount_numerator: 7, amount_denominator: 2 as const }
+  const full = {
+    ...emptyIngredient,
+    ingredient_id: 1,
+    measurement_id: 2,
+    preparation_id: 3,
+    amount_numerator: 7,
+    amount_denominator: 2 as const,
+  }
 
   it('accepts a row with both ids and a fractional amount', () => {
     expect(isComplete(full)).toBe(true)
@@ -46,13 +53,32 @@ describe('fromImport', () => {
     active_cook_time: 15,
     inactive_cook_time: -5,
     notes: '  ',
+    author: 'ana roux',
+    tags: ['Soup', 'made-up', 'soup'],
     ingredients: [
-      { amount_numerator: 3, amount_denominator: 2, measurement: 'Cup', ingredient: 'shallot', preparation: ' ' },
+      {
+        amount_numerator: 3,
+        amount_denominator: 2,
+        measurement: 'Cup',
+        ingredient: 'shallot',
+        preparation: ' ',
+        group: 'Base',
+        note: 'about',
+      },
     ],
     requirements: ['Pot'],
     steps: ['Simmer.'],
   }
-  const lists = { ingredient: [{ id: 1, name: 'onion' }], measurement: [{ id: 2, name: 'cup' }], preparation: [] }
+  const lists = {
+    ingredient: [{ id: 1, name: 'onion' }],
+    measurement: [{ id: 2, name: 'cup' }],
+    preparation: [],
+    author: [{ id: 4, name: 'Ana Roux' }],
+    tag: [
+      { id: 6, name: 'soup' },
+      { id: 5, name: 'dinner' },
+    ],
+  }
 
   it('matches names case-insensitively and leaves the rest pending', () => {
     const [row] = fromImport(draft, lists).ingredients
@@ -62,6 +88,8 @@ describe('fromImport', () => {
       preparation_id: null,
       amount_numerator: 3,
       amount_denominator: 2,
+      group: 'Base',
+      note: 'about',
       pending: { ingredient: 'shallot' },
     })
     expect(isFilled(row)).toBe(true)
@@ -71,6 +99,32 @@ describe('fromImport', () => {
   it('blanks values the API would reject', () => {
     const { scalars } = fromImport(draft, lists)
     expect(scalars).toMatchObject({ name: 'Soup', servings: null, active_cook_time: 15, inactive_cook_time: null, notes: null })
+  })
+
+  it('matches the author and existing tags by name, dropping made-up tags', () => {
+    const { scalars, pendingAuthor } = fromImport(draft, lists)
+    expect(scalars).toMatchObject({ author_id: 4, tag_ids: [6] })
+    expect(pendingAuthor).toBeUndefined()
+  })
+
+  it('leaves an unknown author pending, and no author as none', () => {
+    expect(fromImport({ ...draft, author: ' Pia Lund ' }, lists)).toMatchObject({ scalars: { author_id: null }, pendingAuthor: 'Pia Lund' })
+    expect(fromImport({ ...draft, author: null }, lists)).toMatchObject({ scalars: { author_id: null }, pendingAuthor: undefined })
+  })
+})
+
+describe('toLine', () => {
+  it('trims the group and note, and sends blank as none', () => {
+    expect(toLine({ ...emptyIngredient, group: ' Sauce ', note: '  ' })).toMatchObject({ group: 'Sauce', note: null })
+  })
+})
+
+describe('groupsOf', () => {
+  it('lists each group once, in order, skipping blanks', () => {
+    expect(groupsOf([{ group: 'Dough' }, { group: null }, { group: ' Dough ' }, { group: ' ' }, { group: 'Filling' }])).toEqual([
+      'Dough',
+      'Filling',
+    ])
   })
 })
 

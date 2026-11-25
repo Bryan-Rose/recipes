@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.fields import IdPath
 from app.schemas.recipes import (
+    AUTHOR_WITH_COOKBOOK,
     ImageUpload,
     RecipeCreate,
     RecipeIngredientCreate,
@@ -80,6 +81,10 @@ def update_recipe(recipe_id: IdPath, recipe_in: RecipeUpdate, db: Session = Depe
         msg = "cookbook_page requires a cookbook_id"
         raise RequestValidationError(
             [{"type": "value_error", "loc": ("body", "cookbook_page"), "msg": msg, "input": recipe_in.cookbook_page}]
+        )
+    except recipes_service.AuthorWithCookbookError:
+        raise RequestValidationError(
+            [{"type": "value_error", "loc": ("body", "author_id"), "msg": AUTHOR_WITH_COOKBOOK, "input": recipe_in.author_id}]
         )
 
 

@@ -20,8 +20,8 @@ const recipe: Recipe = {
   requirements: [],
   tags: [],
   recipe_ingredients: [
-    { id: 1, amount_numerator: 1, amount_denominator: 2, ingredient: { id: 1, name: 'milk' }, measurement: cup, preparation: null },
-    { id: 2, amount_numerator: 1, amount_denominator: 3, ingredient: { id: 2, name: 'sugar' }, measurement: cup, preparation: null },
+    { id: 1, amount_numerator: 1, amount_denominator: 2, ingredient: { id: 1, name: 'milk' }, measurement: cup, preparation: null, group: null, note: null },
+    { id: 2, amount_numerator: 1, amount_denominator: 3, ingredient: { id: 2, name: 'sugar' }, measurement: cup, preparation: null, group: null, note: null },
   ],
 }
 
@@ -57,6 +57,31 @@ it('has no original link for an import from before originals were kept', async (
   expect(screen.queryByRole('link', { name: 'View original' })).not.toBeInTheDocument()
 })
 
+it('shows ingredient groups as headings where the group changes, with each line note', async () => {
+  signedIn()
+  const line = recipe.recipe_ingredients[0]
+  show({
+    ...recipe,
+    recipe_ingredients: [
+      { ...line, id: 1, group: 'Batter' },
+      { ...line, id: 2, group: 'Batter', note: 'cold' },
+      { ...line, id: 3, group: 'Topping' },
+      { ...line, id: 4, group: null },
+    ],
+  })
+  const headings = await screen.findAllByRole('heading', { level: 3 })
+  expect(headings.map((heading) => heading.textContent)).toEqual(['Batter', 'Topping'])
+  const batter = within(screen.getByRole('list', { name: 'Batter' })).getAllByRole('listitem')
+  expect(batter.map((item) => item.textContent)).toEqual(['½ cup milk', '½ cup milk (cold)'])
+  expect(within(screen.getByRole('list', { name: 'Topping' })).getAllByRole('listitem')).toHaveLength(1)
+})
+
+it('links to the author of a recipe without a cookbook', async () => {
+  signedIn()
+  show({ ...recipe, author_id: 3, author: { id: 3, name: 'Ana Roux' } })
+  expect(await screen.findByRole('link', { name: 'Ana Roux' })).toHaveAttribute('href', '/authors/3')
+})
+
 it('has no import cost for a recipe typed in', async () => {
   signedIn()
   show(recipe)
@@ -85,7 +110,7 @@ describe('serving scaler', () => {
     show({
       ...recipe,
       recipe_ingredients: [
-        { id: 3, amount_numerator: 1, amount_denominator: 1, ingredient: { id: 3, name: 'salt' }, measurement: toTaste, preparation: null },
+        { id: 3, amount_numerator: 1, amount_denominator: 1, ingredient: { id: 3, name: 'salt' }, measurement: toTaste, preparation: null, group: null, note: null },
         {
           id: 4,
           amount_numerator: 2,
@@ -93,6 +118,8 @@ describe('serving scaler', () => {
           ingredient: { id: 4, name: 'chives' },
           measurement: toTaste,
           preparation: { id: 1, name: 'minced' },
+          group: null,
+          note: null,
         },
       ],
     })

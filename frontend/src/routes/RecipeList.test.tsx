@@ -17,6 +17,7 @@ function recipe(id: number, name: string, extra: Partial<RecipeSummary>): Recipe
     id,
     name,
     cookbook_id: extra.cookbook?.id ?? null,
+    author_id: null,
     cookbook_page: null,
     cookbook: null,
     active_cook_time: null,
