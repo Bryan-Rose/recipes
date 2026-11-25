@@ -170,6 +170,8 @@ it('saves the imported groups, notes, existing tags and a new author', async () 
   await waitFor(() => expect(saved).toBeDefined())
   expect(authors).toEqual(['Ana Roux'])
   expect(saved).toMatchObject({ author_id: 9, tag_ids: [4], recipe_ingredients: [{ group: 'Base', note: '2-3' }] })
+  // Wait for the move to the new recipe, so its load doesn't land in the next test.
+  expect(await screen.findByText(/Couldn.t load this recipe/)).toBeInTheDocument()
 })
 
 it('drops an imported author when the recipe gets a cookbook', async () => {
@@ -195,6 +197,7 @@ it('drops an imported author when the recipe gets a cookbook', async () => {
 
   // No POST /api/authors/ handler: creating the author would fail the test as an unmocked request.
   await waitFor(() => expect(saved).toMatchObject({ cookbook_id: 3, author_id: null }))
+  expect(await screen.findByText(/Couldn.t load this recipe/)).toBeInTheDocument()
 })
 
 it("can drop a pending name with Don't add", async () => {
