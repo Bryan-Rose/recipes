@@ -10,6 +10,8 @@ import {
   useDeleteRequirement,
   useDeleteStep,
   useRemoveRecipeImage,
+  useReorderRecipeIngredients,
+  useReorderRequirements,
   useReorderSteps,
   useSetRecipeImage,
   useUpdateRecipe,
@@ -48,6 +50,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
   const updateStep = useUpdateStep(recipe.id)
   const deleteStep = useDeleteStep(recipe.id)
   const reorderSteps = useReorderSteps(recipe.id)
+  const reorderRequirements = useReorderRequirements(recipe.id)
   const setImage = useSetRecipeImage(recipe.id)
   const removeImage = useRemoveRecipeImage(recipe.id)
   const imageError = setImage.error ?? removeImage.error
@@ -132,6 +135,7 @@ export function EditRecipeForm({ recipe }: { recipe: Recipe }) {
           onCreate={createRequirement.mutateAsync}
           onUpdate={updateRequirement.mutateAsync}
           onDelete={deleteRequirement.mutateAsync}
+          onReorder={reorderRequirements.mutateAsync}
           toBody={(text) => ({ name: text })}
           onUnsavedChange={reportUnsaved('requirements')}
         />
@@ -186,12 +190,13 @@ function IngredientsSection({ recipe, onUnsavedChange }: { recipe: Recipe; onUns
   const createIngredient = useCreateRecipeIngredient(recipe.id)
   const updateIngredient = useUpdateRecipeIngredient(recipe.id)
   const deleteIngredient = useDeleteRecipeIngredient(recipe.id)
+  const reorderIngredients = useReorderRecipeIngredients(recipe.id)
 
   // Rows being edited, keyed by the recipe-ingredient id. A row is absent until
   // it is touched, so server updates flow straight through to untouched rows.
   const [drafts, setDrafts] = useState<Record<number, IngredientDraft>>({})
   const [newRow, setNewRow] = useState<IngredientDraft | null>(null)
-  const error = createIngredient.error ?? updateIngredient.error ?? deleteIngredient.error
+  const error = createIngredient.error ?? updateIngredient.error ?? deleteIngredient.error ?? reorderIngredients.error
 
   const unsaved =
     (newRow !== null && differs(newRow, emptyIngredient)) ||
@@ -241,6 +246,15 @@ function IngredientsSection({ recipe, onUnsavedChange }: { recipe: Recipe; onUns
                   Save
                 </button>
               )}
+              <MoveButtons
+                label={`ingredient ${index + 1}`}
+                index={index}
+                count={recipe.recipe_ingredients.length}
+                // mutate(): a failure shows through reorderIngredients.error.
+                onMove={(delta) =>
+                  reorderIngredients.mutate(moveItem(recipe.recipe_ingredients, index, delta).map((row) => row.id))
+                }
+              />
               <button
                 type="button"
                 className="ghost"

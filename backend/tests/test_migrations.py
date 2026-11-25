@@ -463,3 +463,30 @@ def test_imports_from_before_originals_have_none(alembic_config: Config):
         row = connection.execute(text("SELECT original, original_parts, page_url FROM recipe_imports")).one()
         assert tuple(row) == (None, 0, None)
     engine.dispose()
+
+
+def test_ingredient_and_requirement_positions_follow_insert_order(alembic_config: Config):
+    command.upgrade(alembic_config, "0562f0467369")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        for sql in (
+            "INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)",
+            "INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'r1', 1), (2, 'r2', 1)",
+            "INSERT INTO ingredients (id, name) VALUES (1, 'salt')",
+            "INSERT INTO measurements (id, name) VALUES (1, 'pinch')",
+            # Interleaved across recipes, so each recipe's numbering must restart at 0.
+            "INSERT INTO requirements (id, name, recipe_id) VALUES (10, 'a', 1), (11, 'x', 2), (12, 'b', 1), (13, 'c', 1)",
+            (
+                "INSERT INTO recipe_ingredients (id, recipe_id, amount_numerator, ingredient_id, measurement_id)"
+                " VALUES (20, 2, 1, 1, 1), (21, 1, 1, 1, 1), (22, 2, 1, 1, 1)"
+            ),
+        ):
+            connection.execute(text(sql))
+
+    command.upgrade(alembic_config, "97d16776d9ac")
+    with engine.connect() as connection:
+        requirements = connection.execute(text("SELECT id, recipe_id, position FROM requirements ORDER BY id")).all()
+        assert requirements == [(10, 1, 0), (11, 2, 0), (12, 1, 1), (13, 1, 2)]
+        lines = connection.execute(text("SELECT id, recipe_id, position FROM recipe_ingredients ORDER BY id")).all()
+        assert lines == [(20, 2, 0), (21, 1, 0), (22, 2, 1)]
+    engine.dispose()

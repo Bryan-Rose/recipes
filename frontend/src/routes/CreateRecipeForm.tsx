@@ -228,6 +228,12 @@ export function CreateRecipeForm({
                   )
                 }
               />
+              <MoveButtons
+                label={`ingredient ${index + 1}`}
+                index={index}
+                count={ingredients.length}
+                onMove={(delta) => setIngredients((current) => moveItem(current, index, delta))}
+              />
               <button
                 type="button"
                 className="ghost"
@@ -265,6 +271,12 @@ export function CreateRecipeForm({
                   }
                 />
               </div>
+              <MoveButtons
+                label={`item ${index + 1}`}
+                index={index}
+                count={requirements.length}
+                onMove={(delta) => setRequirements((current) => moveItem(current, index, delta))}
+              />
               <button
                 type="button"
                 className="ghost"

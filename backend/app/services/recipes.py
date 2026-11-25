@@ -11,9 +11,11 @@ from app.schemas.recipes import (
     ImageUpload,
     RecipeCreate,
     RecipeIngredientCreate,
+    RecipeIngredientOrder,
     RecipeIngredientUpdate,
     RecipeUpdate,
     RequirementCreate,
+    RequirementOrder,
     StepCreate,
     StepOrder,
 )
@@ -40,8 +42,8 @@ class UnknownImportError(Exception):
     """No such import, or a recipe was already saved from it."""
 
 
-class StepOrderMismatchError(Exception):
-    pass
+class OrderMismatchError(Exception):
+    """The ids sent aren't exactly the recipe's lines."""
 
 
 class PageWithoutCookbookError(Exception):
@@ -140,14 +142,31 @@ def set_image(db: Session, recipe: Recipe, images_dir: Path, upload: ImageUpload
 ## Step
 
 
-def create_step(db: Session, recipe: Recipe, step_in: StepCreate) -> Step:
-    db_model = Step(**step_in.model_dump())
-    recipe.steps.append(db_model)
-    # append numbers it len(steps), which can sit below a later step after deletes left gaps.
-    recipe.steps.reorder()  # pyright: ignore[reportAttributeAccessIssue]  # an ordering_list at runtime
+def _append[T: Step | Requirement | RecipeIngredient](db: Session, lines: list[T], line: T) -> T:
+    lines.append(line)
+    # append numbers it len(lines), which can sit below a later line after deletes left gaps.
+    lines.reorder()  # pyright: ignore[reportAttributeAccessIssue]  # an ordering_list at runtime
     db.commit()
-    db.refresh(db_model)
-    return db_model
+    db.refresh(line)
+    return line
+
+
+def _reorder(db: Session, recipe: Recipe, attribute: str, ids: list[int]) -> list:
+    """Puts the recipe's steps, requirements or recipe_ingredients in the order of ids."""
+    by_id = {line.id: line for line in getattr(recipe, attribute)}
+    # A list that no longer matches (a line added or removed since the client loaded) is refused, not merged.
+    # shortcut: no lock, so a line added between this check and the commit is not refused; it keeps its
+    # (last) position and is missing from the response. Lock or re-check in the transaction if that matters.
+    if sorted(ids) != sorted(by_id):
+        raise OrderMismatchError
+    setattr(recipe, attribute, [by_id[line_id] for line_id in ids])
+    getattr(recipe, attribute).reorder()  # an ordering_list at runtime
+    db.commit()
+    return list(getattr(recipe, attribute))
+
+
+def create_step(db: Session, recipe: Recipe, step_in: StepCreate) -> Step:
+    return _append(db, recipe.steps, Step(**step_in.model_dump()))
 
 
 def get_step(db: Session, recipe_id: int, step_id: int) -> Step | None:
@@ -155,16 +174,7 @@ def get_step(db: Session, recipe_id: int, step_id: int) -> Step | None:
 
 
 def reorder_steps(db: Session, recipe: Recipe, order_in: StepOrder) -> list[Step]:
-    by_id = {step.id: step for step in recipe.steps}
-    # A list that no longer matches (a step added or removed since the client loaded) is refused, not merged.
-    # shortcut: no lock, so a step added between this check and the commit is not refused; it keeps its
-    # (last) position and is missing from the response. Lock or re-check in the transaction if that matters.
-    if sorted(order_in.step_ids) != sorted(by_id):
-        raise StepOrderMismatchError
-    recipe.steps = [by_id[step_id] for step_id in order_in.step_ids]
-    recipe.steps.reorder()  # pyright: ignore[reportAttributeAccessIssue]  # an ordering_list at runtime
-    db.commit()
-    return list(recipe.steps)
+    return _reorder(db, recipe, "steps", order_in.step_ids)
 
 
 ## Step
@@ -172,13 +182,12 @@ def reorder_steps(db: Session, recipe: Recipe, order_in: StepOrder) -> list[Step
 ## Requirement
 
 
-def create_requirement(db: Session, recipe_id: int, requirement_in: RequirementCreate) -> Requirement:
-    db_model = Requirement(**requirement_in.model_dump())
-    db_model.recipe_id = recipe_id
-    db.add(db_model)
-    db.commit()
-    db.refresh(db_model)
-    return db_model
+def create_requirement(db: Session, recipe: Recipe, requirement_in: RequirementCreate) -> Requirement:
+    return _append(db, recipe.requirements, Requirement(**requirement_in.model_dump()))
+
+
+def reorder_requirements(db: Session, recipe: Recipe, order_in: RequirementOrder) -> list[Requirement]:
+    return _reorder(db, recipe, "requirements", order_in.requirement_ids)
 
 
 def get_requirement(db: Session, recipe_id: int, requirement_id: int) -> Requirement | None:
@@ -191,13 +200,12 @@ def get_requirement(db: Session, recipe_id: int, requirement_id: int) -> Require
 ## Recipe Ingredients
 
 
-def create_recipe_ingredient(db: Session, recipe_id: int, ri_in: RecipeIngredientCreate) -> RecipeIngredient:
-    db_model = _reduce(RecipeIngredient(**ri_in.model_dump()))
-    db_model.recipe_id = recipe_id
-    db.add(db_model)
-    db.commit()
-    db.refresh(db_model)
-    return db_model
+def create_recipe_ingredient(db: Session, recipe: Recipe, ri_in: RecipeIngredientCreate) -> RecipeIngredient:
+    return _append(db, recipe.recipe_ingredients, _reduce(RecipeIngredient(**ri_in.model_dump())))
+
+
+def reorder_recipe_ingredients(db: Session, recipe: Recipe, order_in: RecipeIngredientOrder) -> list[RecipeIngredient]:
+    return _reorder(db, recipe, "recipe_ingredients", order_in.recipe_ingredient_ids)
 
 
 def update_recipe_ingredient(db: Session, recipe_ingredient: RecipeIngredient, ri_in: RecipeIngredientUpdate) -> RecipeIngredient:

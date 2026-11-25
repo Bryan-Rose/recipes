@@ -205,6 +205,48 @@ test('steps can be put in order when creating and when editing', async ({ page }
   await expect(steps).toHaveText(['Chop.', 'Prep.', 'Fry.'])
 })
 
+test('ingredients and equipment can be put in order when creating and when editing', async ({ page, baseURL }) => {
+  const id = unique()
+  const name = `E2E Lines ${id}`
+  const api = await apiAs(baseURL!, COOK)
+  const measurement = await (await api.post('/api/measurements/', { data: { name: `tin-${id}` } })).json()
+  const [first, second] = await Promise.all(
+    ['oats', 'honey'].map(async (base) => (await api.post('/api/ingredients/', { data: { name: `${base}-${id}` } })).json()),
+  )
+  await api.dispose()
+  const ingredients = page.locator('.ingredient-list li')
+  const equipment = page.locator('.requirement-list li')
+
+  await page.getByRole('link', { name: 'New recipe', exact: true }).click()
+  await page.getByLabel('Name').fill(name)
+  for (const ingredient of [first, second]) {
+    await page.getByRole('button', { name: '+ Add ingredient' }).click()
+    await page.getByLabel('Measurement', { exact: true }).last().selectOption(String(measurement.id))
+    await page.getByLabel('Ingredient', { exact: true }).last().selectOption(String(ingredient.id))
+  }
+  for (const item of ['Bowl', 'Tray']) {
+    await page.getByRole('button', { name: '+ Add item' }).click()
+    await page.getByPlaceholder('Large pot').last().fill(item)
+  }
+  await page.getByRole('button', { name: 'Move ingredient 2 up' }).click()
+  await page.getByRole('button', { name: 'Move item 2 up' }).click()
+  await page.getByRole('button', { name: 'Save recipe' }).click()
+
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(ingredients).toHaveText([`1 tin-${id} honey-${id}`, `1 tin-${id} oats-${id}`])
+  await expect(equipment).toHaveText(['Tray', 'Bowl'])
+
+  await page.getByRole('link', { name: 'Edit', exact: true }).click()
+  await page.getByRole('button', { name: 'Move ingredient 1 down' }).click()
+  await page.getByRole('button', { name: 'Move You’ll need entry 1 down' }).click()
+  await expect(page.getByPlaceholder('Large pot').first()).toHaveValue('Bowl')
+  await page.getByRole('button', { name: 'Done' }).click()
+
+  await page.reload() // the order came from the server, not the cache
+  await expect(ingredients).toHaveText([`1 tin-${id} oats-${id}`, `1 tin-${id} honey-${id}`])
+  await expect(equipment).toHaveText(['Bowl', 'Tray'])
+})
+
 test('leaving with unsaved changes asks first, however you leave', async ({ page, baseURL }) => {
   const api = await apiAs(baseURL!, COOK)
   const name = `E2E Unsaved ${unique()}`

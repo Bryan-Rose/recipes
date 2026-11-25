@@ -42,6 +42,45 @@ it('saves steps in the order they were moved to', async () => {
   await waitFor(() => expect(sent?.steps.map((step) => step.text)).toEqual(['Prep', 'Chop', 'Fry']))
 })
 
+it('saves equipment in the order it was moved to', async () => {
+  let sent: { requirements: { name: string }[] } | undefined
+  server.use(
+    http.get('/api/cookbooks/', () => HttpResponse.json([])),
+    http.post('/api/recipes/', async ({ request }) => {
+      sent = (await request.json()) as typeof sent
+      return HttpResponse.json({ id: 1 }, { status: 201 })
+    }),
+  )
+  const user = userEvent.setup()
+  renderWithProviders(<CreateRecipeForm />)
+
+  await user.type(screen.getByLabelText('Name'), 'Soup')
+  for (const name of ['Pot', 'Ladle']) {
+    await user.click(screen.getByRole('button', { name: '+ Add item' }))
+    await user.type(screen.getAllByPlaceholderText('Large pot').at(-1)!, name)
+  }
+  await user.click(screen.getByRole('button', { name: 'Move item 2 up' }))
+  await user.click(screen.getByRole('button', { name: 'Save recipe' }))
+
+  await waitFor(() => expect(sent?.requirements.map((item) => item.name)).toEqual(['Ladle', 'Pot']))
+})
+
+it('moves ingredient rows', async () => {
+  server.use(http.get('/api/cookbooks/', () => HttpResponse.json([])))
+  const user = userEvent.setup()
+  renderWithProviders(<CreateRecipeForm />)
+
+  for (const amount of ['1', '2']) {
+    await user.click(screen.getByRole('button', { name: '+ Add ingredient' }))
+    await user.clear(screen.getAllByLabelText('Amount').at(-1)!)
+    await user.type(screen.getAllByLabelText('Amount').at(-1)!, amount)
+  }
+  expect(screen.getByRole('button', { name: 'Move ingredient 2 down' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Move ingredient 2 up' }))
+
+  expect(screen.getAllByLabelText('Amount').map((input) => (input as HTMLInputElement).value)).toEqual(['2', '1'])
+})
+
 it('shows a failed save without leaving an unhandled rejection', async () => {
   server.use(
     http.get('/api/cookbooks/', () => HttpResponse.json([])),

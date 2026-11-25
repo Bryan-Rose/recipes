@@ -135,28 +135,42 @@ export const useCreateStep = steps.useCreate
 export const useUpdateStep = steps.useUpdate
 export const useDeleteStep = steps.useDelete
 
-/** Sends the full new order. The list moves at once; the refetch settles it either way. */
-export function useReorderSteps(recipeId: number) {
+/** Sends a recipe's full new order of steps, requirements or ingredient lines. The list moves at once; the refetch settles it either way. */
+function useReorder(
+  recipeId: number,
+  lines: 'steps' | 'requirements' | 'recipe_ingredients',
+  route: 'step-order' | 'requirement-order' | 'ingredient-order',
+  field: 'step_ids' | 'requirement_ids' | 'recipe_ingredient_ids',
+  what: string,
+) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (stepIds: number[]) =>
-      api.put<Step[]>(`/recipes/${recipeId}/step-order`, { step_ids: stepIds }).catch((error: unknown) => {
-        // 409: the ids no longer match the recipe's steps. The API's detail stays on `cause` for debugging.
+    mutationFn: (ids: number[]) =>
+      api.put<unknown>(`/recipes/${recipeId}/${route}`, { [field]: ids }).catch((error: unknown) => {
+        // 409: the ids no longer match the recipe's lines. The API's detail stays on `cause` for debugging.
         if (error instanceof ApiError && error.status === 409)
-          throw new Error('The steps changed since this page loaded. The list has been refreshed; try the move again.', {
+          throw new Error(`The ${what} changed since this page loaded. The list has been refreshed; try the move again.`, {
             cause: error,
           })
         throw error
       }),
-    onMutate: async (stepIds) => {
+    onMutate: async (ids) => {
       // A refetch already in flight would land the old order on top of this one.
       await queryClient.cancelQueries({ queryKey: recipeKeys.detail(recipeId) })
-      queryClient.setQueryData<Recipe>(recipeKeys.detail(recipeId), (recipe) =>
-        recipe && { ...recipe, steps: stepIds.flatMap((id) => recipe.steps.filter((step) => step.id === id)) },
-      )
+      queryClient.setQueryData<Recipe>(recipeKeys.detail(recipeId), (recipe) => {
+        if (!recipe) return recipe
+        const current: { id: number }[] = recipe[lines]
+        return { ...recipe, [lines]: ids.flatMap((id) => current.filter((line) => line.id === id)) }
+      })
     },
   })
 }
+
+export const useReorderSteps = (recipeId: number) => useReorder(recipeId, 'steps', 'step-order', 'step_ids', 'steps')
+export const useReorderRequirements = (recipeId: number) =>
+  useReorder(recipeId, 'requirements', 'requirement-order', 'requirement_ids', 'items')
+export const useReorderRecipeIngredients = (recipeId: number) =>
+  useReorder(recipeId, 'recipe_ingredients', 'ingredient-order', 'recipe_ingredient_ids', 'ingredients')
 
 const requirements = childHooks<Requirement, RequirementCreate, { name: string }>('requirements')
 export const useCreateRequirement = requirements.useCreate
