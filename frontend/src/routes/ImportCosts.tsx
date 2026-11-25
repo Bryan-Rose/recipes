@@ -72,7 +72,7 @@ export function ImportCosts() {
                       {row.recipe ? (
                         <Link to={`/recipes/${row.recipe.id}`}>{row.recipe.name}</Link>
                       ) : (
-                        <span className="muted">{OUTCOME[row.outcome]}</span>
+                        <span className="muted">{row.saved ? 'Recipe deleted' : OUTCOME[row.outcome]}</span>
                       )}
                     </td>
                     <td>{row.model}</td>

@@ -364,6 +364,7 @@ def test_every_parse_is_stored(client: TestClient, fake_api: FakeApi, body: dict
     assert row["source"] == "text"
     assert row["outcome"] == outcome
     assert row["recipe"] is None
+    assert row["saved"] is False
     assert {k: row[k] for k in ("model", "input_tokens", "output_tokens")} == {
         "model": "claude-sonnet-5-5",
         "input_tokens": 2000,
@@ -422,6 +423,7 @@ def test_deleting_the_recipe_or_user_keeps_the_cost(client: TestClient, fake_api
     assert client.delete(f"/recipes/{recipe['id']}").status_code == 204
     (row,) = client.get("/imports/").json()
     assert row["recipe"] is None
+    assert row["saved"] is True
     # The deleted recipe's import can be saved again.
     assert client.post("/recipes/", json={"name": "Pancakes", "import_id": import_id}).status_code == 201
 

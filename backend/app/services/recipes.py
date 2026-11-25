@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from fractions import Fraction
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.imports import RecipeImportRecord
@@ -87,13 +87,19 @@ def create_recipe(db: Session, recipe_in: RecipeCreate, created_user_id: int, im
     db_model.requirements = [Requirement(**req.model_dump()) for req in recipe_in.requirements]
     db_model.recipe_ingredients = [_reduce(RecipeIngredient(**ing.model_dump())) for ing in recipe_in.recipe_ingredients]
     db_model.tags = _get_tags(db, recipe_in.tag_ids)
-    if recipe_in.import_id is not None:
-        record = db.get(RecipeImportRecord, recipe_in.import_id)
-        if record is None or record.recipe_id is not None:
-            raise UnknownImportError
-        db_model.source_import = record
-    db_model.image = images.save(images_dir, recipe_in.image) if recipe_in.image else None
     db.add(db_model)
+    if recipe_in.import_id is not None:
+        db.flush()  # for the recipe's id
+        # One conditional UPDATE, so two saves of the same draft can't both claim it.
+        claimed = db.execute(
+            update(RecipeImportRecord)
+            .where(RecipeImportRecord.id == recipe_in.import_id, RecipeImportRecord.recipe_id.is_(None))
+            .values(recipe_id=db_model.id, saved=True)
+        )
+        if claimed.rowcount == 0:  # pyright: ignore[reportAttributeAccessIssue]
+            db.rollback()
+            raise UnknownImportError
+    db_model.image = images.save(images_dir, recipe_in.image) if recipe_in.image else None
     images.commit(db, images_dir, db_model.image)
     db.refresh(db_model)
     return db_model

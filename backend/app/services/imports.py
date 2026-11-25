@@ -1,6 +1,6 @@
-from collections.abc import Sequence
-
 """Turns a recipe from outside (pasted text or photos) into a RecipeDraft with the Claude API."""
+
+from collections.abc import Sequence
 
 from anthropic import Anthropic, transform_schema
 from anthropic.types.beta import BetaMessage
