@@ -543,3 +543,31 @@ def test_originals_survive_deleting_the_recipe(client: TestClient, fake_api: Fak
 def test_originals_require_login(client: TestClient, path: str):
     client.cookies.clear()
     assert client.get(path).status_code == 401
+
+
+def test_text_original_is_read_as_utf8(client: TestClient, fake_api: FakeApi, monkeypatch: pytest.MonkeyPatch):
+    """record() writes UTF-8, so the read must say so rather than use the locale's encoding.
+
+    A non-UTF-8 locale can't be set up in a test (Python turns a C locale into UTF-8), so this checks the read asks for it.
+    """
+    import_id = client.post("/imports/text", json={"text": "Crème brûlée"}).json()["import_id"]
+    encodings: list[str | None] = []
+    read_text = Path.read_text
+
+    def spy(self: Path, encoding: str | None = None, errors: str | None = None, newline: str | None = None) -> str:
+        encodings.append(encoding)
+        return read_text(self, encoding=encoding, errors=errors, newline=newline)
+
+    monkeypatch.setattr(Path, "read_text", spy)
+    assert client.get(f"/imports/{import_id}").json()["text"] == "Crème brûlée"
+    assert encodings == ["utf-8"]
+
+
+def test_missing_text_original_is_no_text(client: TestClient, fake_api: FakeApi, imports_dir: Path):
+    import_id = client.post("/imports/text", json={"text": "Pancakes"}).json()["import_id"]
+    for path in imports_dir.iterdir():
+        path.unlink()
+    response = client.get(f"/imports/{import_id}")
+    assert response.status_code == 200
+    assert (response.json()["original_parts"], response.json()["text"]) == (1, None)
+    assert client.get(f"/imports/{import_id}/original/0").status_code == 404

@@ -57,3 +57,8 @@ it('says when an import is from before originals were kept', async () => {
   show({ ...detail, original_parts: 0, text: null })
   expect(await screen.findByText('This import is from before originals were kept.')).toBeInTheDocument()
 })
+
+it("says when a text import's file is missing", async () => {
+  show({ ...detail, text: null })
+  expect(await screen.findByText("The pasted text's file is missing from the server.")).toBeInTheDocument()
+})

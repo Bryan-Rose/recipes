@@ -103,7 +103,9 @@ def get_import(import_id: IdPath, db: Session = Depends(get_db), settings: Setti
     row = _get_or_404(db, import_id)
     text = None
     if row.source == "text" and row.original_parts:
-        text = imports_service.original_path(settings.imports_dir, row, 0).read_text()
+        path = imports_service.original_path(settings.imports_dir, row, 0)
+        # Written as UTF-8 by record(); a file gone missing (a partial restore) shows as no text, not a 500.
+        text = path.read_text(encoding="utf-8") if path.is_file() else None
     return ImportDetail.model_validate({**ImportRead.model_validate(row).model_dump(), "text": text})
 
 
