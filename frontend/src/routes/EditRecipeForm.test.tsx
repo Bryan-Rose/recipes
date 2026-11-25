@@ -588,10 +588,80 @@ describe('reordering steps', () => {
     expect(screen.queryByText(/step_ids/)).not.toBeInTheDocument()
   })
 
-  it('gives equipment no move buttons', () => {
-    renderWithProviders(<EditRecipeForm recipe={{ ...twoSteps, requirements: [{ id: 9, name: 'Pot' }] }} />)
+})
 
-    expect(screen.queryByRole('button', { name: /Move You’ll need/ })).not.toBeInTheDocument()
+describe('reordering equipment and ingredients', () => {
+  const unit = { id: 1, name: 'cup' }
+  const line = (id: number, name: string) => ({
+    id,
+    amount_numerator: 1,
+    amount_denominator: 1 as const,
+    ingredient: { id, name },
+    measurement: unit,
+    preparation: null,
+  })
+  const lines: Recipe = {
+    ...recipe,
+    requirements: [
+      { id: 8, name: 'Pot' },
+      { id: 9, name: 'Sieve' },
+    ],
+    recipe_ingredients: [line(5, 'flour'), line(6, 'milk')],
+  }
+
+  beforeEach(() => {
+    server.use(
+      http.get('/api/cookbooks/', () => HttpResponse.json([])),
+      http.get('/api/recipes/7', () => HttpResponse.json(lines)),
+    )
+  })
+
+  it('sends every equipment id in the new order', async () => {
+    let sent: unknown
+    server.use(
+      http.put('/api/recipes/7/requirement-order', async ({ request }) => {
+        sent = await request.json()
+        return HttpResponse.json([])
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={lines} />)
+
+    await user.click(screen.getByRole('button', { name: 'Move You’ll need entry 2 up' }))
+
+    await waitFor(() => expect(sent).toEqual({ requirement_ids: [9, 8] }))
+  })
+
+  it('sends every ingredient line id in the new order', async () => {
+    let sent: unknown
+    server.use(
+      http.put('/api/recipes/7/ingredient-order', async ({ request }) => {
+        sent = await request.json()
+        return HttpResponse.json([])
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={lines} />)
+
+    expect(screen.getByRole('button', { name: 'Move ingredient 1 up' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Move ingredient 2 down' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Move ingredient 1 down' }))
+
+    await waitFor(() => expect(sent).toEqual({ recipe_ingredient_ids: [6, 5] }))
+  })
+
+  it('explains an ingredient move refused because the lines changed elsewhere', async () => {
+    server.use(
+      http.put('/api/recipes/7/ingredient-order', () =>
+        HttpResponse.json({ detail: 'recipe_ingredient_ids must list every line' }, { status: 409 }),
+      ),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={lines} />)
+
+    await user.click(screen.getByRole('button', { name: 'Move ingredient 1 down' }))
+
+    expect(await screen.findByText(/The ingredients changed since this page loaded/)).toBeInTheDocument()
   })
 })
 

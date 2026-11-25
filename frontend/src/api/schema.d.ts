@@ -719,6 +719,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recipes/{recipe_id}/requirement-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorder Requirements */
+        put: operations["reorder_requirements_recipes__recipe_id__requirement_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recipes/{recipe_id}/ingredient-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorder Recipe Ingredients */
+        put: operations["reorder_recipe_ingredients_recipes__recipe_id__ingredient_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/recipes/{recipe_id}/steps/": {
         parameters: {
             query?: never;
@@ -1261,6 +1295,11 @@ export interface components {
              */
             amount_denominator: 1 | 2 | 3 | 4 | 8;
         };
+        /** RecipeIngredientOrder */
+        RecipeIngredientOrder: {
+            /** Recipe Ingredient Ids */
+            recipe_ingredient_ids: number[];
+        };
         /** RecipeIngredientRead */
         RecipeIngredientRead: {
             /** Id */
@@ -1406,6 +1445,11 @@ export interface components {
         RequirementCreate: {
             /** Name */
             name: string;
+        };
+        /** RequirementOrder */
+        RequirementOrder: {
+            /** Requirement Ids */
+            requirement_ids: number[];
         };
         /** RequirementRead */
         RequirementRead: {
@@ -3641,6 +3685,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StepRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_requirements_recipes__recipe_id__requirement_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequirementOrder"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_recipe_ingredients_recipes__recipe_id__ingredient_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipeIngredientOrder"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeIngredientRead"][];
                 };
             };
             /** @description Validation Error */

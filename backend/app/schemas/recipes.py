@@ -57,6 +57,16 @@ class StepOrder(BaseModel):
     step_ids: list[DbId]
 
 
+class RequirementOrder(BaseModel):
+    # Every requirement of the recipe, each once, in the new order.
+    requirement_ids: list[DbId]
+
+
+class RecipeIngredientOrder(BaseModel):
+    # Every ingredient line of the recipe, each once, in the new order.
+    recipe_ingredient_ids: list[DbId]
+
+
 class StepRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

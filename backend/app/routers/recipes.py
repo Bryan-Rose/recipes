@@ -11,12 +11,14 @@ from app.schemas.recipes import (
     ImageUpload,
     RecipeCreate,
     RecipeIngredientCreate,
+    RecipeIngredientOrder,
     RecipeIngredientRead,
     RecipeIngredientUpdate,
     RecipeRead,
     RecipeSummary,
     RecipeUpdate,
     RequirementCreate,
+    RequirementOrder,
     RequirementRead,
     RequirementUpdate,
     StepCreate,
@@ -126,7 +128,7 @@ def reorder_steps(recipe_id: IdPath, order_in: StepOrder, db: Session = Depends(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     try:
         return recipes_service.reorder_steps(db, existing_recipe, order_in)
-    except recipes_service.StepOrderMismatchError:
+    except recipes_service.OrderMismatchError:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="step_ids must list every step of the recipe exactly once")
 
 
@@ -157,7 +159,20 @@ def create_requirement(recipe_id: IdPath, requirement_in: RequirementCreate, db:
     existing_recipe = recipes_service.get_recipe(db, recipe_id)
     if existing_recipe is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return recipes_service.create_requirement(db, recipe_id, requirement_in)
+    return recipes_service.create_requirement(db, existing_recipe, requirement_in)
+
+
+@recipe_router.put("/{recipe_id}/requirement-order", response_model=list[RequirementRead], tags=["requirements"])
+def reorder_requirements(recipe_id: IdPath, order_in: RequirementOrder, db: Session = Depends(get_db)):
+    existing_recipe = recipes_service.get_recipe(db, recipe_id)
+    if existing_recipe is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    try:
+        return recipes_service.reorder_requirements(db, existing_recipe, order_in)
+    except recipes_service.OrderMismatchError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="requirement_ids must list every requirement of the recipe exactly once"
+        )
 
 
 @requirement_router.patch("/{requirement_id}", response_model=RequirementRead)
@@ -187,7 +202,21 @@ def create_recipe_ingredient(recipe_id: IdPath, ri_in: RecipeIngredientCreate, d
     existing_recipe = recipes_service.get_recipe(db, recipe_id)
     if existing_recipe is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return recipes_service.create_recipe_ingredient(db, recipe_id, ri_in)
+    return recipes_service.create_recipe_ingredient(db, existing_recipe, ri_in)
+
+
+@recipe_router.put("/{recipe_id}/ingredient-order", response_model=list[RecipeIngredientRead], tags=["recipeingredients"])
+def reorder_recipe_ingredients(recipe_id: IdPath, order_in: RecipeIngredientOrder, db: Session = Depends(get_db)):
+    existing_recipe = recipes_service.get_recipe(db, recipe_id)
+    if existing_recipe is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    try:
+        return recipes_service.reorder_recipe_ingredients(db, existing_recipe, order_in)
+    except recipes_service.OrderMismatchError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="recipe_ingredient_ids must list every ingredient line of the recipe exactly once",
+        )
 
 
 @recipe_ingredient_router.patch("/{ri_id}", response_model=RecipeIngredientRead)

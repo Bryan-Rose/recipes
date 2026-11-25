@@ -53,11 +53,21 @@ class Recipe(Base):
     # default is to NULL that column out when the parent goes away, which fails
     # the NOT NULL constraint — so deleting any recipe with children raised
     # IntegrityError. The cookbook is a shared entity and is not cascaded.
-    recipe_ingredients: Mapped[list[RecipeIngredient]] = relationship(back_populates="recipe", cascade="all, delete-orphan")
+    # ordering_list sets position on append; after reassigning the list, call reorder().
+    # id breaks ties between lines added concurrently (equal positions).
+    recipe_ingredients: Mapped[list[RecipeIngredient]] = relationship(
+        back_populates="recipe",
+        cascade="all, delete-orphan",
+        order_by="(RecipeIngredient.position, RecipeIngredient.id)",
+        collection_class=ordering_list("position"),
+    )
     cookbook: Mapped[Cookbook | None] = relationship(back_populates="recipes")
-    requirements: Mapped[list[Requirement]] = relationship(back_populates="recipe", cascade="all, delete-orphan")
-    # ordering_list sets Step.position on append; after reassigning the list, call reorder().
-    # id breaks ties between steps added concurrently (equal positions).
+    requirements: Mapped[list[Requirement]] = relationship(
+        back_populates="recipe",
+        cascade="all, delete-orphan",
+        order_by="(Requirement.position, Requirement.id)",
+        collection_class=ordering_list("position"),
+    )
     steps: Mapped[list[Step]] = relationship(
         back_populates="recipe",
         cascade="all, delete-orphan",
@@ -96,6 +106,7 @@ class Requirement(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     recipe_id: Mapped[int] = mapped_column(Integer, ForeignKey("recipes.id"), nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)  # like Step.position
     recipe: Mapped[Recipe] = relationship(back_populates="requirements")
 
 
@@ -105,6 +116,7 @@ class RecipeIngredient(Base):
     # An improper fraction, reduced by the service: "3 ½" is 7/2.
     amount_numerator: Mapped[int] = mapped_column(Integer, nullable=False)
     amount_denominator: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    position: Mapped[int] = mapped_column(Integer, nullable=False)  # like Step.position
 
     recipe_id: Mapped[int] = mapped_column(Integer, ForeignKey("recipes.id"), nullable=False)
     recipe: Mapped[Recipe] = relationship(back_populates="recipe_ingredients")
