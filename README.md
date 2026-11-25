@@ -113,9 +113,10 @@ copies are never pruned; delete old ones once you're happy with the update.
 **Rolling back** to an older image works the same way. An older image can't run
 against a newer schema (writes fail), and deploys never run downgrade
 migrations. Stop the stack, copy the newest backup named for the revision the
-older image runs (`data/app.db.pre-<that revision>-*.bak`, not necessarily the
-newest backup overall) over `data/app.db`, then start the older image. Changes made since the
-update are lost.
+older image runs (`data/app.db.pre-<that revision>-*.bak`, or
+`data/app.db.pre-<that revision>.bak` for copies made before timestamps were
+added; not necessarily the newest backup overall) over `data/app.db`, then start
+the older image. Changes made since the update are lost.
 
 **Backups:** everything the app stores is in `data/`: the database `app.db` and
 recipe and cookbook images in `images/` (named by the database, so back them up together).
