@@ -113,7 +113,7 @@ describe('lookups', () => {
     mockConfirm(true)
     server.use(
       http.get('/api/authors/', () => HttpResponse.json([julia, jacques])),
-      http.post('/api/authors/2/merge/1', () => HttpResponse.json({ detail: 'UNIQUE constraint failed' }, { status: 409 })),
+      http.post('/api/authors/2/merge/1', () => HttpResponse.json({ detail: 'Already exists' }, { status: 409 })),
     )
     const user = userEvent.setup()
     show('/lookups/authors')
@@ -124,6 +124,25 @@ describe('lookups', () => {
     await user.click(row.getByRole('button', { name: 'Merge' }))
 
     expect(await row.findByText('Both have a cookbook with the same name. Rename one of them first.')).toBeInTheDocument()
+  })
+
+  it("keeps the API's text for any other merge conflict", async () => {
+    mockConfirm(true)
+    const detail = "Still in use, or refers to something that doesn't exist"
+    server.use(
+      http.get('/api/ingredients/', () => HttpResponse.json([{ id: 1, name: 'onion' }, { id: 2, name: 'onions' }])),
+      http.post('/api/ingredients/2/merge/1', () => HttpResponse.json({ detail }, { status: 409 })),
+    )
+    const user = userEvent.setup()
+    show('/lookups/ingredients')
+
+    const row = within(await screen.findByRole('listitem', { name: 'onions' }))
+    await user.click(row.getByRole('button', { name: 'Edit' }))
+    await user.selectOptions(row.getByLabelText('Merge into'), 'onion')
+    await user.click(row.getByRole('button', { name: 'Merge' }))
+
+    expect(await row.findByText(detail)).toBeInTheDocument()
+    expect(row.queryByText(/same name/)).not.toBeInTheDocument()
   })
 
   it('offers no merge for the only row', async () => {

@@ -54,7 +54,7 @@ def _router[M: Author | Ingredient | Measurement | Preparation | Tag](
 
     @router.post(f"{item_path}/merge/{{into_id}}", response_model=read, name=f"merge_{noun}")
     def merge_item(item_id: ItemId, into_id: IdPath, db: Session = Depends(get_db)):
-        """Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted."""
+        """Merges this row into into_id: everything that names it names into_id instead, and it's deleted."""
         item, into = get_or_404(db, item_id), get_or_404(db, into_id)
         try:
             return service.merge_item(db, model, item, into)

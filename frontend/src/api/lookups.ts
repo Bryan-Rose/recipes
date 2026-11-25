@@ -28,6 +28,16 @@ const explainConflict = (message: string) => (error: unknown) => {
   throw error
 }
 
+/**
+ * Explains the unique-name 409 a merge gets when the kept author already has a cookbook of the same name, the only
+ * unique clash a merge can hit. Any other 409 (a row deleted elsewhere mid-merge) keeps the API's text.
+ */
+const mergeClash = (error: unknown) => {
+  if (error instanceof ApiError && error.message === 'Already exists')
+    throw new Error('Both have a cookbook with the same name. Rename one of them first.', { cause: error })
+  throw error
+}
+
 /** `usedBy` names what holds a reference, for the 409 a delete of a row in use returns. */
 function lookupHooks<T extends Lookup>(resource: string, usedBy: string) {
   const key = [resource] as const
@@ -63,10 +73,7 @@ function lookupHooks<T extends Lookup>(resource: string, usedBy: string) {
     useMerge: () =>
       useMutation({
         mutationFn: ({ id, intoId }: { id: number; intoId: number }) =>
-          // Only authors can clash: each one's cookbook names must stay unique.
-          api
-            .post<T>(`${path}${id}/merge/${intoId}`, undefined)
-            .catch(explainConflict('Both have a cookbook with the same name. Rename one of them first.')),
+          api.post<T>(`${path}${id}/merge/${intoId}`, undefined).catch(mergeClash),
       }),
   }
 }
