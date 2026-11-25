@@ -82,4 +82,5 @@ class ImportRead(ImportUsage):
     created_at: UtcDatetime
     source: ImportSource
     outcome: ImportOutcome
-    recipe: ImportedRecipeRef | None  # None: not saved, or the recipe was deleted
+    recipe: ImportedRecipeRef | None  # None: not saved, or the recipe was deleted (then saved is true)
+    saved: bool

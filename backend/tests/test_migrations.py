@@ -422,3 +422,20 @@ def test_listed_recipes_start_at_one_batch(alembic_config: Config):
     with engine.connect() as connection:
         assert connection.execute(text("SELECT recipe_id, servings, batches FROM shopping_list_recipes")).all() == [(1, None, 1)]
     engine.dispose()
+
+
+def test_imports_with_a_recipe_count_as_saved(alembic_config: Config):
+    command.upgrade(alembic_config, "6ea90a3c6b5b")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
+        connection.execute(text("INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'Toast', 1)"))
+        columns = "(id, recipe_id, source, model, input_tokens, output_tokens, outcome)"
+        connection.execute(
+            text(f"INSERT INTO recipe_imports {columns} VALUES (1, 1, 'text', 'm', 1, 1, 'draft'), (2, NULL, 'text', 'm', 1, 1, 'draft')")
+        )
+
+    command.upgrade(alembic_config, "4fdd43150710")
+    with engine.connect() as connection:
+        assert connection.execute(text("SELECT id, saved FROM recipe_imports ORDER BY id")).all() == [(1, 1), (2, 0)]
+    engine.dispose()

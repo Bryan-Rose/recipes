@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -20,12 +20,14 @@ class RecipeImportRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     # SET NULL: deleting the user or the recipe keeps what the import cost.
     user_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    # The recipe saved from this draft, if any.
+    # The recipe saved from this draft, if any; None again once that recipe is deleted.
     recipe_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("recipes.id", ondelete="SET NULL"), nullable=True, unique=True)
+    # Whether a recipe was ever saved from it, so a deleted one isn't shown as never saved.
+    saved: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false())
     source: Mapped[str] = mapped_column(String, nullable=False)  # text, photos or url
     model: Mapped[str] = mapped_column(String, nullable=False)
     input_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
     output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
     cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)  # None: model missing from the price table
-    outcome: Mapped[str] = mapped_column(String, nullable=False)  # draft, no draft or cut off
+    outcome: Mapped[str] = mapped_column(String, nullable=False)  # draft, no_draft or cut_off
     recipe: Mapped[Recipe | None] = relationship(back_populates="source_import")

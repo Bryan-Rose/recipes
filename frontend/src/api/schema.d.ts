@@ -925,6 +925,8 @@ export interface components {
              */
             outcome: "draft" | "no_draft" | "cut_off";
             recipe: components["schemas"]["ImportedRecipeRef"] | null;
+            /** Saved */
+            saved: boolean;
         };
         /**
          * ImportUsage
