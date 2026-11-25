@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from app.schemas.cookbook import CookbookRead
 from app.schemas.fields import DbId, Denominator, JpegBase64, Minutes, Name, Omittable, PositiveInt, SourceUrl, UtcDatetime
-from app.schemas.imports import ImportUsage
+from app.schemas.imports import SourceImport
 from app.schemas.ingredient import IngredientRead
 from app.schemas.measurement import MeasurementRead
 from app.schemas.preparation import PreparationRead
@@ -149,7 +149,7 @@ class RecipeRead(RecipeBase):
     tags: list[TagRead] = []
     # The stem of the files GET /images/ serves: {image}.jpg and {image}-thumb.jpg.
     image: str | None = None
-    source_import: ImportUsage | None = None  # what importing it cost; None if it wasn't imported
+    source_import: SourceImport | None = None  # what importing it cost; None if it wasn't imported
 
 
 class RecipeSummary(BaseModel):

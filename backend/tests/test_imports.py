@@ -86,8 +86,8 @@ def test_prompt_lists_existing_lookups_and_the_text(client: TestClient, fake_api
         assert name in prompt
 
 
-def test_model_comes_from_settings(client: TestClient, fake_api: FakeApi):
-    fastapi_app.dependency_overrides[get_settings] = lambda: Settings(import_model="claude-haiku-5-5")
+def test_model_comes_from_settings(client: TestClient, fake_api: FakeApi, imports_dir: Path):
+    fastapi_app.dependency_overrides[get_settings] = lambda: Settings(import_model="claude-haiku-5-5", imports_dir=imports_dir)
     client.post("/imports/text", json={"text": "Pancakes"})
     assert fake_api.requests[0]["model"] == "claude-haiku-5-5"
 
@@ -325,10 +325,13 @@ def test_url_that_cannot_be_fetched_is_422_without_calling_claude(client: TestCl
     assert fake_api.requests == []
 
 
-def test_private_url_is_refused_unless_configured(client: TestClient, fake_api: FakeApi, recipe_site, monkeypatch: pytest.MonkeyPatch):
+def test_private_url_is_refused_unless_configured(
+    client: TestClient, fake_api: FakeApi, recipe_site, monkeypatch: pytest.MonkeyPatch, imports_dir: Path
+):
     monkeypatch.setattr(fetch.socket, "getaddrinfo", lambda host, port, **_: [(2, 1, 6, "", ("10.0.0.5", port))])
     assert "isn't a public web address" in client.post("/imports/url", json={"url": "https://example.com/"}).json()["detail"]
-    fastapi_app.dependency_overrides[get_settings] = lambda: Settings(anthropic_api_key="test", import_fetch_private=True)  # pyright: ignore[reportArgumentType]
+    settings = Settings(anthropic_api_key="test", import_fetch_private=True, imports_dir=imports_dir)  # pyright: ignore[reportArgumentType]
+    fastapi_app.dependency_overrides[get_settings] = lambda: settings
     assert client.post("/imports/url", json={"url": "https://example.com/"}).status_code == 200
 
 
@@ -392,6 +395,8 @@ def test_saving_the_draft_links_its_cost_to_the_recipe(client: TestClient, fake_
     import_id = client.post("/imports/text", json={"text": "Pancakes"}).json()["import_id"]
     recipe = client.post("/recipes/", json={"name": "Pancakes", "import_id": import_id}).json()
     assert recipe["source_import"] == {
+        "id": import_id,
+        "original_parts": 1,
         "model": "claude-sonnet-5-5",
         "input_tokens": 2000,
         "output_tokens": 500,
@@ -439,3 +444,88 @@ def test_deleting_the_recipe_or_user_keeps_the_cost(client: TestClient, fake_api
 def test_history_requires_login_not_admin(client: TestClient, db_session):
     client.cookies.clear()
     assert client.get("/imports/").status_code == 401
+
+
+## Originals
+
+
+def test_text_import_keeps_what_was_pasted(client: TestClient, fake_api: FakeApi):
+    import_id = client.post("/imports/text", json={"text": "Pancakes ½ cup"}).json()["import_id"]
+    detail = client.get(f"/imports/{import_id}").json()
+    assert detail["text"] == "Pancakes ½ cup"
+    assert (detail["source"], detail["original_parts"], detail["page_url"]) == ("text", 1, None)
+    response = client.get(f"/imports/{import_id}/original/0")
+    assert response.text == "Pancakes ½ cup"
+    assert response.headers["content-type"] == "text/plain; charset=utf-8"
+
+
+def test_photo_import_keeps_each_page_in_order(client: TestClient, fake_api: FakeApi):
+    import_id = client.post("/imports/photos", json={"photos": [JPEG, JPEG_2]}).json()["import_id"]
+    detail = client.get(f"/imports/{import_id}").json()
+    assert (detail["original_parts"], detail["text"]) == (2, None)
+    pages = [client.get(f"/imports/{import_id}/original/{part}") for part in range(2)]
+    assert [page.content for page in pages] == [base64.b64decode(JPEG), base64.b64decode(JPEG_2)]
+    assert pages[0].headers["content-type"] == "image/jpeg"
+    assert client.get(f"/imports/{import_id}/original/2").status_code == 404
+
+
+def test_url_import_keeps_the_page_as_text(client: TestClient, fake_api: FakeApi, recipe_site):
+    import_id = client.post("/imports/url", json={"url": "https://example.com/"}).json()["import_id"]
+    assert client.get(f"/imports/{import_id}").json()["page_url"] == "https://example.com/"
+    response = client.get(f"/imports/{import_id}/original/0")
+    assert response.text == RECIPE_PAGE  # the whole page, story and all, not what was sent to Claude
+    # Served as text that browsers won't sniff, so the page's scripts never run on this origin.
+    assert response.headers["content-type"] == "text/plain; charset=utf-8"
+    assert response.headers["x-content-type-options"] == "nosniff"
+
+
+@pytest.mark.parametrize("body", [message("", "refusal"), message('{"name": "Pan', "max_tokens")])
+def test_failed_parse_keeps_its_original(client: TestClient, fake_api: FakeApi, body: dict):
+    fake_api.body = body
+    client.post("/imports/text", json={"text": "Pancakes"})
+    (row,) = client.get("/imports/").json()
+    assert client.get(f"/imports/{row['id']}/original/0").text == "Pancakes"
+
+
+def test_unsaved_row_leaves_no_original(client: TestClient, fake_api: FakeApi, imports_dir: Path, db_session, monkeypatch):
+    def fail() -> None:
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(db_session, "commit", fail)
+    with pytest.raises(RuntimeError):
+        client.post("/imports/photos", json={"photos": [JPEG, JPEG_2]})
+    assert list(imports_dir.glob("*")) == []
+
+
+def test_api_error_keeps_nothing(client: TestClient, fake_api: FakeApi, imports_dir: Path):
+    fake_api.status = 500
+    fake_api.body = {"type": "error", "error": {"type": "api_error", "message": "boom"}}
+    client.post("/imports/text", json={"text": "Pancakes"})
+    assert not imports_dir.exists()
+
+
+def test_import_from_before_originals(client: TestClient, db_session):
+    row = RecipeImportRecord(source="text", model="m", input_tokens=1, output_tokens=1, outcome="draft")
+    db_session.add(row)
+    db_session.commit()
+    detail = client.get(f"/imports/{row.id}").json()
+    assert (detail["original_parts"], detail["text"]) == (0, None)
+    assert client.get(f"/imports/{row.id}/original/0").status_code == 404
+
+
+def test_missing_import_is_404(client: TestClient):
+    assert client.get("/imports/1").status_code == 404
+    assert client.get("/imports/1/original/0").status_code == 404
+
+
+def test_originals_survive_deleting_the_recipe(client: TestClient, fake_api: FakeApi):
+    import_id = client.post("/imports/text", json={"text": "Pancakes"}).json()["import_id"]
+    recipe = client.post("/recipes/", json={"name": "Pancakes", "import_id": import_id}).json()
+    client.delete(f"/recipes/{recipe['id']}")
+    assert client.get(f"/imports/{import_id}").json()["text"] == "Pancakes"
+
+
+@pytest.mark.parametrize("path", ["/imports/1", "/imports/1/original/0"])
+def test_originals_require_login(client: TestClient, path: str):
+    client.cookies.clear()
+    assert client.get(path).status_code == 401

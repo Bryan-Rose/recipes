@@ -40,11 +40,21 @@ it('links to the editor with a single link, with no button inside', async () => 
   expect(within(edit).queryByRole('button')).not.toBeInTheDocument()
 })
 
-it('shows what importing the recipe cost', async () => {
+const sourceImport = { id: 3, model: 'claude-sonnet-5-5', input_tokens: 2400, output_tokens: 610, cost_usd: 0.0109, original_parts: 1 }
+
+it('shows what importing the recipe cost, linking to the original', async () => {
   signedIn()
-  show({ ...recipe, source_import: { model: 'claude-sonnet-5-5', input_tokens: 2400, output_tokens: 610, cost_usd: 0.0109 } })
+  show({ ...recipe, source_import: sourceImport })
   expect(await screen.findByText('Import cost')).toBeInTheDocument()
-  expect(screen.getByText('$0.011')).toBeInTheDocument()
+  expect(screen.getByText('$0.011', { exact: false })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'View original' })).toHaveAttribute('href', '/imports/3')
+})
+
+it('has no original link for an import from before originals were kept', async () => {
+  signedIn()
+  show({ ...recipe, source_import: { ...sourceImport, original_parts: 0 } })
+  expect(await screen.findByText('Import cost')).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'View original' })).not.toBeInTheDocument()
 })
 
 it('has no import cost for a recipe typed in', async () => {

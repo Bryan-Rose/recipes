@@ -8,6 +8,7 @@ import { Account } from './routes/Account'
 import { AuthorPage, CookbookIndex, CookbookPage } from './routes/Cookbooks'
 import { LoginPage } from './routes/LoginPage'
 import { ImportCosts } from './routes/ImportCosts'
+import { ImportOriginal } from './routes/ImportOriginal'
 import { ImportRecipe } from './routes/ImportRecipe'
 import { Lookups } from './routes/Lookups'
 import { MealPlan } from './routes/MealPlan'
@@ -80,6 +81,7 @@ function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
       <Route path="/plan" element={<MealPlan />} />
       <Route path="/shopping" element={<ShoppingList />} />
       <Route path="/import-costs" element={<ImportCosts />} />
+      <Route path="/imports/:importId" element={<ImportOriginal />} />
       <Route path="/account" element={<Account />} />
       <Route path="/logout" element={<SignOutRoute />} />
       <Route path="/users" element={isAdmin ? <UserAdmin /> : <NotFound />} />

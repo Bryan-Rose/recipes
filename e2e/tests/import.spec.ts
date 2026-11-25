@@ -94,6 +94,12 @@ test('import from photos of the pages', async ({ page }) => {
   await expect(page.getByRole('heading', { name })).toBeVisible()
   await expect(page.getByText('Step from photo 2.')).toBeVisible()
   await expectLoaded(page.getByRole('img', { name }))
+
+  // The pages as sent, kept with the import.
+  await page.getByRole('link', { name: 'View original' }).click()
+  await expect(page.getByRole('heading', { name: 'Original import' })).toBeVisible()
+  await expectLoaded(page.getByRole('img', { name: 'Page 1' }))
+  await expectLoaded(page.getByRole('img', { name: 'Page 2' }))
 })
 
 test('a file that is not an image is named, and the photos beside it are kept', async ({ page }) => {
@@ -133,6 +139,13 @@ test('import from a link to the recipe page', async ({ page }) => {
   await expect(page.getByText('Slice the leeks.')).toBeVisible()
   await expectLoaded(page.getByRole('img', { name }))
   await expect(page.getByRole('link', { name: 'mock-anthropic' })).toHaveAttribute('href', url)
+
+  // The whole page as fetched is kept, and served as text rather than rendered.
+  await page.getByRole('link', { name: 'View original' }).click()
+  await expect(page.getByRole('link', { name: url })).toHaveAttribute('href', url)
+  const html = await page.request.get((await page.getByRole('link', { name: "The page's HTML" }).getAttribute('href'))!)
+  expect(html.headers()['content-type']).toBe('text/plain; charset=utf-8')
+  expect(await html.text()).toContain('Slice the leeks.')
 })
 
 test("a link that can't be opened says why", async ({ page }) => {
@@ -187,10 +200,18 @@ test('an import’s cost shows on its recipe and in the cost history', async ({ 
   await expect(page.getByRole('heading', { name })).toBeVisible()
   await expect(page.locator('.detail-meta')).toContainText('Import cost$0.000')
 
+  // What was pasted is kept, and reachable from the recipe and the cost history.
+  await page.getByRole('link', { name: 'View original' }).click()
+  await expect(page.getByRole('heading', { name: 'Original import' })).toBeVisible()
+  await expect(page.locator('.original-text')).toHaveText([name, 'cup', 'water', 'Boil.'].join('\n'))
+  await page.getByRole('link', { name }).click()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+
   await page.getByRole('link', { name: 'Import costs' }).click()
   const imports = page.getByRole('table', { name: 'Imports' }).getByRole('row')
   const row = imports.filter({ hasText: name })
   await expect(row).toContainText('claude-sonnet-5-5')
+  await expect(row.getByRole('link', { name: 'View original' })).toBeVisible()
   const deleted = imports.filter({ hasText: 'Recipe deleted' })
   const deletedBefore = await deleted.count()
   await row.getByRole('link', { name }).click()

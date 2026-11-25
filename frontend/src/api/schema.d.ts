@@ -420,6 +420,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Import */
+        get: operations["get_import_imports__import_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/imports/{import_id}/original/{part}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Original
+         * @description One file of what an import sent to Claude: the pasted text, a photo (part = page, from 0) or the page HTML.
+         */
+        get: operations["get_original_imports__import_id__original__part__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/imports/text": {
         parameters: {
             query?: never;
@@ -894,6 +931,52 @@ export interface components {
             /** Thumb */
             thumb: string;
         };
+        /** ImportDetail */
+        ImportDetail: {
+            /** Model */
+            model: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cost Usd */
+            cost_usd: number | null;
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "text" | "photos" | "url";
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "draft" | "no_draft" | "cut_off";
+            recipe: components["schemas"]["ImportedRecipeRef"] | null;
+            /** Saved */
+            saved: boolean;
+            /**
+             * Original Parts
+             * @description Files GET /imports/{id}/original/{part} serves; 0 for imports from before originals were kept.
+             */
+            original_parts: number;
+            /**
+             * Page Url
+             * @description URL import: the address the page was fetched from, after redirects.
+             */
+            page_url: string | null;
+            /**
+             * Text
+             * @description Text import: what was pasted. Photos and pages are served as files.
+             */
+            text: string | null;
+        };
         /**
          * ImportRead
          * @description A stored import, newest first in GET /imports/.
@@ -927,6 +1010,16 @@ export interface components {
             recipe: components["schemas"]["ImportedRecipeRef"] | null;
             /** Saved */
             saved: boolean;
+            /**
+             * Original Parts
+             * @description Files GET /imports/{id}/original/{part} serves; 0 for imports from before originals were kept.
+             */
+            original_parts: number;
+            /**
+             * Page Url
+             * @description URL import: the address the page was fetched from, after redirects.
+             */
+            page_url: string | null;
         };
         /**
          * ImportUsage
@@ -1254,7 +1347,7 @@ export interface components {
             tags: components["schemas"]["TagRead"][];
             /** Image */
             image?: string | null;
-            source_import?: components["schemas"]["ImportUsage"] | null;
+            source_import?: components["schemas"]["SourceImport"] | null;
         };
         /**
          * RecipeSummary
@@ -1369,6 +1462,24 @@ export interface components {
              * @default 1
              */
             batches: number;
+        };
+        /**
+         * SourceImport
+         * @description What importing a recipe cost, and where to see what it was imported from.
+         */
+        SourceImport: {
+            /** Model */
+            model: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Cost Usd */
+            cost_usd: number | null;
+            /** Id */
+            id: number;
+            /** Original Parts */
+            original_parts: number;
         };
         /** StepCreate */
         StepCreate: {
@@ -2774,6 +2885,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportRead"][];
+                };
+            };
+        };
+    };
+    get_import_imports__import_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_original_imports__import_id__original__part__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+                part: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": unknown;
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

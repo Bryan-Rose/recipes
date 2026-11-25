@@ -557,3 +557,16 @@
 .shopping-servings {
   width: 4.5rem;
 }
+
+/* An import's original (ImportOriginal). */
+.original-text {
+  white-space: pre-wrap;
+  font-family: inherit;
+  margin: 0;
+}
+
+.original-photo {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+}

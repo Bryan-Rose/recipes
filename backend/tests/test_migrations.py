@@ -449,3 +449,17 @@ def test_imports_with_a_recipe_count_as_saved(alembic_config: Config):
     with engine.connect() as connection:
         assert connection.execute(text("SELECT id, saved FROM recipe_imports ORDER BY id")).all() == [(1, 1), (2, 0)]
     engine.dispose()
+
+
+def test_imports_from_before_originals_have_none(alembic_config: Config):
+    command.upgrade(alembic_config, "4fdd43150710")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.begin() as connection:
+        columns = "(id, source, model, input_tokens, output_tokens, outcome)"
+        connection.execute(text(f"INSERT INTO recipe_imports {columns} VALUES (1, 'url', 'm', 1, 1, 'draft')"))
+
+    command.upgrade(alembic_config, "0562f0467369")
+    with engine.connect() as connection:
+        row = connection.execute(text("SELECT original, original_parts, page_url FROM recipe_imports")).one()
+        assert tuple(row) == (None, 0, None)
+    engine.dispose()

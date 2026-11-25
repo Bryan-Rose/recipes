@@ -2,17 +2,31 @@ import base64
 import logging
 from collections.abc import Callable
 from functools import lru_cache
+from typing import Annotated
 
 import anthropic
 import httpx2
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.config import Settings, get_settings
 from app.database import get_db
+from app.models import RecipeImportRecord
 from app.models.user import User
-from app.schemas.imports import ImportRead, ImportSource, ImportUsage, PhotoImport, RecipeDraft, RecipeImport, TextImport, UrlImport
+from app.schemas.fields import IdPath
+from app.schemas.imports import (
+    ImportDetail,
+    ImportRead,
+    ImportSource,
+    ImportUsage,
+    PhotoImport,
+    RecipeDraft,
+    RecipeImport,
+    TextImport,
+    UrlImport,
+)
 from app.services import fetch
 from app.services import imports as imports_service
 
@@ -39,7 +53,15 @@ def get_import_client(settings: Settings = Depends(get_settings)) -> anthropic.A
     return _client(settings.anthropic_api_key.get_secret_value().strip(), settings.anthropic_base_url)
 
 
-def _run(user: User, db: Session, source: ImportSource, parse: Callable[[], tuple[RecipeDraft | None, ImportUsage]]) -> RecipeImport:
+def _run(
+    user: User,
+    db: Session,
+    settings: Settings,
+    source: ImportSource,
+    original: list[bytes],
+    parse: Callable[[], tuple[RecipeDraft | None, ImportUsage]],
+    page_url: str | None = None,
+) -> RecipeImport:
     too_long = False
     try:
         draft, usage = parse()
@@ -59,7 +81,8 @@ def _run(user: User, db: Session, source: ImportSource, parse: Callable[[], tupl
         cost,
         "draft returned" if draft else "cut off" if too_long else "no draft",
     )
-    row = imports_service.record(db, user, source, usage, "draft" if draft else "cut_off" if too_long else "no_draft")
+    outcome = "draft" if draft else "cut_off" if too_long else "no_draft"
+    row = imports_service.record(db, settings.imports_dir, user, source, usage, outcome, original, page_url)
     if too_long:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="That's too long to read in one go; try sending less of it"
@@ -75,6 +98,45 @@ def list_imports(db: Session = Depends(get_db)):
     return imports_service.get_history(db)
 
 
+@router.get("/{import_id}", response_model=ImportDetail)
+def get_import(import_id: IdPath, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)):
+    row = _get_or_404(db, import_id)
+    text = None
+    if row.source == "text" and row.original_parts:
+        text = imports_service.original_path(settings.imports_dir, row, 0).read_text()
+    return ImportDetail.model_validate({**ImportRead.model_validate(row).model_dump(), "text": text})
+
+
+# Page HTML goes out as plain text, so a stored page is read, never run, on this origin.
+ORIGINAL_MEDIA_TYPE = {"text": "text/plain; charset=utf-8", "photos": "image/jpeg", "url": "text/plain; charset=utf-8"}
+
+
+@router.get(
+    "/{import_id}/original/{part}",
+    response_class=FileResponse,
+    responses={200: {"content": {"text/plain": {}, "image/jpeg": {}}}},
+)
+def get_original(
+    import_id: IdPath, part: Annotated[int, Path(ge=0, le=100)], db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
+):
+    """One file of what an import sent to Claude: the pasted text, a photo (part = page, from 0) or the page HTML."""
+    row = _get_or_404(db, import_id)
+    path = imports_service.original_path(settings.imports_dir, row, part)
+    if part >= row.original_parts or not path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return FileResponse(
+        path,
+        media_type=ORIGINAL_MEDIA_TYPE[row.source],
+        headers={"Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+def _get_or_404(db: Session, import_id: int) -> RecipeImportRecord:
+    if (row := imports_service.get_import(db, import_id)) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Import not found")
+    return row
+
+
 @router.post("/text", response_model=RecipeImport)
 def import_text(
     body: TextImport,
@@ -83,7 +145,8 @@ def import_text(
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ):
-    return _run(user, db, "text", lambda: imports_service.parse_text(client, settings.import_model, db, body.text))
+    original = [body.text.encode()]
+    return _run(user, db, settings, "text", original, lambda: imports_service.parse_text(client, settings.import_model, db, body.text))
 
 
 @router.post("/photos", response_model=RecipeImport)
@@ -94,7 +157,10 @@ def import_photos(
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ):
-    return _run(user, db, "photos", lambda: imports_service.parse_photos(client, settings.import_model, db, body.photos))
+    original = [base64.b64decode(photo) for photo in body.photos]
+    return _run(
+        user, db, settings, "photos", original, lambda: imports_service.parse_photos(client, settings.import_model, db, body.photos)
+    )
 
 
 def get_fetch_transport() -> httpx2.BaseTransport | None:  # pragma: no cover — tests always swap in a mock
@@ -120,7 +186,11 @@ def import_url(
     text = fetch.page_text(html)
     if not text:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Couldn't read a recipe from that")
-    result = _run(user, db, "url", lambda: imports_service.parse_text(client, settings.import_model, db, text))
+    # The page as decoded (UTF-8 from here on), before the recipe was picked out of it.
+    original = [html.encode()]
+    result = _run(
+        user, db, settings, "url", original, lambda: imports_service.parse_text(client, settings.import_model, db, text), page_url
+    )
     # Only after a draft: no picture is worth fetching for a failed parse.
     if image_url := fetch.page_image(html, page_url):
         try:

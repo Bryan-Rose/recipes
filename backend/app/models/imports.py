@@ -30,4 +30,9 @@ class RecipeImportRecord(Base):
     output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
     cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)  # None: model missing from the price table
     outcome: Mapped[str] = mapped_column(String, nullable=False)  # draft, no_draft or cut_off
+    # What was sent to Claude, as files under RECIPES_IMPORTS_DIR: {original}-{part}.{txt,jpg,html}, one per photo.
+    # None (and 0 parts) for imports from before originals were kept.
+    original: Mapped[str | None] = mapped_column(String, nullable=True)
+    original_parts: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    page_url: Mapped[str | None] = mapped_column(String, nullable=True)  # URL import: where the page ended up after redirects
     recipe: Mapped[Recipe | None] = relationship(back_populates="source_import")

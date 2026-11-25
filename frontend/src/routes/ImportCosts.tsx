@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 
 import { useImportHistory } from '../api/recipes'
 import type { ImportRecord } from '../api/types'
-import { formatCost } from '../components/cost'
+import { OUTCOME, SOURCE, formatCost } from '../components/cost'
 import { isoDay, monday } from '../components/days'
 import { ErrorState, Loading } from '../components/Feedback'
 
@@ -29,9 +29,6 @@ function totalsBy(history: ImportRecord[], period: (date: Date) => string): Tota
 
 const weekOf = (date: Date) => `Week of ${monday(date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`
 const monthOf = (date: Date) => date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-
-const OUTCOME = { draft: 'Not saved', no_draft: 'No recipe found', cut_off: 'Too long' } as const
-const SOURCE = { text: 'Text', photos: 'Photos', url: 'Link' } as const
 
 /** What reading recipes with Claude has cost: weekly and monthly totals, then each import. */
 export function ImportCosts() {
@@ -61,6 +58,7 @@ export function ImportCosts() {
                   <th>Model</th>
                   <th>Tokens in / out</th>
                   <th>Cost</th>
+                  <th>Original</th>
                 </tr>
               </thead>
               <tbody>
@@ -80,6 +78,7 @@ export function ImportCosts() {
                       {row.input_tokens.toLocaleString()} / {row.output_tokens.toLocaleString()}
                     </td>
                     <td>{formatCost(row.cost_usd)}</td>
+                    <td>{row.original_parts > 0 && <Link to={`/imports/${row.id}`}>View original</Link>}</td>
                   </tr>
                 ))}
               </tbody>

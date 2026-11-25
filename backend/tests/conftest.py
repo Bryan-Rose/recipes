@@ -55,7 +55,12 @@ def images_dir(tmp_path):
 
 
 @pytest.fixture()
-def client(db_session, current_user, images_dir):
+def imports_dir(tmp_path):
+    return tmp_path / "imports"
+
+
+@pytest.fixture()
+def client(db_session, current_user, images_dir, imports_dir):
     """Signed in as current_user through a real session cookie; clear client.cookies for anonymous requests."""
 
     def override_get_db():
@@ -68,8 +73,8 @@ def client(db_session, current_user, images_dir):
             raise
 
     fastapi_app.dependency_overrides[get_db] = override_get_db
-    # Uploaded images go to a per-test folder. Tests that override get_settings themselves don't upload.
-    settings = get_settings().model_copy(update={"images_dir": images_dir})
+    # Uploads and import originals go to per-test folders. Tests that override get_settings must keep imports_dir.
+    settings = get_settings().model_copy(update={"images_dir": images_dir, "imports_dir": imports_dir})
     fastapi_app.dependency_overrides[get_settings] = lambda: settings
     auth_router._failed_logins.clear()
     with TestClient(fastapi_app) as test_client:
