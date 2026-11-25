@@ -110,9 +110,9 @@ export interface RecipeInitial {
 }
 
 /**
- * A name's last word in the singular, by the common English endings: "onions" and "Onion" both give "onion",
- * "tomatoes" "tomato", "berries" "berry", "peaches" "peach". Not a dictionary: it only has to make a plural and its
- * singular meet, and a word that ends in "ss" ("glass") is left alone.
+ * The name, trimmed and lower-cased, with its last word in the singular by the common English endings: "onions" and
+ * "Onion" both give "onion", "Yellow Onions" "yellow onion", "tomatoes" "tomato", "berries" "berry". Not a dictionary:
+ * it only has to make a plural and its singular meet, and a word that ends in "ss" ("glass") is left alone.
  */
 export function singular(name: string): string {
   const word = name.trim().toLowerCase()

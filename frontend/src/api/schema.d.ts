@@ -226,7 +226,7 @@ export interface paths {
         put?: never;
         /**
          * Merge Author
-         * @description Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted.
+         * @description Merges this row into into_id: everything that names it names into_id instead, and it's deleted.
          */
         post: operations["merge_author_authors__author_id__merge__into_id__post"];
         delete?: never;
@@ -283,7 +283,7 @@ export interface paths {
         put?: never;
         /**
          * Merge Ingredient
-         * @description Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted.
+         * @description Merges this row into into_id: everything that names it names into_id instead, and it's deleted.
          */
         post: operations["merge_ingredient_ingredients__ingredient_id__merge__into_id__post"];
         delete?: never;
@@ -340,7 +340,7 @@ export interface paths {
         put?: never;
         /**
          * Merge Measurement
-         * @description Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted.
+         * @description Merges this row into into_id: everything that names it names into_id instead, and it's deleted.
          */
         post: operations["merge_measurement_measurements__measurement_id__merge__into_id__post"];
         delete?: never;
@@ -397,7 +397,7 @@ export interface paths {
         put?: never;
         /**
          * Merge Preparation
-         * @description Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted.
+         * @description Merges this row into into_id: everything that names it names into_id instead, and it's deleted.
          */
         post: operations["merge_preparation_preparations__preparation_id__merge__into_id__post"];
         delete?: never;
@@ -454,7 +454,7 @@ export interface paths {
         put?: never;
         /**
          * Merge Tag
-         * @description Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted.
+         * @description Merges this row into into_id: everything that names it names into_id instead, and it's deleted.
          */
         post: operations["merge_tag_tags__tag_id__merge__into_id__post"];
         delete?: never;
