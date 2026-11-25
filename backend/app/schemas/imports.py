@@ -95,7 +95,7 @@ class ImportRead(ImportUsage):
 
 
 class ImportDetail(ImportRead):
-    text: str | None = Field(description="Text import: what was pasted. Photos and pages are served as files.")
+    text: str | None = Field(description="Text import: what was pasted; None if its file is missing. Photos and pages are served as files.")
 
 
 class SourceImport(ImportUsage):

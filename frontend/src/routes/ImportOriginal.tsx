@@ -34,7 +34,11 @@ export function ImportOriginal() {
       {row.original_parts === 0 ? (
         <p className="muted">This import is from before originals were kept.</p>
       ) : row.source === 'text' ? (
-        <pre className="card original-text">{row.text}</pre>
+        row.text === null ? (
+          <p className="error-box">The pasted text's file is missing from the server.</p>
+        ) : (
+          <pre className="card original-text">{row.text}</pre>
+        )
       ) : row.source === 'photos' ? (
         Array.from({ length: row.original_parts }, (_, part) => (
           <img key={part} className="card original-photo" src={file(part)} alt={`Page ${part + 1}`} />

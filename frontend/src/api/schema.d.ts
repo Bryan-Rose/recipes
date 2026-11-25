@@ -1107,7 +1107,7 @@ export interface components {
             page_url: string | null;
             /**
              * Text
-             * @description Text import: what was pasted. Photos and pages are served as files.
+             * @description Text import: what was pasted; None if its file is missing. Photos and pages are served as files.
              */
             text: string | null;
         };
