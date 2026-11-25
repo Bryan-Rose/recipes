@@ -188,8 +188,19 @@ test('an import’s cost shows on its recipe and in the cost history', async ({ 
   await expect(page.locator('.detail-meta')).toContainText('Import cost$0.000')
 
   await page.getByRole('link', { name: 'Import costs' }).click()
-  const row = page.getByRole('table', { name: 'Imports' }).getByRole('row').filter({ hasText: name })
+  const imports = page.getByRole('table', { name: 'Imports' }).getByRole('row')
+  const row = imports.filter({ hasText: name })
   await expect(row).toContainText('claude-sonnet-5-5')
+  const deleted = imports.filter({ hasText: 'Recipe deleted' })
+  const deletedBefore = await deleted.count()
   await row.getByRole('link', { name }).click()
   await expect(page.getByRole('heading', { name })).toBeVisible()
+
+  // Deleting the recipe keeps its cost, labelled as deleted rather than never saved.
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible()
+  await page.getByRole('link', { name: 'Import costs' }).click()
+  await expect(deleted).toHaveCount(deletedBefore + 1)
+  await expect(imports.filter({ hasText: name })).toHaveCount(0)
 })
