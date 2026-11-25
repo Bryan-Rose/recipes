@@ -273,7 +273,7 @@ describe('ingredient editor', () => {
   const lookup = { id: 1, name: 'leek' }
   const withIngredient: Recipe = {
     ...recipe,
-    recipe_ingredients: [{ id: 5, ingredient: lookup, measurement: lookup, preparation: lookup, amount_numerator: 2, amount_denominator: 1 }],
+    recipe_ingredients: [{ id: 5, ingredient: lookup, measurement: lookup, preparation: lookup, amount_numerator: 2, amount_denominator: 1, group: null, note: null }],
   }
 
   beforeEach(() => {
@@ -433,7 +433,7 @@ describe('ingredient amounts and preparation', () => {
     const withIngredient: Recipe = {
       ...recipe,
       recipe_ingredients: [
-        { id: 5, ingredient: lookup, measurement: lookup, preparation: null, amount_numerator: 7, amount_denominator: 2 },
+        { id: 5, ingredient: lookup, measurement: lookup, preparation: null, amount_numerator: 7, amount_denominator: 2, group: null, note: null },
       ],
     }
     renderWithProviders(<EditRecipeForm recipe={withIngredient} />)
@@ -471,7 +471,89 @@ describe('ingredient amounts and preparation', () => {
       preparation_id: null,
       amount_numerator: 1,
       amount_denominator: 2,
+      group: null,
+      note: null,
     })
+  })
+})
+
+describe('ingredient group and note', () => {
+  const lookup = { id: 1, name: 'leek' }
+  const grouped: Recipe = {
+    ...recipe,
+    recipe_ingredients: [
+      { id: 5, ingredient: lookup, measurement: lookup, preparation: null, amount_numerator: 2, amount_denominator: 1, group: 'Base', note: 'about' },
+    ],
+  }
+
+  beforeEach(() => {
+    server.use(
+      http.get('/api/cookbooks/', () => HttpResponse.json([])),
+      http.get('/api/ingredients/', () => HttpResponse.json([lookup])),
+      http.get('/api/measurements/', () => HttpResponse.json([lookup])),
+      http.get('/api/recipes/7', () => HttpResponse.json(grouped)),
+    )
+  })
+
+  it('saves a changed group trimmed and a cleared note as none', async () => {
+    let patched: unknown
+    server.use(
+      http.patch('/api/recipes/7/recipeingredients/5', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json(grouped.recipe_ingredients[0])
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={grouped} />)
+
+    await user.clear(screen.getByLabelText('Group'))
+    await user.type(screen.getByLabelText('Group'), ' Broth ')
+    await user.clear(screen.getByLabelText('Note'))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await expect.poll(() => patched).toMatchObject({ group: 'Broth', note: null })
+  })
+
+  it("suggests the recipe's groups for a new line", async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={grouped} />)
+
+    await user.click(screen.getByRole('button', { name: '+ Add ingredient' }))
+    const field = screen.getAllByLabelText('Group')[1]
+    const suggestions = document.getElementById(field.getAttribute('list')!)!
+    expect([...suggestions.querySelectorAll('option')].map((option) => option.value)).toEqual(['Base'])
+  })
+})
+
+describe('recipe author', () => {
+  beforeEach(() => {
+    server.use(
+      http.get('/api/cookbooks/', () =>
+        HttpResponse.json([{ id: 3, name: 'Soups', author: { id: 1, name: 'Bo' }, created_at: '', recipe_count: 0, image: null }]),
+      ),
+      http.get('/api/authors/', () => HttpResponse.json([{ id: 2, name: 'Ana Roux' }])),
+    )
+  })
+
+  it('is picked for a recipe without a cookbook, and cleared by choosing one', async () => {
+    let patched: unknown
+    server.use(
+      http.patch('/api/recipes/7', async ({ request }) => {
+        patched = await request.json()
+        return HttpResponse.json(recipe)
+      }),
+    )
+    const user = userEvent.setup()
+    renderWithProviders(<EditRecipeForm recipe={{ ...recipe, author_id: 2, author: { id: 2, name: 'Ana Roux' } }} />)
+
+    await screen.findByRole('option', { name: 'Ana Roux' })
+    expect(screen.getByLabelText('Author')).toHaveDisplayValue('Ana Roux')
+    await screen.findByRole('option', { name: 'Soups — Bo' })
+    await user.selectOptions(screen.getByLabelText('Cookbook'), 'Soups — Bo')
+    expect(screen.queryByLabelText('Author')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save details' }))
+
+    await expect.poll(() => patched).toMatchObject({ cookbook_id: 3, author_id: null })
   })
 })
 
@@ -599,6 +681,8 @@ describe('reordering equipment and ingredients', () => {
     ingredient: { id, name },
     measurement: unit,
     preparation: null,
+    group: null,
+    note: null,
   })
   const lines: Recipe = {
     ...recipe,
@@ -669,7 +753,7 @@ describe('leaving the recipe editor', () => {
   const lookup = { id: 1, name: 'leek' }
   const withIngredient: Recipe = {
     ...recipe,
-    recipe_ingredients: [{ id: 5, ingredient: lookup, measurement: lookup, preparation: null, amount_numerator: 2, amount_denominator: 1 }],
+    recipe_ingredients: [{ id: 5, ingredient: lookup, measurement: lookup, preparation: null, amount_numerator: 2, amount_denominator: 1, group: null, note: null }],
   }
 
   beforeEach(() => {

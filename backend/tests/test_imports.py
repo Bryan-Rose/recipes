@@ -21,9 +21,19 @@ DRAFT = {
     "servings": 4,
     "active_cook_time": 20,
     "inactive_cook_time": None,
-    "notes": "Range 1-2 cups milk: used 2.",
+    "notes": "Rest the batter overnight.",
+    "author": "Ana Roux",
+    "tags": ["breakfast"],
     "ingredients": [
-        {"amount_numerator": 3, "amount_denominator": 2, "measurement": "cup", "ingredient": "flour", "preparation": "sifted"},
+        {
+            "amount_numerator": 3,
+            "amount_denominator": 2,
+            "measurement": "cup",
+            "ingredient": "flour",
+            "preparation": "sifted",
+            "group": "Batter",
+            "note": "1-1 1/2 cups",
+        },
     ],
     "requirements": ["Frying pan"],
     "steps": ["Mix.", "Fry."],
@@ -76,7 +86,9 @@ def test_returns_the_parsed_draft(client: TestClient, fake_api: FakeApi):
     assert response.json() == {**DRAFT, "usage": usage, "image": None, "import_id": response.json()["import_id"]}
 
 
-def test_prompt_lists_existing_lookups_and_the_text(client: TestClient, fake_api: FakeApi, ingredient, measurement, preparation):
+def test_prompt_lists_existing_lookups_and_the_text(
+    client: TestClient, fake_api: FakeApi, ingredient, measurement, preparation, author, tag
+):
     client.post("/imports/text", json={"text": "Pancakes\n1 1/2 cups flour"})
     (sent,) = fake_api.requests
     assert sent["model"] == "claude-sonnet-5-5"
@@ -84,6 +96,8 @@ def test_prompt_lists_existing_lookups_and_the_text(client: TestClient, fake_api
     prompt = sent["messages"][0]["content"]
     for name in (ingredient.name, measurement.name, preparation.name, "1 1/2 cups flour"):
         assert name in prompt
+    assert f"<existing_authors>\n{author.name}\n</existing_authors>" in prompt
+    assert f"<existing_tags>\n{tag.name}\n</existing_tags>" in prompt
 
 
 def test_model_comes_from_settings(client: TestClient, fake_api: FakeApi, imports_dir: Path):

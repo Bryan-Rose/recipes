@@ -24,8 +24,9 @@ export const server = setupServer(
   http.get('/api/auth/config', () => HttpResponse.json(passwordOnly)),
   http.get('/api/auth/me', () => HttpResponse.json({ detail: 'Not signed in' }, { status: 401 })),
   http.get('/api/recipes/', () => HttpResponse.json([])),
-  // RecipeFields loads tags for its picker, and CreateRecipeForm the ingredient lookups.
+  // RecipeFields loads tags and authors for its pickers, and CreateRecipeForm the ingredient lookups.
   http.get('/api/tags/', () => HttpResponse.json([])),
+  http.get('/api/authors/', () => HttpResponse.json([])),
   http.get('/api/ingredients/', () => HttpResponse.json([])),
   http.get('/api/measurements/', () => HttpResponse.json([])),
   http.get('/api/preparations/', () => HttpResponse.json([])),

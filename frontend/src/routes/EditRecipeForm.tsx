@@ -21,7 +21,7 @@ import {
 } from '../api/recipes'
 import { describeError } from '../api/errors'
 import type { Recipe } from '../api/types'
-import { emptyIngredient, isComplete, moveItem } from '../components/drafts'
+import { emptyIngredient, groupsOf, isComplete, moveItem, toLine } from '../components/drafts'
 import type { IngredientDraft, RecipeScalars } from '../components/drafts'
 import { ImageField } from '../components/ImageField'
 import { IngredientFields } from '../components/IngredientFields'
@@ -163,6 +163,7 @@ function toScalars(recipe: Recipe): RecipeScalars {
     name: recipe.name,
     cookbook_id: recipe.cookbook_id ?? null,
     cookbook_page: recipe.cookbook_page ?? null,
+    author_id: recipe.author_id ?? null,
     active_cook_time: recipe.active_cook_time ?? null,
     inactive_cook_time: recipe.inactive_cook_time ?? null,
     servings: recipe.servings ?? null,
@@ -181,6 +182,8 @@ function toDraft(item: Recipe['recipe_ingredients'][number]): IngredientDraft {
     preparation_id: item.preparation?.id ?? null,
     amount_numerator: item.amount_numerator,
     amount_denominator: item.amount_denominator,
+    group: item.group,
+    note: item.note,
   }
 }
 
@@ -218,6 +221,7 @@ function IngredientsSection({ recipe, onUnsavedChange }: { recipe: Recipe; onUns
             <span className="child-row__index">{index + 1}</span>
             <IngredientFields
               value={draft}
+              groups={groupsOf(recipe.recipe_ingredients)}
               onChange={(update) =>
                 setDrafts((current) => ({ ...current, [item.id]: update(current[item.id] ?? toDraft(item)) }))
               }
@@ -231,7 +235,7 @@ function IngredientsSection({ recipe, onUnsavedChange }: { recipe: Recipe; onUns
                     // mutate(), not mutateAsync(): a failure shows through updateIngredient.error
                     // and keeps the draft, rather than escaping as an unhandled rejection.
                     updateIngredient.mutate(
-                      { id: item.id, patch: draft },
+                      { id: item.id, patch: toLine(draft) },
                       {
                         onSuccess: () =>
                           setDrafts((current) => {
@@ -271,7 +275,11 @@ function IngredientsSection({ recipe, onUnsavedChange }: { recipe: Recipe; onUns
       {newRow !== null && (
         <div className="child-row">
           <span className="child-row__index">+</span>
-          <IngredientFields value={newRow} onChange={(update) => setNewRow((current) => current && update(current))} />
+          <IngredientFields
+            value={newRow}
+            groups={groupsOf(recipe.recipe_ingredients)}
+            onChange={(update) => setNewRow((current) => current && update(current))}
+          />
           <div className="row" style={{ paddingTop: '1.4rem' }}>
             <button
               type="button"
@@ -279,7 +287,7 @@ function IngredientsSection({ recipe, onUnsavedChange }: { recipe: Recipe; onUns
               disabled={!isComplete(newRow) || createIngredient.isPending}
               onClick={() => {
                 if (!isComplete(newRow)) return
-                createIngredient.mutate(newRow, { onSuccess: () => setNewRow(null) })
+                createIngredient.mutate(toLine(newRow), { onSuccess: () => setNewRow(null) })
               }}
             >
               Add

@@ -12,6 +12,7 @@ const summary = (id: number, name: string): RecipeSummary => ({
   id,
   name,
   cookbook_id: null,
+  author_id: null,
   cookbook_page: null,
   cookbook: null,
   active_cook_time: null,

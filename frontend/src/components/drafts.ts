@@ -14,6 +14,8 @@ export interface RecipeScalars {
   name: string
   cookbook_id: number | null
   cookbook_page: number | null
+  /** Only without a cookbook; a cookbook recipe's author is its cookbook's. */
+  author_id: number | null
   active_cook_time: number | null
   inactive_cook_time: number | null
   servings: number | null
@@ -27,6 +29,7 @@ export const emptyScalars: RecipeScalars = {
   name: '',
   cookbook_id: null,
   cookbook_page: null,
+  author_id: null,
   active_cook_time: null,
   inactive_cook_time: null,
   servings: null,
@@ -45,6 +48,9 @@ export interface IngredientDraft {
   preparation_id: number | null
   amount_numerator: number
   amount_denominator: Denominator
+  /** As typed; toLine trims them, and blank is none. */
+  group: string | null
+  note: string | null
   /** Imported names that match no existing row, by field; the row is created when the recipe is saved. */
   pending?: Partial<Record<LookupKind, string>>
 }
@@ -57,7 +63,19 @@ export const emptyIngredient: IngredientDraft = {
   preparation_id: null,
   amount_numerator: 1,
   amount_denominator: 1,
+  group: null,
+  note: null,
 }
+
+/** A row's group and note as the API takes them: trimmed, and null when blank (a blank string is a 422). */
+export function toLine<T extends IngredientDraft>(draft: T): T {
+  return { ...draft, group: draft.group?.trim() || null, note: draft.note?.trim() || null }
+}
+
+/** The groups already used by these rows, for the Group field's suggestions. */
+export const groupsOf = (rows: readonly { group: string | null }[]) => [
+  ...new Set(rows.flatMap((row) => (row.group?.trim() ? [row.group.trim()] : []))),
+]
 
 /** Submittable once an ingredient and measurement are picked and the amount is above zero. */
 export function isComplete(draft: IngredientDraft): draft is IngredientDraft & RecipeIngredientCreate {
@@ -87,21 +105,29 @@ export interface RecipeInitial {
   requirements: string[]
   steps: string[]
   image?: ImageUpload | null
+  /** An imported author's name that matches no author; added when the recipe is saved without a cookbook. */
+  pendingAuthor?: string
 }
 
 /** An imported draft as form state: names matched to existing rows case-insensitively, the rest left pending. */
 export function fromImport(
   draft: RecipeDraft,
-  lists: Record<LookupKind, readonly Lookup[]>,
+  lists: Record<LookupKind | 'author' | 'tag', readonly Lookup[]>,
   sourceUrl: string | null = null,
 ): RecipeInitial {
   // The schema only says these are integers, but the API 422s below its minimums (servings 1, times 0); leave it blank instead.
   const atLeast = (min: number, value: number | null) => (value !== null && value >= min ? value : null)
   // Normalized like the backend's fetch, since saving rejects "HTTPS:", spaces and more than SourceUrl's 2048 characters.
   const href = sourceUrl === null ? null : URL.parse(sourceUrl)?.href
+  const author = draft.author?.trim() ? findByName(lists.author, draft.author) : undefined
+  // Only existing tags: the prompt says so, and a made-up name is dropped rather than created.
+  const tagIds = draft.tags.flatMap((name) => findByName(lists.tag, name)?.id ?? [])
   return {
+    pendingAuthor: draft.author?.trim() && !author ? draft.author.trim() : undefined,
     scalars: {
       ...emptyScalars,
+      author_id: author?.id ?? null,
+      tag_ids: [...new Set(tagIds)].sort((a, b) => a - b),
       name: draft.name,
       servings: atLeast(1, draft.servings),
       active_cook_time: atLeast(0, draft.active_cook_time),
@@ -123,6 +149,8 @@ export function fromImport(
         preparation_id: match('preparation', line.preparation),
         amount_numerator: line.amount_numerator,
         amount_denominator: line.amount_denominator,
+        group: line.group,
+        note: line.note,
         pending,
       }
     }),

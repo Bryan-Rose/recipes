@@ -2,6 +2,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from app.schemas.author import AuthorRead
 from app.schemas.cookbook import CookbookRead
 from app.schemas.fields import DbId, Denominator, JpegBase64, Minutes, Name, Omittable, PositiveInt, SourceUrl, UtcDatetime
 from app.schemas.imports import SourceImport
@@ -19,6 +20,8 @@ class RecipeIngredientCreate(BaseModel):
     preparation_id: DbId | None = None
     amount_numerator: PositiveInt
     amount_denominator: Denominator = 1
+    group: Name | None = None
+    note: Name | None = None
 
 
 class RecipeIngredientRead(BaseModel):
@@ -29,6 +32,8 @@ class RecipeIngredientRead(BaseModel):
     preparation: PreparationRead | None
     amount_numerator: int
     amount_denominator: Denominator
+    group: str | None
+    note: str | None
 
 
 class RecipeIngredientUpdate(BaseModel):
@@ -37,6 +42,9 @@ class RecipeIngredientUpdate(BaseModel):
     amount_numerator: Omittable[PositiveInt] = None
     amount_denominator: Omittable[Denominator] = None
     preparation_id: DbId | None = None
+    # null clears these, like preparation_id.
+    group: Name | None = None
+    note: Name | None = None
 
 
 ## Recipe Ingredient
@@ -105,10 +113,14 @@ class ImageUpload(BaseModel):
     thumb: JpegBase64
 
 
+AUTHOR_WITH_COOKBOOK = "author_id is only for a recipe without a cookbook_id"
+
+
 class RecipeBase(BaseModel):
     name: Name
     cookbook_id: DbId | None = None
     cookbook_page: PositiveInt | None = None
+    author_id: DbId | None = None  # only without a cookbook: a cookbook recipe's author is its cookbook's
     active_cook_time: Minutes | None = None
     inactive_cook_time: Minutes | None = None
     servings: PositiveInt | None = None
@@ -128,6 +140,8 @@ class RecipeCreate(RecipeBase):
     def _page_needs_cookbook(self) -> Self:
         if self.cookbook_page is not None and self.cookbook_id is None:
             raise ValueError("cookbook_page requires a cookbook_id")
+        if self.author_id is not None and self.cookbook_id is not None:
+            raise ValueError(AUTHOR_WITH_COOKBOOK)
         return self
 
 
@@ -135,6 +149,7 @@ class RecipeUpdate(BaseModel):
     name: Omittable[Name] = None
     cookbook_id: DbId | None = None
     cookbook_page: PositiveInt | None = None
+    author_id: DbId | None = None
     active_cook_time: Minutes | None = None
     inactive_cook_time: Minutes | None = None
     servings: PositiveInt | None = None
@@ -153,6 +168,7 @@ class RecipeRead(RecipeBase):
     created_at: UtcDatetime
     updated_at: UtcDatetime
     cookbook: CookbookRead | None = None
+    author: AuthorRead | None = None
     steps: list[StepRead] = []
     requirements: list[RequirementRead] = []
     recipe_ingredients: list[RecipeIngredientRead] = []
@@ -171,6 +187,7 @@ class RecipeSummary(BaseModel):
     name: str
     cookbook_id: int | None
     cookbook_page: PositiveInt | None
+    author_id: int | None
     active_cook_time: Minutes | None
     inactive_cook_time: Minutes | None
     created_at: UtcDatetime

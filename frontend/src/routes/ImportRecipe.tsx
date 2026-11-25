@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router'
 
 import { useAuthConfig } from '../api/auth'
 import { describeError } from '../api/errors'
-import { useIngredients, useMeasurements, usePreparations } from '../api/lookups'
+import { useAuthors, useIngredients, useMeasurements, usePreparations, useTags } from '../api/lookups'
 import { useImportRecipe } from '../api/recipes'
 import { formatCost } from '../components/cost'
 import { fromImport } from '../components/drafts'
@@ -24,8 +24,8 @@ export function ImportRecipe() {
   const [converting, setConverting] = useState(false)
   const [reviewUnsaved, setReviewUnsaved] = useState(false)
   const importRecipe = useImportRecipe()
-  const lists = [useIngredients(), useMeasurements(), usePreparations()]
-  const [ingredient, measurement, preparation] = lists.map((list) => list.data)
+  const lists = [useIngredients(), useMeasurements(), usePreparations(), useAuthors(), useTags()]
+  const [ingredient, measurement, preparation, author, tag] = lists.map((list) => list.data)
   const importEnabled = useAuthConfig().data?.recipe_import
   // A deep link while import is off would only end in a 503.
   if (importEnabled === false) return <Navigate to="/" replace />
@@ -34,7 +34,7 @@ export function ImportRecipe() {
     // Matching names to rows needs the lists; they load alongside the parse.
     const failed = lists.find((list) => list.error)?.error
     if (failed) return <ErrorState error={failed} what="lookups" />
-    if (!ingredient || !measurement || !preparation) return <Loading what="lookups" />
+    if (!ingredient || !measurement || !preparation || !author || !tag) return <Loading what="lookups" />
     const source = importRecipe.variables
     const { model, input_tokens, output_tokens, cost_usd } = importRecipe.data.usage
     return (
@@ -70,7 +70,11 @@ export function ImportRecipe() {
         </aside>
         <CreateRecipeForm
           initial={{
-            ...fromImport(importRecipe.data, { ingredient, measurement, preparation }, 'url' in source ? source.url : null),
+            ...fromImport(
+              importRecipe.data,
+              { ingredient, measurement, preparation, author, tag },
+              'url' in source ? source.url : null,
+            ),
             image: importRecipe.data.image,
           }}
           heading="Review import"

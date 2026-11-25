@@ -14,6 +14,8 @@ class ImportedIngredient(BaseModel):
     measurement: str
     ingredient: str
     preparation: str | None
+    group: str | None
+    note: str | None
 
 
 class RecipeDraft(BaseModel):
@@ -24,6 +26,8 @@ class RecipeDraft(BaseModel):
     active_cook_time: int | None
     inactive_cook_time: int | None
     notes: str | None
+    author: str | None
+    tags: list[str]
     ingredients: list[ImportedIngredient]
     requirements: list[str]
     steps: list[str]

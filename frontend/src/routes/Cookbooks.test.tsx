@@ -19,6 +19,7 @@ function recipe(id: number, name: string, cookbook: Cookbook | null, page: numbe
     id,
     name,
     cookbook_id: cookbook?.id ?? null,
+    author_id: null,
     cookbook_page: page,
     cookbook,
     active_cook_time: null,
@@ -133,6 +134,19 @@ describe('browsing by cookbook', () => {
   it('says so for an unknown author', async () => {
     renderWithProviders(<App />, { route: '/authors/99' })
     expect(await screen.findByRole('heading', { name: 'No such author' })).toBeInTheDocument()
+  })
+
+  it("lists an author's recipes that aren't in a cookbook", async () => {
+    server.use(
+      http.get('/api/authors/', () => HttpResponse.json([{ id: 3, name: 'Ana Roux' }])),
+      http.get('/api/recipes/', () =>
+        HttpResponse.json([{ ...recipe(8, 'Shakshuka', null, null), author_id: 3 }, recipe(9, 'Toast', null, null)]),
+      ),
+    )
+    renderWithProviders(<App />, { route: '/authors/3' })
+    const recipes = within(await screen.findByRole('region', { name: 'Recipes' })).getAllByRole('link')
+    expect(recipes.map((link) => link.textContent)).toEqual(['Shakshuka'])
+    expect(screen.queryByText(/No cookbooks by/)).not.toBeInTheDocument()
   })
 
   it('says so for an author without cookbooks', async () => {
