@@ -109,3 +109,40 @@ test('lookups are listed by name, ignoring case', async ({ page, baseURL }) => {
   for (const id of ids) await api.delete(`/api/ingredients/${id}`)
   await api.dispose()
 })
+
+test('merging a duplicate ingredient leaves one line on its recipes and the shopping list', async ({ page, baseURL }) => {
+  const id = unique()
+  const api = await apiAs(baseURL!, COOK)
+  const make = async (path: string, data: object) => (await (await api.post(`/api${path}`, { data })).json()).id as number
+  const onion = await make('/ingredients/', { name: `onion-${id}` })
+  const onions = await make('/ingredients/', { name: `onions-${id}` })
+  // The id goes first, since plurals add the s at the end.
+  const cup = await make('/measurements/', { name: `${id} cup` })
+  const line = (ingredient: number) => ({ ingredient_id: ingredient, measurement_id: cup, amount_numerator: 1 })
+  const soup = await make('/recipes/', { name: `E2E Onion Soup ${id}`, recipe_ingredients: [line(onions)] })
+  const tart = await make('/recipes/', { name: `E2E Onion Tart ${id}`, recipe_ingredients: [line(onion)] })
+  for (const recipe of [soup, tart]) await api.put(`/api/shopping-list/recipes/${recipe}`, { data: {} })
+
+  await page.goto('/')
+  await signIn(page, COOK)
+  await page.goto('/shopping')
+  await expect(page.getByRole('checkbox', { name: new RegExp(`onions?-${id}`) })).toHaveCount(2)
+
+  await page.goto('/lookups/ingredients')
+  const row = page.getByRole('listitem', { name: `onions-${id}` })
+  await row.getByRole('button', { name: 'Edit' }).click()
+  await row.getByLabel('Merge into').selectOption({ label: `onion-${id}` })
+  page.once('dialog', (dialog) => void dialog.accept())
+  await row.getByRole('button', { name: 'Merge' }).click()
+  await expect(row).toHaveCount(0)
+
+  await page.goto(`/recipes/${soup}`)
+  await expect(page.locator('.ingredient-list li')).toHaveText([`1 ${id} cup onion-${id}`])
+  await page.goto('/shopping')
+  await expect(page.getByRole('checkbox', { name: new RegExp(`onions?-${id}`) })).toHaveCount(1)
+  await expect(page.getByRole('checkbox', { name: `2 ${id} cups onion-${id}` })).toBeVisible()
+
+  // The list is shared by every test: leave it as it was.
+  for (const recipe of [soup, tart]) await api.delete(`/api/shopping-list/recipes/${recipe}`)
+  await api.dispose()
+})

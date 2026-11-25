@@ -109,7 +109,25 @@ export interface RecipeInitial {
   pendingAuthor?: string
 }
 
-/** An imported draft as form state: names matched to existing rows case-insensitively, the rest left pending. */
+/**
+ * A name's last word in the singular, by the common English endings: "onions" and "Onion" both give "onion",
+ * "tomatoes" "tomato", "berries" "berry", "peaches" "peach". Not a dictionary: it only has to make a plural and its
+ * singular meet, and a word that ends in "ss" ("glass") is left alone.
+ */
+export function singular(name: string): string {
+  const word = name.trim().toLowerCase()
+  if (word.endsWith('ies') && word.length > 4) return `${word.slice(0, -3)}y`
+  if (/(ch|sh|x|z|ss|o)es$/.test(word)) return word.slice(0, -2)
+  if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3) return word.slice(0, -1)
+  return word
+}
+
+/** An existing row of the same name, by case and then by singular/plural ("onions" finds "onion"). */
+export function matchName<T extends Lookup>(items: readonly T[], name: string): T | undefined {
+  return findByName(items, name) ?? items.find((item) => singular(item.name) === singular(name))
+}
+
+/** An imported draft as form state: names matched to existing rows by case and plural, the rest left pending. */
 export function fromImport(
   draft: RecipeDraft,
   lists: Record<LookupKind | 'author' | 'tag', readonly Lookup[]>,
@@ -139,7 +157,7 @@ export function fromImport(
       const pending: Partial<Record<LookupKind, string>> = {}
       const match = (kind: LookupKind, name: string | null) => {
         if (!name?.trim()) return null
-        const found = findByName(lists[kind], name)
+        const found = matchName(lists[kind], name)
         if (!found) pending[kind] = name.trim()
         return found?.id ?? null
       }

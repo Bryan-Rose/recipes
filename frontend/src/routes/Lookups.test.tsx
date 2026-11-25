@@ -65,6 +65,77 @@ describe('lookups', () => {
     await waitFor(() => expect(row.queryByLabelText('Name')).not.toBeInTheDocument())
   })
 
+  it('merges a duplicate into the row picked, after asking', async () => {
+    const asked = mockConfirm(true)
+    let merged = false
+    server.use(
+      http.get('/api/ingredients/', () =>
+        HttpResponse.json(merged ? [{ id: 1, name: 'onion' }] : [{ id: 1, name: 'onion' }, { id: 2, name: 'onions' }]),
+      ),
+      http.post('/api/ingredients/2/merge/1', () => {
+        merged = true
+        return HttpResponse.json({ id: 1, name: 'onion' })
+      }),
+    )
+    const user = userEvent.setup()
+    show('/lookups/ingredients')
+
+    const row = within(await screen.findByRole('listitem', { name: 'onions' }))
+    await user.click(row.getByRole('button', { name: 'Edit' }))
+    expect(row.getByRole('button', { name: 'Merge' })).toBeDisabled()
+    expect(within(row.getByLabelText('Merge into')).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Choose…',
+      'onion',
+    ])
+    await user.selectOptions(row.getByLabelText('Merge into'), 'onion')
+    await user.click(row.getByRole('button', { name: 'Merge' }))
+
+    expect(asked).toHaveBeenCalledWith(expect.stringContaining('Merge “onions” into “onion”?'))
+    await waitFor(() => expect(screen.queryByRole('listitem', { name: 'onions' })).not.toBeInTheDocument())
+    expect(screen.getByRole('listitem', { name: 'onion' })).toBeInTheDocument()
+  })
+
+  it('merges nothing when the question is cancelled', async () => {
+    mockConfirm(false)
+    server.use(http.get('/api/ingredients/', () => HttpResponse.json([{ id: 1, name: 'onion' }, { id: 2, name: 'onions' }])))
+    const user = userEvent.setup()
+    show('/lookups/ingredients')
+
+    const row = within(await screen.findByRole('listitem', { name: 'onions' }))
+    await user.click(row.getByRole('button', { name: 'Edit' }))
+    await user.selectOptions(row.getByLabelText('Merge into'), 'onion')
+    // No merge handler: a request would fail the test as unmocked.
+    await user.click(row.getByRole('button', { name: 'Merge' }))
+    expect(screen.getByRole('listitem', { name: 'onions' })).toBeInTheDocument()
+  })
+
+  it('explains an author merge refused over a cookbook name', async () => {
+    mockConfirm(true)
+    server.use(
+      http.get('/api/authors/', () => HttpResponse.json([julia, jacques])),
+      http.post('/api/authors/2/merge/1', () => HttpResponse.json({ detail: 'UNIQUE constraint failed' }, { status: 409 })),
+    )
+    const user = userEvent.setup()
+    show('/lookups/authors')
+
+    const row = within(await screen.findByRole('listitem', { name: 'Jacques Pépin' }))
+    await user.click(row.getByRole('button', { name: 'Edit' }))
+    await user.selectOptions(row.getByLabelText('Merge into'), 'Julia Child')
+    await user.click(row.getByRole('button', { name: 'Merge' }))
+
+    expect(await row.findByText('Both have a cookbook with the same name. Rename one of them first.')).toBeInTheDocument()
+  })
+
+  it('offers no merge for the only row', async () => {
+    server.use(http.get('/api/tags/', () => HttpResponse.json([{ id: 1, name: 'quick' }])))
+    const user = userEvent.setup()
+    show('/lookups/tags')
+
+    const row = within(await screen.findByRole('listitem', { name: 'quick' }))
+    await user.click(row.getByRole('button', { name: 'Edit' }))
+    expect(row.queryByLabelText('Merge into')).not.toBeInTheDocument()
+  })
+
   it('explains a duplicate name', async () => {
     server.use(
       http.get('/api/authors/', () => HttpResponse.json([julia, jacques])),

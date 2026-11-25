@@ -67,13 +67,27 @@ function LookupList({ kind }: { kind: Kind }) {
   return (
     <ItemList label={label}>
       {items.map((item: Lookup) => (
-        <LookupRow key={item.id} item={item} hooks={hooks} deleteNote={deleteNote} />
+        <LookupRow
+          key={item.id}
+          item={item}
+          others={items.filter((other: Lookup) => other.id !== item.id)}
+          hooks={hooks}
+          deleteNote={deleteNote}
+        />
       ))}
     </ItemList>
   )
 }
 
-function LookupRow({ item, hooks, deleteNote }: { item: Lookup; hooks: Hooks; deleteNote: string }) {
+interface LookupRowProps {
+  item: Lookup
+  /** The rows it can be merged into. */
+  others: Lookup[]
+  hooks: Hooks
+  deleteNote: string
+}
+
+function LookupRow({ item, others, hooks, deleteNote }: LookupRowProps) {
   const update = hooks.useUpdate()
   const remove = hooks.useDelete()
   return (
@@ -84,15 +98,58 @@ function LookupRow({ item, hooks, deleteNote }: { item: Lookup; hooks: Hooks; de
       deleting={remove.isPending}
       deleteError={remove.error}
       editor={(close) => (
-        <NameForm
-          initial={item.name}
-          saving={update.isPending}
-          error={update.error}
-          onSave={(name) => update.mutate({ id: item.id, name }, { onSuccess: close })}
-          onCancel={close}
-        />
+        <>
+          <NameForm
+            initial={item.name}
+            saving={update.isPending}
+            error={update.error}
+            onSave={(name) => update.mutate({ id: item.id, name }, { onSuccess: close })}
+            onCancel={close}
+          />
+          {others.length > 0 && <MergeForm item={item} others={others} hooks={hooks} />}
+        </>
       )}
     />
+  )
+}
+
+/** Merges a duplicate into another row: its recipes (and cookbooks, for an author) move over, and it goes. */
+function MergeForm({ item, others, hooks }: { item: Lookup; others: Lookup[]; hooks: Hooks }) {
+  const merge = hooks.useMerge()
+  const [intoId, setIntoId] = useState('')
+  const selectId = useId()
+  const into = others.find((other) => String(other.id) === intoId)
+
+  return (
+    <form
+      className="stack"
+      aria-label={`Merge ${item.name}`}
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (!into) return
+        const prompt = `Merge “${item.name}” into “${into.name}”? Everything using “${item.name}” will use “${into.name}”, and “${item.name}” will be deleted. This cannot be undone.`
+        // mutate(): a failure shows through merge.error. On success the row leaves the refreshed list.
+        if (confirm(prompt)) merge.mutate({ id: item.id, intoId: into.id })
+      }}
+    >
+      <div className="row">
+        <div className="field">
+          <label htmlFor={selectId}>Merge into</label>
+          <select id={selectId} value={intoId} onChange={(event) => setIntoId(event.target.value)}>
+            <option value="">Choose…</option>
+            {others.map((other) => (
+              <option key={other.id} value={other.id}>
+                {other.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button type="submit" disabled={!into || merge.isPending} style={{ alignSelf: 'flex-end' }}>
+          {merge.isPending ? 'Merging…' : 'Merge'}
+        </button>
+      </div>
+      {merge.error != null && <p className="error-box">{describeError(merge.error)}</p>}
+    </form>
   )
 }
 
