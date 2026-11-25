@@ -7,6 +7,7 @@ parameter names, so URLs, operation ids and the OpenAPI schema are unchanged."""
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -21,7 +22,9 @@ from app.schemas.tag import TagCreate, TagRead, TagUpdate
 from app.services import lookups as service
 
 
-def _router[M](model: type[M], noun: str, read: type[BaseModel], create: type[BaseModel], update: type[BaseModel]) -> APIRouter:
+def _router[M: Author | Ingredient | Measurement | Preparation | Tag](
+    model: type[M], noun: str, read: type[BaseModel], create: type[BaseModel], update: type[BaseModel]
+) -> APIRouter:
     plural = f"{noun}s"
     router = APIRouter(prefix=f"/{plural}", tags=[plural])
     ItemId = Annotated[IdPath, Path(alias=f"{noun}_id")]
@@ -48,6 +51,17 @@ def _router[M](model: type[M], noun: str, read: type[BaseModel], create: type[Ba
     @router.patch(item_path, response_model=read, name=f"update_{noun}")
     def update_item(item_id: ItemId, item_in: update, db: Session = Depends(get_db)):
         return service.update_item(db, get_or_404(db, item_id), item_in)
+
+    @router.post(f"{item_path}/merge/{{into_id}}", response_model=read, name=f"merge_{noun}")
+    def merge_item(item_id: ItemId, into_id: IdPath, db: Session = Depends(get_db)):
+        """Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted."""
+        item, into = get_or_404(db, item_id), get_or_404(db, into_id)
+        try:
+            return service.merge_item(db, model, item, into)
+        except service.MergeIntoItselfError:
+            # Same body shape as a schema validation 422, which is what OpenAPI documents.
+            msg = "Can't merge a row into itself"
+            raise RequestValidationError([{"type": "value_error", "loc": ("path", "into_id"), "msg": msg, "input": into_id}])
 
     @router.delete(item_path, status_code=status.HTTP_204_NO_CONTENT, name=f"delete_{noun}")
     def delete_item(item_id: ItemId, db: Session = Depends(get_db)):

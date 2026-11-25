@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { RecipeDraft } from '../api/types'
-import { emptyIngredient, fromImport, groupsOf, isComplete, isFilled, moveItem, toLine } from './drafts'
+import { emptyIngredient, fromImport, groupsOf, isComplete, isFilled, matchName, moveItem, singular, toLine } from './drafts'
 
 describe('isComplete', () => {
   const full = {
@@ -96,6 +96,11 @@ describe('fromImport', () => {
     expect(isComplete(row)).toBe(false)
   })
 
+  it('matches a plural draft name to an existing singular row', () => {
+    const [row] = fromImport({ ...draft, ingredients: [{ ...draft.ingredients[0], ingredient: 'Onions' }] }, lists).ingredients
+    expect(row).toMatchObject({ ingredient_id: 1, pending: {} })
+  })
+
   it('blanks values the API would reject', () => {
     const { scalars } = fromImport(draft, lists)
     expect(scalars).toMatchObject({ name: 'Soup', servings: null, active_cook_time: 15, inactive_cook_time: null, notes: null })
@@ -110,6 +115,43 @@ describe('fromImport', () => {
   it('leaves an unknown author pending, and no author as none', () => {
     expect(fromImport({ ...draft, author: ' Pia Lund ' }, lists)).toMatchObject({ scalars: { author_id: null }, pendingAuthor: 'Pia Lund' })
     expect(fromImport({ ...draft, author: null }, lists)).toMatchObject({ scalars: { author_id: null }, pendingAuthor: undefined })
+  })
+})
+
+describe('singular', () => {
+  it.each([
+    ['onions', 'onion'],
+    ['Onion', 'onion'],
+    ['tomatoes', 'tomato'],
+    ['berries', 'berry'],
+    ['peaches', 'peach'],
+    ['glasses', 'glass'],
+    ['Yellow Onions ', 'yellow onion'],
+    ['glass', 'glass'],
+    ['peas', 'pea'],
+    ['gas', 'gas'],
+  ])('%s is %s', (name, expected) => {
+    expect(singular(name)).toBe(expected)
+  })
+})
+
+describe('matchName', () => {
+  const rows = [
+    { id: 1, name: 'onion' },
+    { id: 2, name: 'Tomatoes' },
+    { id: 3, name: 'cup' },
+  ]
+
+  it('matches by case first, then by singular or plural', () => {
+    expect(matchName(rows, 'ONION')?.id).toBe(1)
+    expect(matchName(rows, 'onions')?.id).toBe(1)
+    expect(matchName(rows, 'tomato')?.id).toBe(2)
+    expect(matchName(rows, 'cups')?.id).toBe(3)
+    expect(matchName(rows, 'leek')).toBeUndefined()
+  })
+
+  it('prefers an exact name over a plural one', () => {
+    expect(matchName([{ id: 1, name: 'greens' }, { id: 2, name: 'green' }], 'green')?.id).toBe(2)
   })
 })
 

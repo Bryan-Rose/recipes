@@ -58,6 +58,16 @@ function lookupHooks<T extends Lookup>(resource: string, usedBy: string) {
         mutationFn: (id: number) =>
           api.delete(`${path}${id}`).catch(explainConflict(`It’s still used by ${usedBy}, so it can’t be deleted.`)),
       }),
+
+    /** Moves everything that uses `id` to `intoId`, then deletes `id`. */
+    useMerge: () =>
+      useMutation({
+        mutationFn: ({ id, intoId }: { id: number; intoId: number }) =>
+          // Only authors can clash: each one's cookbook names must stay unique.
+          api
+            .post<T>(`${path}${id}/merge/${intoId}`, undefined)
+            .catch(explainConflict('Both have a cookbook with the same name. Rename one of them first.')),
+      }),
   }
 }
 

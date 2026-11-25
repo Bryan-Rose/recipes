@@ -215,6 +215,26 @@ export interface paths {
         patch: operations["update_author_authors__author_id__patch"];
         trace?: never;
     };
+    "/authors/{author_id}/merge/{into_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Author
+         * @description Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted.
+         */
+        post: operations["merge_author_authors__author_id__merge__into_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ingredients/": {
         parameters: {
             query?: never;
@@ -250,6 +270,26 @@ export interface paths {
         head?: never;
         /** Update Ingredient */
         patch: operations["update_ingredient_ingredients__ingredient_id__patch"];
+        trace?: never;
+    };
+    "/ingredients/{ingredient_id}/merge/{into_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Ingredient
+         * @description Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted.
+         */
+        post: operations["merge_ingredient_ingredients__ingredient_id__merge__into_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/measurements/": {
@@ -289,6 +329,26 @@ export interface paths {
         patch: operations["update_measurement_measurements__measurement_id__patch"];
         trace?: never;
     };
+    "/measurements/{measurement_id}/merge/{into_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Measurement
+         * @description Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted.
+         */
+        post: operations["merge_measurement_measurements__measurement_id__merge__into_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/preparations/": {
         parameters: {
             query?: never;
@@ -326,6 +386,26 @@ export interface paths {
         patch: operations["update_preparation_preparations__preparation_id__patch"];
         trace?: never;
     };
+    "/preparations/{preparation_id}/merge/{into_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Preparation
+         * @description Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted.
+         */
+        post: operations["merge_preparation_preparations__preparation_id__merge__into_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tags/": {
         parameters: {
             query?: never;
@@ -361,6 +441,26 @@ export interface paths {
         head?: never;
         /** Update Tag */
         patch: operations["update_tag_tags__tag_id__patch"];
+        trace?: never;
+    };
+    "/tags/{tag_id}/merge/{into_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Tag
+         * @description Merges this row into into_id: every recipe, cookbook or tag that used it uses into_id instead, and it's deleted.
+         */
+        post: operations["merge_tag_tags__tag_id__merge__into_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/users/": {
@@ -2202,6 +2302,38 @@ export interface operations {
             };
         };
     };
+    merge_author_authors__author_id__merge__into_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                author_id: number;
+                into_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_ingredients_ingredients__get: {
         parameters: {
             query?: never;
@@ -2329,6 +2461,38 @@ export interface operations {
                 "application/json": components["schemas"]["IngredientUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngredientRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_ingredient_ingredients__ingredient_id__merge__into_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+                into_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -2498,6 +2662,38 @@ export interface operations {
             };
         };
     };
+    merge_measurement_measurements__measurement_id__merge__into_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                measurement_id: number;
+                into_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_preparations_preparations__get: {
         parameters: {
             query?: never;
@@ -2646,6 +2842,38 @@ export interface operations {
             };
         };
     };
+    merge_preparation_preparations__preparation_id__merge__into_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preparation_id: number;
+                into_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreparationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_tags_tags__get: {
         parameters: {
             query?: never;
@@ -2773,6 +3001,38 @@ export interface operations {
                 "application/json": components["schemas"]["TagUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_tag_tags__tag_id__merge__into_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tag_id: number;
+                into_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
