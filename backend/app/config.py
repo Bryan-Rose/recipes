@@ -1,8 +1,10 @@
+import ipaddress
+import re
 import secrets
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +28,11 @@ class Settings(BaseSettings):
     # Set true when served over HTTPS.
     cookie_secure: bool = False
     password_login_enabled: bool = True
+    # False: no logins, every request acts as the "household" user. Needs allowed_subnets.
+    auth_enabled: bool = True
+    # Space-separated IPv4 addresses or CIDRs. nginx (frontend container) enforces it;
+    # the backend only checks it's set and valid before running without logins.
+    allowed_subnets: str = ""
 
     oidc_issuer: str | None = None
     oidc_client_id: str | None = None
@@ -47,6 +54,12 @@ class Settings(BaseSettings):
     # Only for tests: lets URL import fetch private addresses, where e2e serves its page.
     import_fetch_private: bool = False
 
+    @model_validator(mode="after")
+    def _login_free_needs_subnets(self) -> Settings:
+        if not self.auth_enabled:
+            check_allowed_subnets(self.allowed_subnets)
+        return self
+
     @property
     def import_enabled(self) -> bool:
         # A blank RECIPES_ANTHROPIC_API_KEY= counts as unset.
@@ -55,6 +68,24 @@ class Settings(BaseSettings):
     @property
     def oidc_enabled(self) -> bool:
         return bool(self.oidc_issuer and self.oidc_client_id and self.oidc_redirect_uri)
+
+
+# Same pattern as frontend/docker-entrypoint.d/40-allowed-subnets.sh. It shuts out what nginx
+# would read differently (netmask notation, "all"); IPv4Network then checks the ranges.
+_IPV4_ENTRY = re.compile(r"\d{1,3}(\.\d{1,3}){3}(/\d{1,2})?")
+
+
+def check_allowed_subnets(value: str) -> None:
+    entries = value.split()
+    if not entries:
+        raise ValueError("RECIPES_AUTH_ENABLED=false needs RECIPES_ALLOWED_SUBNETS (IPv4 addresses or CIDRs)")
+    for entry in entries:
+        try:
+            if not _IPV4_ENTRY.fullmatch(entry):
+                raise ValueError
+            ipaddress.IPv4Network(entry, strict=False)
+        except ValueError:
+            raise ValueError(f"RECIPES_ALLOWED_SUBNETS: {entry!r} is not an IPv4 address or CIDR") from None
 
 
 @lru_cache

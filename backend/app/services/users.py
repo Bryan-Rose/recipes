@@ -4,6 +4,7 @@ import threading
 from collections.abc import Sequence
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -35,6 +36,23 @@ def verify_password(password: str, hashed: str | None) -> bool:
 
 def get_user(db: Session, user_id: int) -> User | None:
     return db.get(User, user_id)
+
+
+HOUSEHOLD_USERNAME = "household"
+
+
+def get_or_create_household(db: Session) -> User:
+    """The user every request acts as when logins are off: an admin with no password, so it can't sign in."""
+    query = select(User).where(User.username == HOUSEHOLD_USERNAME)
+    if user := db.execute(query).scalar_one_or_none():
+        return user
+    db.add(User(username=HOUSEHOLD_USERNAME, full_name="Household", is_superuser=True))
+    try:
+        db.commit()
+    except IntegrityError:
+        # A concurrent first request created it.
+        db.rollback()
+    return db.execute(query).scalar_one()
 
 
 def get_users(db: Session) -> Sequence[User]:

@@ -21,3 +21,4 @@ class AuthConfig(BaseModel):
     oidc: bool
     oidc_display_name: str
     recipe_import: bool
+    auth_enabled: bool

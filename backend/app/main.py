@@ -38,6 +38,19 @@ app.add_middleware(
 )
 
 
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+# Another website can't make a visitor's browser change data here (CSRF). Browsers mark such
+# requests with Sec-Fetch-Site; scripts and tests send no header and pass. Middleware, so it
+# covers /auth and every router added later.
+@app.middleware("http")
+async def reject_cross_site_writes(request: Request, call_next):
+    if request.method not in SAFE_METHODS and request.headers.get("sec-fetch-site") == "cross-site":
+        return JSONResponse(status_code=status.HTTP_403_FORBIDDEN, content={"detail": "Cross-site request refused"})
+    return await call_next(request)
+
+
 # Duplicate names, deleting a row that is still referenced, and references to
 # rows that don't exist all surface as IntegrityError.
 @app.exception_handler(IntegrityError)

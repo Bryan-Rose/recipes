@@ -6,7 +6,7 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import App from './App'
 import type { Recipe } from './api/types'
 import { renderWithProviders } from './test/render'
-import { server, signedIn, testUser } from './test/server'
+import { passwordOnly, server, signedIn, testUser } from './test/server'
 
 describe('session gate', () => {
   it('shows the login page when signed out, whatever the route', async () => {
@@ -31,6 +31,44 @@ describe('session gate', () => {
     renderWithProviders(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+  })
+})
+
+describe('login-free mode', () => {
+  const household = { ...testUser, username: 'household', full_name: 'Household', is_superuser: true }
+
+  function loginFree() {
+    server.use(
+      http.get('/api/auth/config', () => HttpResponse.json({ ...passwordOnly, auth_enabled: false })),
+      http.get('/api/auth/me', () => HttpResponse.json(household)),
+    )
+  }
+
+  it('shows the app without a login page or account links', async () => {
+    loginFree()
+    renderWithProviders(<App />)
+
+    expect(await screen.findByRole('link', { name: 'Shopping list' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('heading', { name: 'Sign in' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Household' })).not.toBeInTheDocument()
+  })
+
+  it.each(['/account', '/users'])('has no %s page', async (route) => {
+    loginFree()
+    renderWithProviders(<App />, { route })
+
+    expect(await screen.findByRole('heading', { name: 'Not found' })).toBeInTheDocument()
+  })
+
+  it('shows the account links for an admin when logins are on', async () => {
+    server.use(http.get('/api/auth/me', () => HttpResponse.json(household)))
+    renderWithProviders(<App />)
+
+    expect(await screen.findByRole('link', { name: 'Users' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Household' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
   })
 })
 
@@ -97,7 +135,7 @@ describe('login page', () => {
   it('offers SSO with the configured name, and hides the password form when disabled', async () => {
     server.use(
       http.get('/api/auth/config', () =>
-        HttpResponse.json({ password_login: false, oidc: true, oidc_display_name: 'Pocket ID', recipe_import: false }),
+        HttpResponse.json({ password_login: false, oidc: true, oidc_display_name: 'Pocket ID', recipe_import: false, auth_enabled: true }),
       ),
     )
     renderWithProviders(<App />)

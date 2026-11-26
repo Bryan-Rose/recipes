@@ -25,6 +25,9 @@ services:
 
   frontend:
     build: ./src/frontend
+    environment:
+      # Space-separated IPv4 CIDRs nginx serves; unset serves everyone (see .env.example).
+      RECIPES_ALLOWED_SUBNETS: ${RECIPES_ALLOWED_SUBNETS:-}
     container_name: whattoeat
     hostname: whattoeat.docker.internal
     networks:
