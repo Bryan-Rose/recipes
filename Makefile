@@ -43,4 +43,7 @@ e2e:
 	$(E2E) up -d --wait backend frontend mock-idp mock-anthropic
 	printf '%s' cook-password | $(E2E) exec -T backend python -m scripts.create_user cook --full-name "Home Cook" --password-stdin
 	printf '%s' admin-password | $(E2E) exec -T backend python -m scripts.create_user admin --full-name Admin --admin --password-stdin
-	$(E2E) run --rm e2e; status=$$?; $(E2E) down -v --remove-orphans; exit $$status
+	$(E2E) run --rm e2e npx playwright test --grep-invert @no-login; status=$$?; \
+	export RECIPES_E2E_AUTH_ENABLED=false; $(E2E) up -d --wait --force-recreate backend \
+	  && $(E2E) run --rm -e REPORT_DIR=out/report-no-login e2e npx playwright test --grep @no-login --output out/test-results-no-login; status2=$$?; \
+	$(E2E) down -v --remove-orphans; [ $$status -eq 0 ] && [ $$status2 -eq 0 ]
