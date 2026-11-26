@@ -159,13 +159,19 @@ def check_known_revision(engine: Engine, config: Config) -> None:
     """
     with engine.connect() as connection:
         current = MigrationContext.configure(connection).get_current_revision()
-    if current is not None and current not in {script.revision for script in ScriptDirectory.from_config(config).walk_revisions()}:
+    scripts = ScriptDirectory.from_config(config)
+    if current is not None and current not in {script.revision for script in scripts.walk_revisions()}:
         raise SystemExit(
             f"This database is at revision {current}, which this version doesn't know. Either:\n"
-            "- it's from a newer version, after rolling back to this one: restore the backup this version upgraded\n"
-            "  from (data/app.db.pre-<this version's revision>-*.bak; see README, Rolling back), or\n"
+            "- it's from a newer version, after rolling back to this one: restore the backup taken before upgrading\n"
+            f"  from this version ({backup_stem(engine, scripts.get_current_head())}-*.bak; see README, Rolling back), or\n"
             "- it's from before the 1.0 baseline: recreate it with --reset (this deletes its data)."
         )
+
+
+def backup_stem(engine: Engine, revision: str | None) -> str:
+    """Where backup() copies a database at this revision, before the time stamp: next to the database file."""
+    return f"{engine.url.database}.pre-{revision}"
 
 
 def stamp() -> str:
@@ -185,7 +191,7 @@ def backup(engine: Engine, config: Config) -> str | None:
         current = MigrationContext.configure(connection).get_current_revision()
     if current in (None, ScriptDirectory.from_config(config).get_current_head()):
         return None
-    stem = f"{engine.url.database}.pre-{current}-{stamp()}"
+    stem = f"{backup_stem(engine, current)}-{stamp()}"
     path, n = f"{stem}.bak", 2
     while Path(path).exists():
         path, n = f"{stem}-{n}.bak", n + 1

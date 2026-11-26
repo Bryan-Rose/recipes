@@ -7,6 +7,7 @@ then break the real database.
 
 import re
 import shutil
+from fnmatch import fnmatch
 from pathlib import Path
 
 import pytest
@@ -163,4 +164,20 @@ def test_database_at_an_unknown_revision_is_refused(alembic_config: Config, revi
     assert f"revision {revision}, which this version doesn't know" in message
     assert "restore the backup" in message and "Rolling back" in message
     assert "--reset (this deletes its data)" in message
+    engine.dispose()
+
+
+def test_unknown_revision_names_the_backup_to_restore(scratch_config: Config):
+    """Roll back after an upgrade: the older version's message points at the copy backup() took before the upgrade."""
+    engine = create_engine(scratch_config.attributes["url"])
+    command.upgrade(scratch_config, "head")
+    add_revision(scratch_config, "    pass")  # a newer version
+    path = backup(engine, scratch_config)
+    command.upgrade(scratch_config, "head")
+    (Path(ScriptDirectory.from_config(scratch_config).versions) / "next.py").unlink()  # back to this version
+
+    with pytest.raises(SystemExit) as refused:
+        check_known_revision(engine, scratch_config)
+    shown = re.search(r"\((\S+\.bak);", str(refused.value))
+    assert shown and path and fnmatch(path, shown[1])
     engine.dispose()
