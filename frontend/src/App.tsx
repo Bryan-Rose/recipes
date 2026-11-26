@@ -22,7 +22,10 @@ import './App.css'
 function App() {
   const { data: user, isPending, error } = useMe()
   const navigate = useNavigate()
-  const importEnabled = useAuthConfig().data?.recipe_import
+  const config = useAuthConfig().data
+  const importEnabled = config?.recipe_import
+  // Login-free mode (RECIPES_AUTH_ENABLED=false): everyone is the household user, so no account UI.
+  const loginFree = config?.auth_enabled === false
 
   return (
     <>
@@ -38,13 +41,17 @@ function App() {
               <Link to="/shopping">Shopping list</Link>
               <Link to="/lookups">Lookups</Link>
               {importEnabled && <Link to="/import-costs">Import costs</Link>}
-              {user.is_superuser && <Link to="/users">Users</Link>}
-              <Link to="/account" className="muted">
-                {user.full_name}
-              </Link>
-              <button type="button" className="ghost" onClick={() => void navigate('/logout', { state: SIGN_OUT })}>
-                Sign out
-              </button>
+              {!loginFree && (
+                <>
+                  {user.is_superuser && <Link to="/users">Users</Link>}
+                  <Link to="/account" className="muted">
+                    {user.full_name}
+                  </Link>
+                  <button type="button" className="ghost" onClick={() => void navigate('/logout', { state: SIGN_OUT })}>
+                    Sign out
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -58,14 +65,14 @@ function App() {
         ) : !user ? (
           <LoginPage />
         ) : (
-          <AppRoutes isAdmin={user.is_superuser} />
+          <AppRoutes isAdmin={user.is_superuser} loginFree={loginFree} />
         )}
       </main>
     </>
   )
 }
 
-function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
+function AppRoutes({ isAdmin, loginFree }: { isAdmin: boolean; loginFree: boolean }) {
   return (
     <Routes>
       <Route path="/login" element={<Navigate to="/" replace />} />
@@ -82,9 +89,9 @@ function AppRoutes({ isAdmin }: { isAdmin: boolean }) {
       <Route path="/shopping" element={<ShoppingList />} />
       <Route path="/import-costs" element={<ImportCosts />} />
       <Route path="/imports/:importId" element={<ImportOriginal />} />
-      <Route path="/account" element={<Account />} />
+      <Route path="/account" element={loginFree ? <NotFound /> : <Account />} />
       <Route path="/logout" element={<SignOutRoute />} />
-      <Route path="/users" element={isAdmin ? <UserAdmin /> : <NotFound />} />
+      <Route path="/users" element={isAdmin && !loginFree ? <UserAdmin /> : <NotFound />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )

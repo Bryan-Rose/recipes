@@ -1,14 +1,18 @@
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.config import Settings, get_settings
 from app.database import get_db
 from app.models.user import User
 from app.services import auth as auth_service
+from app.services import users as users_service
 
 SESSION_COOKIE = "recipes_session"
 
 
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+def get_current_user(request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> User:
+    if not settings.auth_enabled:
+        return users_service.get_or_create_household(db)
     token = request.cookies.get(SESSION_COOKIE)
     user = auth_service.get_session_user(db, token) if token else None
     if user is None:

@@ -111,6 +111,41 @@ takes the address from the last `X-Forwarded-For` entry when the request comes f
 a private address (Caddy on the host or in Docker), so keep a proxy in front: with
 `RECIPES_BIND=0.0.0.0`, clients on the LAN could set that header themselves.
 
+**Without logins.** For a household on its own network, logins can be switched off.
+Set both in `.env`, then `docker compose up -d`:
+
+```
+RECIPES_ALLOWED_SUBNETS=192.168.1.0/24   # your LAN; IPv4 addresses or CIDRs, space-separated
+RECIPES_AUTH_ENABLED=false
+```
+
+- **Everyone is one admin.** Every request then acts as the user `household`, an
+  admin with no password, created on first use. New recipes and imports are
+  credited to it; older ones keep their creators. The header has no Sign out,
+  Account or Users. Don't create a real account named `household`: it would
+  become that user.
+- **The subnet list is the only gate.** nginx serves only addresses in it (plus
+  loopback) and answers everyone else 403, using the client address Caddy reports.
+  It's IPv4 only: IPv6 clients are always refused. The backend refuses to start in
+  this mode without a valid list, and nginx refuses to start on a malformed entry.
+  You can set the list with logins on too.
+- **Never list Docker's ranges** (`172.16.0.0/12`, or whatever your Docker networks
+  use). Traffic that Docker's userland proxy forwards, such as IPv6, appears to come
+  from the bridge gateway in those ranges, so listing them lets everyone in.
+- **Use split DNS.** Have your LAN's DNS resolve the app's name to the server's LAN
+  address. Otherwise LAN clients reach it through the router's public address
+  (hairpin NAT), and Caddy may see the router or the public address instead of the
+  client.
+- **Set a spend limit** in the Anthropic console if import is on, since anyone
+  allowed in can run paid imports.
+- **Cross-site writes are refused.** Changes a browser marks as cross-site
+  (`Sec-Fetch-Site: cross-site`) always get 403, with or without logins, so another
+  website can't make a visitor's browser change recipes.
+
+To turn logins back on, set `RECIPES_AUTH_ENABLED=true` (or remove it) and restart.
+Then check the Users page: while logins were off, anyone allowed in could create
+accounts or set a password on `household` through the API.
+
 **Updating:** pull and rebuild, from the deploy folder:
 
 ```bash

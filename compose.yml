@@ -23,6 +23,9 @@ services:
 
   frontend:
     build: ./frontend
+    environment:
+      # Space-separated IPv4 CIDRs nginx serves; unset serves everyone (see .env.example).
+      RECIPES_ALLOWED_SUBNETS: ${RECIPES_ALLOWED_SUBNETS:-}
     ports:
       # Loopback by default, so a reverse proxy on the same host is the only way
       # in. Set RECIPES_BIND=0.0.0.0 to expose it on the network directly.

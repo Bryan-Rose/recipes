@@ -13,6 +13,9 @@ services:
       RECIPES_ANTHROPIC_BASE_URL: http://mock-anthropic:8080
       # URL import fetches its page from the mock, on the private Docker network.
       RECIPES_IMPORT_FETCH_PRIVATE: "true"
+      # `make e2e` recreates the backend with this false for the @no-login tests.
+      RECIPES_AUTH_ENABLED: ${RECIPES_E2E_AUTH_ENABLED:-true}
+      RECIPES_ALLOWED_SUBNETS: &allowed-subnets "198.18.0.0/16 203.0.113.0/24 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16"
     volumes: !override
       - type: tmpfs
         target: /data
@@ -21,6 +24,10 @@ services:
 
   frontend:
     ports: !reset []
+    environment:
+      # The tests' made-up client ranges (helpers.ts; auth.spec.ts's login flood), plus the Docker ranges the runner's own
+      # requests come from. network.spec.ts checks that anything else gets 403.
+      RECIPES_ALLOWED_SUBNETS: *allowed-subnets
 
   mock-idp:
     image: ghcr.io/navikt/mock-oauth2-server:6.0.4

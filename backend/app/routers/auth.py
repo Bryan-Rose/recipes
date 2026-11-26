@@ -48,6 +48,7 @@ def auth_config(settings: Settings = Depends(get_settings)):
         oidc=settings.oidc_enabled,
         oidc_display_name=settings.oidc_display_name,
         recipe_import=settings.import_enabled,
+        auth_enabled=settings.auth_enabled,
     )
 
 
@@ -91,7 +92,16 @@ def me(user: User = Depends(get_current_user)):
 
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
-def change_password(body: PasswordChange, request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def change_password(
+    body: PasswordChange,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    # A password would let the household user sign in once logins are back on.
+    if not settings.auth_enabled:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Logins are turned off")
     if user.hashed_password is not None:
         current = body.current_password.get_secret_value() if body.current_password else ""
         if not verify_password(current, user.hashed_password):

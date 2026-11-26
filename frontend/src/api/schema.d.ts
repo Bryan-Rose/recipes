@@ -972,6 +972,8 @@ export interface components {
             oidc_display_name: string;
             /** Recipe Import */
             recipe_import: boolean;
+            /** Auth Enabled */
+            auth_enabled: boolean;
         };
         /** AuthorCreate */
         AuthorCreate: {

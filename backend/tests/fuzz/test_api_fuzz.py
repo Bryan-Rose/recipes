@@ -61,7 +61,9 @@ def test_api(case, client: TestClient, db_session: Session, current_user: User):
     # OpenAPI can't express "cookbook_page needs a cookbook_id", so a schema-valid
     # recipe body can rightly get a 422 there. All other checks still apply.
     operation = (case.method.upper(), case.operation.path)
-    cross_field = [positive_data_acceptance] if operation in RECIPE_BODY_OPERATIONS | IMAGE_BODY_OPERATIONS else []
+    # Likewise a lookup merge into itself (same id twice) is a 422.
+    is_merge = case.operation.path.endswith("/merge/{into_id}")
+    cross_field = [positive_data_acceptance] if is_merge or operation in RECIPE_BODY_OPERATIONS | IMAGE_BODY_OPERATIONS else []
 
     case.call_and_validate(
         cookies={SESSION_COOKIE: client.cookies[SESSION_COOKIE]},

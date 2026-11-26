@@ -17,7 +17,7 @@ export const testUser: User = {
   updated_at: '2026-01-01T00:00:00',
 }
 
-export const passwordOnly: AuthConfig = { password_login: true, oidc: false, oidc_display_name: 'SSO', recipe_import: false }
+export const passwordOnly: AuthConfig = { password_login: true, oidc: false, oidc_display_name: 'SSO', recipe_import: false, auth_enabled: true }
 
 /** Default: signed out, password login only, no recipes or tags. */
 export const server = setupServer(
