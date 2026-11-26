@@ -147,14 +147,20 @@ def test_backup_before_migrating(scratch_config: Config, monkeypatch: pytest.Mon
     engine.dispose()
 
 
-def test_database_from_before_the_baseline_is_refused(alembic_config: Config):
+@pytest.mark.parametrize("revision", ["a688f6a63a90", "0123456789ab"])  # the head before #194; one from a newer version
+def test_database_at_an_unknown_revision_is_refused(alembic_config: Config, revision: str):
     engine = create_engine(alembic_config.attributes["url"])
     check_known_revision(engine, alembic_config)  # new database: nothing to refuse
     command.upgrade(alembic_config, "head")
     check_known_revision(engine, alembic_config)  # at head
 
     with engine.begin() as connection:
-        connection.execute(text("UPDATE alembic_version SET version_num = 'a688f6a63a90'"))  # the head before #194
-    with pytest.raises(SystemExit, match="(?s)a688f6a63a90, from before the 1.0 baseline.*--reset"):
+        connection.execute(text("UPDATE alembic_version SET version_num = :revision"), {"revision": revision})
+    with pytest.raises(SystemExit) as refused:
         check_known_revision(engine, alembic_config)
+    # Older and newer look the same from here, so both ways out are given: --reset alone could delete restorable data.
+    message = str(refused.value)
+    assert f"revision {revision}, which this version doesn't know" in message
+    assert "restore the backup" in message and "Rolling back" in message
+    assert "--reset (this deletes its data)" in message
     engine.dispose()
