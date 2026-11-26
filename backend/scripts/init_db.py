@@ -150,6 +150,20 @@ def seed(db: Session) -> None:
     db.commit()
 
 
+def check_known_revision(engine: Engine, config: Config) -> None:
+    """Refuses a database at a revision this version doesn't have, before alembic fails with "Can't locate revision".
+
+    That's every database made before the 1.0 baseline (#194), which replaced all earlier migrations.
+    """
+    with engine.connect() as connection:
+        current = MigrationContext.configure(connection).get_current_revision()
+    if current is not None and current not in {script.revision for script in ScriptDirectory.from_config(config).walk_revisions()}:
+        raise SystemExit(
+            f"This database is at revision {current}, from before the 1.0 baseline, and can't be upgraded in place.\n"
+            "Recreate it with --reset (this deletes its data)."
+        )
+
+
 def stamp() -> str:
     return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 
@@ -200,6 +214,7 @@ def main() -> None:
         )
 
     config = Config(Path(__file__).resolve().parent.parent / "alembic.ini")
+    check_known_revision(engine, config)
     if path := backup(engine, config):
         print(f"backed up database to {path}")
     command.upgrade(config, "head")

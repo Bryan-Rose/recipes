@@ -5,6 +5,7 @@ this a model change committed without its migration would pass every test and
 then break the real database.
 """
 
+import re
 import shutil
 from pathlib import Path
 
@@ -14,12 +15,11 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import String, create_engine, inspect, text
 
 import app.models  # noqa: F401 — registers every model on Base.metadata
 from app.database import Base
-from scripts.init_db import backup
+from scripts.init_db import backup, check_known_revision
 
 BACKEND = Path(__file__).resolve().parent.parent
 
@@ -42,6 +42,27 @@ def test_migrations_match_models(alembic_config: Config):
     engine.dispose()
 
     assert diff == [], "models and migrations differ; run `uv run alembic revision --autogenerate -m '...'`"
+
+
+def test_migrations_keep_the_models_collations(alembic_config: Config):
+    """compare_metadata ignores collations, which is how a table rebuild once dropped NOCASE from recipes.name.
+
+    SQLite doesn't reflect them either, so this reads each table's CREATE TABLE text.
+    """
+    command.upgrade(alembic_config, "head")
+    engine = create_engine(alembic_config.attributes["url"])
+    with engine.connect() as connection:
+        rows = connection.execute(text("SELECT name, sql FROM sqlite_master WHERE type = 'table'")).all()
+    ddl: dict[str, str] = {name: sql for name, sql in rows}
+    engine.dispose()
+
+    for table in Base.metadata.sorted_tables:
+        for column in table.columns:
+            if not isinstance(column.type, String):
+                continue
+            found = re.search(rf'(?:^|[(,])\s*"?{column.name}"?\s+(?:VARCHAR|TEXT)(?:\s+COLLATE\s+"(\w+)")?', ddl[table.name])
+            assert found, f"{table.name}.{column.name} missing from the migrated schema"
+            assert found.group(1) == column.type.collation, f"{table.name}.{column.name} collation differs"
 
 
 def test_migrations_downgrade_to_empty_and_back(alembic_config: Config):
@@ -126,390 +147,14 @@ def test_backup_before_migrating(scratch_config: Config, monkeypatch: pytest.Mon
     engine.dispose()
 
 
-def test_fractions_and_optional_preparation_migrate_existing_rows(alembic_config: Config):
-    command.upgrade(alembic_config, "f09df3d53f43")
+def test_database_from_before_the_baseline_is_refused(alembic_config: Config):
     engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        for sql in (
-            "INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)",
-            "INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'r', 1)",
-            "INSERT INTO ingredients (id, name) VALUES (1, 'egg')",
-            "INSERT INTO measurements (id, name) VALUES (1, 'whole')",
-            "INSERT INTO preparations (id, name) VALUES (1, 'whole'), (2, 'beaten')",
-            (
-                "INSERT INTO recipe_ingredients (id, amount, recipe_id, ingredient_id, measurement_id, preparation_id)"
-                " VALUES (1, 3, 1, 1, 1, 1), (2, 2, 1, 1, 1, 2)"
-            ),
-        ):
-            connection.execute(text(sql))
-
-    command.upgrade(alembic_config, "f78e129999c4")
-    rows = "SELECT id, amount_numerator, amount_denominator, preparation_id FROM recipe_ingredients ORDER BY id"
-    with engine.begin() as connection:
-        assert connection.execute(text(rows)).all() == [(1, 3, 1, None), (2, 2, 1, 2)]
-        assert connection.execute(text("SELECT name FROM preparations")).scalars().all() == ["beaten"]
-        assert connection.execute(text("SELECT name FROM measurements")).scalars().all() == ["whole"]  # counted, kept
-        connection.execute(text("UPDATE recipe_ingredients SET amount_numerator = 1, amount_denominator = 2 WHERE id = 2"))
-
-    command.downgrade(alembic_config, "f09df3d53f43")
-    with engine.connect() as connection:
-        whole = connection.execute(text("SELECT id FROM preparations WHERE name = 'whole'")).scalar_one()
-        rows = "SELECT id, amount, preparation_id FROM recipe_ingredients ORDER BY id"
-        assert connection.execute(text(rows)).all() == [(1, 3, whole), (2, 1, 2)]
-    engine.dispose()
-
-
-def test_servings_become_integers(alembic_config: Config):
-    command.upgrade(alembic_config, "f78e129999c4")
-    engine = create_engine(alembic_config.attributes["url"])
-    servings = [("4",), ("Makes about 12",), ("4-6",), ("a crowd",), ("0",), (None,)]
-    with engine.begin() as connection:
-        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
-        for id_, (value,) in enumerate(servings, start=1):
-            connection.execute(
-                text("INSERT INTO recipes (id, name, servings, created_user_id) VALUES (:id, :name, :servings, 1)"),
-                {"id": id_, "name": f"r{id_}", "servings": value},
-            )
-
-    command.upgrade(alembic_config, "9c0d5e609c63")
-    rows = "SELECT servings, typeof(servings) FROM recipes ORDER BY id"
-    with engine.connect() as connection:
-        assert connection.execute(text(rows)).all() == [
-            (4, "integer"),
-            (12, "integer"),
-            (4, "integer"),
-            (None, "null"),
-            (None, "null"),
-            (None, "null"),
-        ]
-
-    command.downgrade(alembic_config, "f78e129999c4")
-    with engine.connect() as connection:
-        assert connection.execute(text("SELECT servings FROM recipes ORDER BY id")).scalars().all() == ["4", "12", "4", None, None, None]
-    engine.dispose()
-
-
-def test_step_positions_follow_insert_order(alembic_config: Config):
-    command.upgrade(alembic_config, "425b7165b8d1")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
-        connection.execute(text("INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'r1', 1), (2, 'r2', 1)"))
-        # Interleaved across recipes, so each recipe's numbering must restart at 0.
-        connection.execute(
-            text("INSERT INTO steps (id, text, recipe_id) VALUES (10, 'a', 1), (11, 'x', 2), (12, 'b', 1), (13, 'y', 2), (14, 'c', 1)")
-        )
-
-    command.upgrade(alembic_config, "aa32c8fd9938")
-    with engine.connect() as connection:
-        rows = connection.execute(text("SELECT id, recipe_id, position FROM steps ORDER BY id")).all()
-        assert rows == [(10, 1, 0), (11, 2, 0), (12, 1, 1), (13, 2, 1), (14, 1, 2)]
-        assert next(c for c in inspect(connection).get_columns("steps") if c["name"] == "position")["nullable"] is False
-    engine.dispose()
-
-
-def test_cookbook_page_cleared_without_cookbook(alembic_config: Config):
-    command.upgrade(alembic_config, "aa32c8fd9938")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
-        connection.execute(text("INSERT INTO authors (id, name) VALUES (1, 'a')"))
-        connection.execute(text("INSERT INTO cookbooks (id, name, author_id) VALUES (1, 'c', 1)"))
-        connection.execute(
-            text(
-                "INSERT INTO recipes (id, name, created_user_id, cookbook_id, cookbook_page)"
-                " VALUES (1, 'r1', 1, 1, 12), (2, 'r2', 1, NULL, 34), (3, 'r3', 1, NULL, NULL)"
-            )
-        )
-
-    command.upgrade(alembic_config, "ef8c8e87e99a")
-    with engine.connect() as connection:
-        rows = connection.execute(text("SELECT id, cookbook_id, cookbook_page FROM recipes ORDER BY id")).all()
-        assert rows == [(1, 1, 12), (2, None, None), (3, None, None)]
-    engine.dispose()
-
-
-def test_pages_of_deleted_cookbooks_cleared(alembic_config: Config):
-    command.upgrade(alembic_config, "ef8c8e87e99a")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
-        connection.execute(text("INSERT INTO authors (id, name) VALUES (1, 'a')"))
-        connection.execute(text("INSERT INTO cookbooks (id, name, author_id) VALUES (1, 'c', 1)"))
-        # Recipe 2 is what the old cookbook delete left behind.
-        connection.execute(
-            text(
-                "INSERT INTO recipes (id, name, created_user_id, cookbook_id, cookbook_page)"
-                " VALUES (1, 'r1', 1, 1, 12), (2, 'r2', 1, NULL, 34)"
-            )
-        )
-
-    command.upgrade(alembic_config, "b4941c86400e")
-    with engine.connect() as connection:
-        rows = connection.execute(text("SELECT id, cookbook_id, cookbook_page FROM recipes ORDER BY id")).all()
-        assert rows == [(1, 1, 12), (2, None, None)]
-    engine.dispose()
-
-
-def test_cook_times_become_minutes(alembic_config: Config):
-    command.upgrade(alembic_config, "b4941c86400e")
-    engine = create_engine(alembic_config.attributes["url"])
-    recipes = [
-        ("20 minutes", "0 minutes", None),
-        ("1 hr 15 min", "2h30m", "Use ripe ones"),
-        ("2-3 hours", "overnight", "Chill well"),
-        (None, None, None),
-        ("45", "", None),
-        ("²", "9" * 400 + " minutes", None),
-    ]
-    with engine.begin() as connection:
-        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
-        for id_, (active, inactive, notes) in enumerate(recipes, start=1):
-            connection.execute(
-                text(
-                    "INSERT INTO recipes (id, name, created_user_id, active_cook_time, inactive_cook_time, notes)"
-                    " VALUES (:id, :name, 1, :active, :inactive, :notes)"
-                ),
-                {"id": id_, "name": f"r{id_}", "active": active, "inactive": inactive, "notes": notes},
-            )
-
-    command.upgrade(alembic_config, "f88b533c9cdd")
-    rows = "SELECT active_cook_time, typeof(active_cook_time), inactive_cook_time, notes FROM recipes ORDER BY id"
-    with engine.connect() as connection:
-        assert connection.execute(text(rows)).all() == [
-            (20, "integer", 0, None),
-            (75, "integer", 150, "Use ripe ones"),
-            (180, "integer", None, "Chill well\nActive time: 2-3 hours\nInactive time: overnight"),
-            (None, "null", None, None),
-            (45, "integer", None, None),  # blank was never a time
-            (None, "null", None, f"Active time: ²\nInactive time: {'9' * 400} minutes"),
-        ]
-
-    command.downgrade(alembic_config, "b4941c86400e")
-    with engine.connect() as connection:
-        rows = connection.execute(text("SELECT active_cook_time, inactive_cook_time FROM recipes ORDER BY id")).all()
-        assert rows[:2] == [("20 minutes", "0 minutes"), ("75 minutes", "150 minutes")]
-        assert rows[4] == ("45 minutes", None)
-    engine.dispose()
-
-
-NAMED_TABLES = ("authors", "ingredients", "measurements", "preparations", "recipes", "tags")
-
-
-def _insert_named_rows(connection, ingredients: str) -> None:
-    connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
-    connection.execute(text("INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'Pie', 1)"))
-    connection.execute(text(f"INSERT INTO ingredients (name) VALUES {ingredients}"))
-
-
-def test_names_become_case_insensitive(alembic_config: Config):
-    command.upgrade(alembic_config, "f88b533c9cdd")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        _insert_named_rows(connection, "('Egg'), ('flour')")
-
-    command.upgrade(alembic_config, "fa0638d0971c")
-    with engine.begin() as connection:
-        assert connection.execute(text("SELECT name FROM ingredients ORDER BY id")).scalars().all() == ["Egg", "flour"]
-        # Autogenerate can't see collations, so check the rebuilt tables directly.
-        for table in NAMED_TABLES:
-            sql = connection.execute(text("SELECT sql FROM sqlite_master WHERE name = :t"), {"t": table}).scalar_one()
-            assert 'name VARCHAR COLLATE "NOCASE" NOT NULL' in sql, table
-        with pytest.raises(IntegrityError):
-            connection.execute(text("INSERT INTO recipes (name, created_user_id) VALUES ('PIE', 1)"))
-
-    command.downgrade(alembic_config, "f88b533c9cdd")
-    with engine.begin() as connection:
-        connection.execute(text("INSERT INTO ingredients (name) VALUES ('EGG')"))  # case-sensitive again
-    engine.dispose()
-
-
-def test_case_only_duplicates_stop_the_migration(alembic_config: Config):
-    command.upgrade(alembic_config, "f88b533c9cdd")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        _insert_named_rows(connection, "('Egg'), ('egg'), ('flour')")
-
-    with pytest.raises(RuntimeError, match="ingredients: Egg, egg"):
-        command.upgrade(alembic_config, "fa0638d0971c")
-
-    with engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == "f88b533c9cdd"
-        assert connection.execute(text("SELECT count(*) FROM ingredients")).scalar() == 3
-    engine.dispose()
-
-
-def test_recipe_names_become_unique_per_cookbook(alembic_config: Config):
-    command.upgrade(alembic_config, "fa0638d0971c")
-    engine = create_engine(alembic_config.attributes["url"])
-    insert = "INSERT INTO recipes (name, created_user_id, cookbook_id) VALUES ('{}', 1, {})"
-    with engine.begin() as connection:
-        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
-        connection.execute(text("INSERT INTO authors (id, name) VALUES (1, 'a')"))
-        connection.execute(text("INSERT INTO cookbooks (id, name, author_id) VALUES (1, 'c1', 1), (2, 'c2', 1)"))
-        connection.execute(text(insert.format("Pie", 1)))
-        connection.execute(text(insert.format("Tart", "NULL")))
-
-    command.upgrade(alembic_config, "46ca2fd01026")
-    with engine.begin() as connection:
-        assert connection.execute(text("SELECT name, cookbook_id FROM recipes ORDER BY id")).all() == [("Pie", 1), ("Tart", None)]
-        connection.execute(text(insert.format("pie", 2)))
-        connection.execute(text(insert.format("Pie", "NULL")))
-    for name, cookbook in (("PIE", 1), ("tart", "NULL")):
-        with pytest.raises(IntegrityError), engine.begin() as connection:
-            connection.execute(text(insert.format(name, cookbook)))
+    check_known_revision(engine, alembic_config)  # new database: nothing to refuse
+    command.upgrade(alembic_config, "head")
+    check_known_revision(engine, alembic_config)  # at head
 
     with engine.begin() as connection:
-        connection.execute(text("DELETE FROM recipes WHERE id > 2"))
-    command.downgrade(alembic_config, "fa0638d0971c")
-    with pytest.raises(IntegrityError), engine.begin() as connection:
-        connection.execute(text(insert.format("PIE", 2)))  # unique app-wide again
-    engine.dispose()
-
-
-def _insert_cookbooks(connection, names: str) -> None:
-    connection.execute(text("INSERT INTO authors (id, name) VALUES (1, 'Julia'), (2, 'Jacques')"))
-    connection.execute(text(f"INSERT INTO cookbooks (name, author_id) VALUES {names}"))
-
-
-def test_cookbook_names_become_unique_per_author(alembic_config: Config):
-    command.upgrade(alembic_config, "08e03b8561b7")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        _insert_cookbooks(connection, "('Basics', 1), ('Basics', 2)")
-
-    command.upgrade(alembic_config, "f8a75ac06317")
-    with engine.begin() as connection:
-        assert connection.execute(text("SELECT name, author_id FROM cookbooks ORDER BY id")).all() == [("Basics", 1), ("Basics", 2)]
-    with pytest.raises(IntegrityError), engine.begin() as connection:
-        connection.execute(text("INSERT INTO cookbooks (name, author_id) VALUES ('BASICS', 1)"))
-
-    command.downgrade(alembic_config, "08e03b8561b7")
-    with engine.begin() as connection:
-        connection.execute(text("INSERT INTO cookbooks (name, author_id) VALUES ('Basics', 1)"))
-    engine.dispose()
-
-
-def test_duplicate_cookbooks_stop_the_migration(alembic_config: Config):
-    command.upgrade(alembic_config, "08e03b8561b7")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        _insert_cookbooks(connection, "('Basics', 1), ('basics', 1), ('Basics', 2)")
-
-    with pytest.raises(RuntimeError, match="Julia: Basics, basics"):
-        command.upgrade(alembic_config, "f8a75ac06317")
-
-    with engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == "08e03b8561b7"
-        assert connection.execute(text("SELECT count(*) FROM cookbooks")).scalar() == 3
-    engine.dispose()
-
-
-def test_existing_shopping_ticks_become_unticked(alembic_config: Config):
-    command.upgrade(alembic_config, "81dad1b1f59e")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        connection.execute(text("INSERT INTO ingredients (id, name) VALUES (1, 'butter')"))
-        connection.execute(text("INSERT INTO measurements (id, name) VALUES (1, 'cup')"))
-        connection.execute(text("INSERT INTO shopping_list_checks (ingredient_id, measurement_id) VALUES (1, 1)"))
-
-    command.upgrade(alembic_config, "5abfb0e76e51")
-    with engine.connect() as connection:
-        # A tick with no amount covers nothing, so its line shows as to buy until ticked again.
-        assert connection.execute(text("SELECT * FROM shopping_list_checks")).all() == [(1, 1, "0")]
-    engine.dispose()
-
-
-def test_listed_recipes_start_at_one_batch(alembic_config: Config):
-    command.upgrade(alembic_config, "76e4d76a644b")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
-        connection.execute(text("INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'Toast', 1)"))
-        connection.execute(text("INSERT INTO shopping_list_recipes (recipe_id, servings) VALUES (1, NULL)"))
-
-    command.upgrade(alembic_config, "6f377117db24")
-    with engine.connect() as connection:
-        assert connection.execute(text("SELECT recipe_id, servings, batches FROM shopping_list_recipes")).all() == [(1, None, 1)]
-    engine.dispose()
-
-
-def test_imports_with_a_recipe_count_as_saved(alembic_config: Config):
-    command.upgrade(alembic_config, "6ea90a3c6b5b")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        connection.execute(text("INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)"))
-        connection.execute(text("INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'Toast', 1)"))
-        columns = "(id, recipe_id, source, model, input_tokens, output_tokens, outcome)"
-        connection.execute(
-            text(f"INSERT INTO recipe_imports {columns} VALUES (1, 1, 'text', 'm', 1, 1, 'draft'), (2, NULL, 'text', 'm', 1, 1, 'draft')")
-        )
-
-    command.upgrade(alembic_config, "4fdd43150710")
-    with engine.connect() as connection:
-        assert connection.execute(text("SELECT id, saved FROM recipe_imports ORDER BY id")).all() == [(1, 1), (2, 0)]
-    engine.dispose()
-
-
-def test_imports_from_before_originals_have_none(alembic_config: Config):
-    command.upgrade(alembic_config, "4fdd43150710")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        columns = "(id, source, model, input_tokens, output_tokens, outcome)"
-        connection.execute(text(f"INSERT INTO recipe_imports {columns} VALUES (1, 'url', 'm', 1, 1, 'draft')"))
-
-    command.upgrade(alembic_config, "0562f0467369")
-    with engine.connect() as connection:
-        row = connection.execute(text("SELECT original, original_parts, page_url FROM recipe_imports")).one()
-        assert tuple(row) == (None, 0, None)
-    engine.dispose()
-
-
-def test_ingredient_and_requirement_positions_follow_insert_order(alembic_config: Config):
-    command.upgrade(alembic_config, "0562f0467369")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        for sql in (
-            "INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)",
-            "INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'r1', 1), (2, 'r2', 1)",
-            "INSERT INTO ingredients (id, name) VALUES (1, 'salt')",
-            "INSERT INTO measurements (id, name) VALUES (1, 'pinch')",
-            # Interleaved across recipes, so each recipe's numbering must restart at 0.
-            "INSERT INTO requirements (id, name, recipe_id) VALUES (10, 'a', 1), (11, 'x', 2), (12, 'b', 1), (13, 'c', 1)",
-            (
-                "INSERT INTO recipe_ingredients (id, recipe_id, amount_numerator, ingredient_id, measurement_id)"
-                " VALUES (20, 2, 1, 1, 1), (21, 1, 1, 1, 1), (22, 2, 1, 1, 1)"
-            ),
-        ):
-            connection.execute(text(sql))
-
-    command.upgrade(alembic_config, "97d16776d9ac")
-    with engine.connect() as connection:
-        requirements = connection.execute(text("SELECT id, recipe_id, position FROM requirements ORDER BY id")).all()
-        assert requirements == [(10, 1, 0), (11, 2, 0), (12, 1, 1), (13, 1, 2)]
-        lines = connection.execute(text("SELECT id, recipe_id, position FROM recipe_ingredients ORDER BY id")).all()
-        assert lines == [(20, 2, 0), (21, 1, 0), (22, 2, 1)]
-    engine.dispose()
-
-
-def test_recipes_from_before_authors_groups_and_notes_have_none(alembic_config: Config):
-    command.upgrade(alembic_config, "97d16776d9ac")
-    engine = create_engine(alembic_config.attributes["url"])
-    with engine.begin() as connection:
-        for sql in (
-            "INSERT INTO users (id, username, full_name, is_active, is_superuser) VALUES (1, 'u', 'U', 1, 0)",
-            "INSERT INTO recipes (id, name, created_user_id) VALUES (1, 'r', 1)",
-            "INSERT INTO ingredients (id, name) VALUES (1, 'salt')",
-            "INSERT INTO measurements (id, name) VALUES (1, 'pinch')",
-            (
-                "INSERT INTO recipe_ingredients (id, recipe_id, amount_numerator, ingredient_id, measurement_id, position)"
-                " VALUES (1, 1, 1, 1, 1, 0)"
-            ),
-        ):
-            connection.execute(text(sql))
-
-    command.upgrade(alembic_config, "a688f6a63a90")
-    with engine.connect() as connection:
-        assert connection.execute(text("SELECT author_id FROM recipes")).scalar_one() is None
-        assert tuple(connection.execute(text('SELECT "group", note FROM recipe_ingredients')).one()) == (None, None)
+        connection.execute(text("UPDATE alembic_version SET version_num = 'a688f6a63a90'"))  # the head before #194
+    with pytest.raises(SystemExit, match="(?s)a688f6a63a90, from before the 1.0 baseline.*--reset"):
+        check_known_revision(engine, alembic_config)
     engine.dispose()
