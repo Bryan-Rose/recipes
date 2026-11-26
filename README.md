@@ -33,70 +33,45 @@ If your user id isn't 1000, set `RECIPES_UID`/`RECIPES_GID`.
 
 ## Deploying behind Caddy
 
-The stack listens on `127.0.0.1:8080` (frontend container), so only a reverse
-proxy on the same host can reach it. Caddy terminates HTTPS and proxies everything
-to it; nginx in the frontend container handles `/api` itself.
+The frontend container is the only way in, and only a reverse proxy should reach
+it. Caddy terminates HTTPS and proxies everything to it; nginx in the frontend
+container handles `/api` itself.
 
-**First deploy**, on the server. With Caddy in Docker, do the
-`compose.server.yml` step under **Caddy in Docker** below before the first
-`docker compose up`, so the stack never starts with the default compose file.
+**Caddy in Docker** (the production setup). The deploy folder holds the
+server's own files, and the source is a git clone in its `src/` subfolder:
+
+```
+recipes/
+├── compose.yml   # copied from src/compose.server.example.yml; builds from ./src
+├── .env          # copied from src/.env.example
+├── data/         # database, images, import originals
+└── src/          # git clone
+```
+
+The frontend runs as container `whattoeat` on the external Docker network
+`rproxy`, which Caddy's container must also join, with no host port. Compose
+doesn't create an external network, so it must exist first. **First deploy**:
 
 ```bash
-git clone https://github.com/Bryan-Rose/recipes.git && cd recipes
-cp .env.example .env
-#   set RECIPES_COOKIE_SECURE=true (required behind HTTPS)
+mkdir recipes && cd recipes
+git clone https://github.com/Bryan-Rose/recipes.git src
+cp src/compose.server.example.yml compose.yml
+cp src/.env.example .env
+mkdir data                 # owned by RECIPES_UID/RECIPES_GID (default 1000)
+#   in .env: set RECIPES_COOKIE_SECURE=true (required behind HTTPS)
 #   set RECIPES_UID/RECIPES_GID if your user isn't 1000 (`id -u`, `id -g`)
 #   optional import: RECIPES_ANTHROPIC_API_KEY
 #   optional SSO: RECIPES_OIDC_* with redirect URI https://<your-domain>/api/auth/oidc/callback,
 #     RECIPES_SECRET_KEY, and RECIPES_OIDC_CREATE_USERS (see below)
+docker network inspect rproxy >/dev/null 2>&1 || docker network create rproxy
 docker compose up -d --build
 docker compose exec backend python -m scripts.create_user <you> --admin
 docker compose exec backend python -m scripts.seed_lookups   # optional: starter measurements, preparations, ingredients
 ```
 
-**Who can sign in with SSO.** `RECIPES_OIDC_CREATE_USERS` defaults to `true`:
-anyone your identity provider lets into this client gets an account on their
-first SSO login. To admit only people you've added, set it to `false` and create
-each one with `create_user <name> --sso-only` (add `--admin` for admins); they
-are linked on first login by the IdP's `preferred_username`.
-
-**Caddy on the host.** Add to the Caddyfile and reload Caddy:
-
-```
-recipes.example.com {
-	encode zstd gzip
-	reverse_proxy 127.0.0.1:8080
-}
-```
-
-`encode` compresses responses. nginx in the frontend container already gzips, and
-Caddy passes that through, but `encode` also gives zstd to browsers that support it.
-The recipe list (`GET /api/recipes/`) carries every recipe, so compression matters
-on slow connections.
-
-**Login rate limit.** nginx allows each client address about 10 password logins a
-minute after a burst of 30, and answers 429 beyond that (`frontend/nginx.conf`). It
-takes the address from the last `X-Forwarded-For` entry when the request comes from
-a private address (Caddy on the host or in Docker), so keep a proxy in front: with
-`RECIPES_BIND=0.0.0.0`, clients on the LAN could set that header themselves.
-
-**Caddy in Docker** (the production setup). `compose.server.example.yml` is the
-server's compose file. The frontend runs as container `whattoeat` on the
-external Docker network `rproxy`, which Caddy's container must also join, with
-no host port. Compose doesn't create an external network, so it must exist
-first. Copy the file to the git-ignored `compose.server.yml`, and point compose
-at it from `.env` so plain `docker compose` commands use it and `git pull` never
-conflicts with your edits:
-
-```bash
-docker network inspect rproxy >/dev/null 2>&1 || docker network create rproxy
-cp compose.server.example.yml compose.server.yml
-echo 'COMPOSE_FILE=compose.server.yml' >> .env
-docker compose up -d --build
-```
-
-Caddy reaches nginx by the container's `hostname` (Docker's network DNS resolves it)
-on the container's own port, **80**, not the host port:
+Run `docker compose` from the deploy folder, not `src/`. Caddy reaches nginx by
+the container's `hostname` (Docker's network DNS resolves it) on the container's
+own port, **80**:
 
 ```
 recipes.example.com {
@@ -105,15 +80,45 @@ recipes.example.com {
 }
 ```
 
-When `compose.yml` changes upstream (a new setting or healthcheck), carry the
-change over to `compose.server.yml` by hand.
+`encode` compresses responses. nginx in the frontend container already gzips, and
+Caddy passes that through, but `encode` also gives zstd to browsers that support it.
+The recipe list (`GET /api/recipes/`) carries every recipe, so compression matters
+on slow connections.
 
-**Updating:** pull and rebuild:
+When `src/compose.server.example.yml` changes upstream (a new setting or
+healthcheck), carry the change over to `compose.yml` by hand.
+
+**Caddy on the host.** Run the stack from the clone itself, as under **Running**
+(with `RECIPES_COOKIE_SECURE=true` in `.env`). It listens on `127.0.0.1:8080`;
+add to the Caddyfile and reload Caddy:
+
+```
+recipes.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080
+}
+```
+
+**Who can sign in with SSO.** `RECIPES_OIDC_CREATE_USERS` defaults to `true`:
+anyone your identity provider lets into this client gets an account on their
+first SSO login. To admit only people you've added, set it to `false` and create
+each one with `create_user <name> --sso-only` (add `--admin` for admins); they
+are linked on first login by the IdP's `preferred_username`.
+
+**Login rate limit.** nginx allows each client address about 10 password logins a
+minute after a burst of 30, and answers 429 beyond that (`frontend/nginx.conf`). It
+takes the address from the last `X-Forwarded-For` entry when the request comes from
+a private address (Caddy on the host or in Docker), so keep a proxy in front: with
+`RECIPES_BIND=0.0.0.0`, clients on the LAN could set that header themselves.
+
+**Updating:** pull and rebuild, from the deploy folder:
 
 ```bash
-git pull
+git -C src pull
 docker compose up -d --build
 ```
+
+(With Caddy on the host, plain `git pull` in the clone.)
 
 Migrations run automatically when the backend starts, in
 one transaction, so a migration that fails leaves the database as it was. Before

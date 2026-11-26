@@ -1,3 +1,1 @@
 .env
-# The server's own compose file, copied from compose.server.example.yml (see README, Deploying)
-compose.server.yml
