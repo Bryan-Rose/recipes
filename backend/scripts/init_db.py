@@ -153,14 +153,18 @@ def seed(db: Session) -> None:
 def check_known_revision(engine: Engine, config: Config) -> None:
     """Refuses a database at a revision this version doesn't have, before alembic fails with "Can't locate revision".
 
-    That's every database made before the 1.0 baseline (#194), which replaced all earlier migrations.
+    It's either from before the 1.0 baseline (#194), which replaced all earlier migrations, or from a newer version
+    (an image rolled back without restoring its backup). There's no telling which, so the message gives both ways out,
+    and never offers --reset alone: on the second, that would delete data a restore would keep.
     """
     with engine.connect() as connection:
         current = MigrationContext.configure(connection).get_current_revision()
     if current is not None and current not in {script.revision for script in ScriptDirectory.from_config(config).walk_revisions()}:
         raise SystemExit(
-            f"This database is at revision {current}, from before the 1.0 baseline, and can't be upgraded in place.\n"
-            "Recreate it with --reset (this deletes its data)."
+            f"This database is at revision {current}, which this version doesn't know. Either:\n"
+            "- it's from a newer version, after rolling back to this one: restore the backup this version upgraded\n"
+            "  from (data/app.db.pre-<this version's revision>-*.bak; see README, Rolling back), or\n"
+            "- it's from before the 1.0 baseline: recreate it with --reset (this deletes its data)."
         )
 
 
