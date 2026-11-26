@@ -1,10 +1,12 @@
-# Full stack: http://localhost:8080 (change with RECIPES_PORT in .env).
+# The server's compose file (Caddy in Docker; see README, Deploying). Copy it to compose.yml in
+# the deploy folder, next to .env and data/, with this repo cloned into src/:
 #   docker compose up -d --build
 #   docker compose exec backend python -m scripts.create_user <you> --admin
 # The database, uploaded images and import originals live in ./data on the host (bind mount).
+# Apart from the build paths and the Caddy network, keep it in step with compose.yml.
 services:
   backend:
-    build: ./backend
+    build: ./src/backend
     # Match the owner of ./data so the container can write to it.
     user: "${RECIPES_UID:-1000}:${RECIPES_GID:-1000}"
     env_file:
@@ -22,7 +24,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build: ./src/frontend
     container_name: whattoeat
     hostname: whattoeat.docker.internal
     networks:
