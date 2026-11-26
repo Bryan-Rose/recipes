@@ -17,7 +17,7 @@ through reviewed pull requests, guided by `AGENTS.md`.
 ## Running
 
 The full stack runs with Docker Compose: nginx serves the frontend and proxies
-`/api` to the FastAPI backend, and the SQLite database and uploaded images live in `./data`.
+`/api` to the FastAPI backend. The SQLite database, uploaded images and import originals live in `./data`.
 
 ```bash
 cp .env.example .env              # optional: port, HTTPS cookies, OIDC SSO, recipe import
@@ -37,17 +37,28 @@ The stack listens on `127.0.0.1:8080` (frontend container), so only a reverse
 proxy on the same host can reach it. Caddy terminates HTTPS and proxies everything
 to it; nginx in the frontend container handles `/api` itself.
 
-**First deploy**, on the server:
+**First deploy**, on the server. With Caddy in Docker, do the
+`compose.server.yml` step under **Caddy in Docker** below before the first
+`docker compose up`, so the stack never starts with the default compose file.
 
 ```bash
 git clone https://github.com/Bryan-Rose/recipes.git && cd recipes
 cp .env.example .env
 #   set RECIPES_COOKIE_SECURE=true (required behind HTTPS)
 #   set RECIPES_UID/RECIPES_GID if your user isn't 1000 (`id -u`, `id -g`)
-#   optional SSO: RECIPES_OIDC_* with redirect URI https://<your-domain>/api/auth/oidc/callback
+#   optional import: RECIPES_ANTHROPIC_API_KEY
+#   optional SSO: RECIPES_OIDC_* with redirect URI https://<your-domain>/api/auth/oidc/callback,
+#     RECIPES_SECRET_KEY, and RECIPES_OIDC_CREATE_USERS (see below)
 docker compose up -d --build
 docker compose exec backend python -m scripts.create_user <you> --admin
+docker compose exec backend python -m scripts.seed_lookups   # optional: starter measurements, preparations, ingredients
 ```
+
+**Who can sign in with SSO.** `RECIPES_OIDC_CREATE_USERS` defaults to `true`:
+anyone your identity provider lets into this client gets an account on their
+first SSO login. To admit only people you've added, set it to `false` and create
+each one with `create_user <name> --sso-only` (add `--admin` for admins); they
+are linked on first login by the IdP's `preferred_username`.
 
 **Caddy on the host.** Add to the Caddyfile and reload Caddy:
 
@@ -70,12 +81,15 @@ a private address (Caddy on the host or in Docker), so keep a proxy in front: wi
 `RECIPES_BIND=0.0.0.0`, clients on the LAN could set that header themselves.
 
 **Caddy in Docker** (the production setup). `compose.server.example.yml` is the
-server's compose file. The frontend runs as container `whattoeat` on Caddy's
-external `rproxy` network, with no host port. Copy it to the git-ignored
-`compose.server.yml`, and point compose at it from `.env` so plain
-`docker compose` commands use it and `git pull` never conflicts with your edits:
+server's compose file. The frontend runs as container `whattoeat` on the
+external Docker network `rproxy`, which Caddy's container must also join, with
+no host port. Compose doesn't create an external network, so it must exist
+first. Copy the file to the git-ignored `compose.server.yml`, and point compose
+at it from `.env` so plain `docker compose` commands use it and `git pull` never
+conflicts with your edits:
 
 ```bash
+docker network inspect rproxy >/dev/null 2>&1 || docker network create rproxy
 cp compose.server.example.yml compose.server.yml
 echo 'COMPOSE_FILE=compose.server.yml' >> .env
 docker compose up -d --build
