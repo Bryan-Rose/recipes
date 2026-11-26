@@ -25,7 +25,7 @@
 
 ## 5. e2e
 
-- [x] 5.1 In `compose.e2e.yml`, set `RECIPES_ALLOWED_SUBNETS` (the tests' `198.18.0.0/16` plus the private ranges) on backend and frontend, and `RECIPES_AUTH_ENABLED: ${RECIPES_E2E_AUTH_ENABLED:-true}` on the backend. Add a spec that sends `X-Forwarded-For: 203.0.113.5` and expects 403 for `/` and `/api/auth/config`. Verify by running `make e2e`
+- [x] 5.1 In `compose.e2e.yml`, set `RECIPES_ALLOWED_SUBNETS` (the tests' `198.18.0.0/16`, `auth.spec.ts`'s `203.0.113.0/24`, plus the private ranges) on backend and frontend, and `RECIPES_AUTH_ENABLED: ${RECIPES_E2E_AUTH_ENABLED:-true}` on the backend. Add a spec that sends `X-Forwarded-For: 192.0.2.5` and expects 403 for `/` and `/api/auth/config`. Verify by running `make e2e`
 - [x] 5.2 Add `@no-login` journeys: open the app with no login page and no Sign out, Account or Users link; create a recipe through the UI and see it in the list. Change `make e2e` to run the main suite with `--grep-invert @no-login`, recreate the backend with `RECIPES_E2E_AUTH_ENABLED=false`, run `--grep @no-login`, and exit non-zero if either run failed. Verify with `make e2e`, then break the household branch and confirm the `@no-login` step fails
 
 ## 6. Docs
