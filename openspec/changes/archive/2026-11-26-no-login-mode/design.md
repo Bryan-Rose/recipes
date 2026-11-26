@@ -62,10 +62,10 @@ A small `@app.middleware("http")` in `app/main.py` returns 403 JSON (`{"detail":
 
 ### e2e
 `compose.e2e.yml`:
-- sets `RECIPES_ALLOWED_SUBNETS: "198.18.0.0/16 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16"` on both backend and frontend. The tests' own range, plus the Docker ranges, so the runner's contexts that send no `X-Forwarded-For` still get in.
+- sets `RECIPES_ALLOWED_SUBNETS: "198.18.0.0/16 203.0.113.0/24 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16"` on both backend and frontend. That is the tests' own range, plus `auth.spec.ts`'s login-flood addresses, plus the Docker ranges, so the runner's contexts that send no `X-Forwarded-For` still get in.
 - sets `RECIPES_AUTH_ENABLED: ${RECIPES_E2E_AUTH_ENABLED:-true}` on the backend.
 
-A new spec sends `X-Forwarded-For: 203.0.113.5` and expects 403 for `/` and `/api/auth/config`.
+A new spec sends `X-Forwarded-For: 192.0.2.5` (outside the list) and expects 403 for `/` and `/api/auth/config`.
 
 Login-free tests carry Playwright's `{ tag: '@no-login' }`. `make e2e`:
 1. runs the main suite with `--grep-invert @no-login`;
